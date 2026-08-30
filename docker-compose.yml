@@ -9,7 +9,9 @@ x-app: &app
       GID: ${GID:-1000}
   image: yetkaz-app:local
   user: "${UID:-1000}:${GID:-1000}"
-  env_file: .env
+  # .env konteyner ENV sifatida INJECT QILINMAYDI — Laravel uni bind-mount qilingan
+  # /app/.env fayldan o'zi o'qiydi. Aks holda phpunit.xml dagi test override'lari
+  # (APP_ENV=testing, DB_DATABASE=yetkaz_test) $_SERVER tomonidan bloklanadi.
   volumes:
     - ./:/app
     - vendor:/app/vendor
