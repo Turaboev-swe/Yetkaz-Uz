@@ -16,15 +16,20 @@ use Illuminate\Support\Collection;
  */
 class RestaurantFinder
 {
-    /** @return Collection<int, Restaurant> */
-    public function deliveringTo(Address $address): Collection
+    /**
+     * @param  int|null  $districtId  faqat shu tuman restoranlari (ko'rsatish filtri;
+     *                                masofa/radius baribir lat/lng dan)
+     * @return Collection<int, Restaurant>
+     */
+    public function deliveringTo(Address $address, ?int $districtId = null): Collection
     {
         return Restaurant::query()
             ->select('restaurants.*')
             ->where('is_open', true)
+            ->when($districtId, fn ($q) => $q->where('district_id', $districtId))
             ->deliversTo($address->lat, $address->lng)
             ->withDistanceKm($address->lat, $address->lng)
-            ->with('city')
+            ->with('district.region')
             ->orderBy('distance_km')
             ->get()
             ->filter(fn (Restaurant $r) => $r->isOpenNow())

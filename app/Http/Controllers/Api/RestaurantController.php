@@ -21,11 +21,21 @@ class RestaurantController extends Controller
         private readonly MenuService $menuService,
     ) {}
 
-    /** GET /api/restaurants?address_id= — shu manzilга yetkazadigan ochiq restoranlar. */
+    /**
+     * GET /api/restaurants?address_id=&district_id= — shu manzilга yetkazadigan
+     * ochiq restoranlar. `district_id` — ixtiyoriy ko'rsatish filtri.
+     */
     public function index(Request $request): AnonymousResourceCollection
     {
+        $validated = $request->validate([
+            'district_id' => ['nullable', 'integer', 'exists:districts,id'],
+        ]);
+
         return RestaurantResource::collection(
-            $this->finder->deliveringTo($this->resolveUserAddress($request)),
+            $this->finder->deliveringTo(
+                $this->resolveUserAddress($request),
+                $validated['district_id'] ?? null,
+            ),
         );
     }
 

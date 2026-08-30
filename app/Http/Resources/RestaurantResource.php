@@ -17,7 +17,13 @@ class RestaurantResource extends JsonResource
             'name' => $this->name,
             'logo_url' => $this->logo_url,
             'phone' => $this->phone,
-            'city' => $this->whenLoaded('city', fn () => $this->city?->name),
+            'lat' => $this->lat,
+            'lng' => $this->lng,
+            'district' => $this->whenLoaded('district', fn () => [
+                'id' => $this->district?->id,
+                'name' => $this->district?->name,
+                'region' => $this->district?->relationLoaded('region') ? $this->district->region?->name : null,
+            ]),
             // Pul — tiyinda (1 so'm = 100 tiyin).
             'min_order_amount' => $this->min_order_amount,
             'delivery_fee' => $this->delivery_fee,
