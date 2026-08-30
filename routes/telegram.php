@@ -1,8 +1,10 @@
 <?php
 
-/** @var SergiX44\Nutgram\Nutgram $bot */
+/** @var Nutgram $bot */
 
-use Illuminate\Support\Facades\Log;
+use App\Telegram\Handlers\MenuHandler;
+use App\Telegram\Handlers\StartHandler;
+use App\Telegram\Middleware\ResolveUser;
 use SergiX44\Nutgram\Nutgram;
 
 /*
@@ -10,26 +12,17 @@ use SergiX44\Nutgram\Nutgram;
 | Nutgram Handlers
 |--------------------------------------------------------------------------
 |
-| Bu yerda Telegram handlerlari ro'yxatdan o'tkaziladi. Ular
-| NutgramServiceProvider tomonidan yuklanadi.
+| Telegram handlerlari. NutgramServiceProvider tomonidan yuklanadi.
+| Biznes mantiq handlerlarda emas — Service klasslarida.
 |
-| Hozircha faqat ulanishni tekshirish uchun /start handleri bor —
-| u foydalanuvchiga salom yozadi va telegram_id sini qaytaradi.
-| Baza bilan ishlamaydi (ro'yxatdan o'tish oqimi keyingi bosqichda).
+| 2-bosqich: ro'yxatdan o'tish oqimi (telefon -> ism -> lokatsiya).
 |
 */
 
-$bot->onCommand('start', function (Nutgram $bot) {
-    $user = $bot->user();
-    $name = trim(($user?->first_name ?? '').' '.($user?->last_name ?? ''));
-    $greeting = $name !== '' ? "Salom, {$name}!" : 'Salom!';
+$bot->middleware(ResolveUser::class);
 
-    // Ulanishni tekshirish uchun — 2-bosqichda olib tashlanadi.
-    Log::info('Telegram /start', ['telegram_id' => $bot->userId(), 'username' => $user?->username]);
+$bot->onCommand('start', StartHandler::class)
+    ->description('Botni ishga tushirish');
 
-    $bot->sendMessage(
-        $greeting." 👋\n\n".
-        "Yetkaz botiga ulanish ishlayapti ✅\n".
-        "Sizning Telegram ID: {$bot->userId()}"
-    );
-})->description('Botni ishga tushirish');
+// Buyruq bo'lmagan xabarlar (menyu tugmalari, matn) — suhbat faol bo'lmaganda.
+$bot->fallback(MenuHandler::class);
