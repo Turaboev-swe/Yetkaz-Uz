@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Enums\PosType;
 use App\Models\City;
 use App\Models\Restaurant;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -16,7 +17,7 @@ class RestaurantFactory extends Factory
             'city_id' => City::factory(),
             'lat' => fake()->latitude(41.2, 41.4),
             'lng' => fake()->longitude(69.1, 69.4),
-            'phone' => '+9987' . fake()->numberBetween(1_000_000, 9_999_999),
+            'phone' => '+9987'.fake()->numberBetween(1_000_000, 9_999_999),
             'logo_url' => null,
             'avg_prep_time_min' => fake()->numberBetween(15, 40),
             'delivery_radius_km' => fake()->randomElement([3, 5, 7, 10]),
@@ -32,7 +33,7 @@ class RestaurantFactory extends Factory
                 'sat' => [['10:00', '23:00']],
                 'sun' => [['10:00', '23:00']],
             ],
-            'pos_type' => 'manual',
+            'pos_type' => PosType::Manual,
             'printer_host' => null,
             'printer_port' => 9100,
             'pos_credentials' => null,
@@ -46,6 +47,6 @@ class RestaurantFactory extends Factory
 
     public function escpos(string $host = '192.168.1.50'): static
     {
-        return $this->state(fn () => ['pos_type' => 'escpos', 'printer_host' => $host]);
+        return $this->state(fn () => ['pos_type' => PosType::EscPos, 'printer_host' => $host]);
     }
 }

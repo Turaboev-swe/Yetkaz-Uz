@@ -2,6 +2,10 @@
 
 namespace App\Models;
 
+use App\Enums\OrderStatus;
+use App\Enums\PaymentMethod;
+use App\Enums\PaymentStatus;
+use Database\Factories\OrderFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -10,17 +14,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Order extends Model
 {
-    /** @use HasFactory<\Database\Factories\OrderFactory> */
+    /** @use HasFactory<OrderFactory> */
     use HasFactory;
-
-    public const STATUSES = ['new', 'accepted', 'preparing', 'on_the_way', 'delivered', 'cancelled'];
-
-    /** Restoran uchun "faol" hisoblanadigan statuslar (navbat jarimasi hisobida). */
-    public const ACTIVE_STATUSES = ['new', 'accepted', 'preparing', 'on_the_way'];
-
-    public const PAYMENT_METHODS = ['payme', 'click', 'cash'];
-
-    public const PAYMENT_STATUSES = ['pending', 'paid', 'failed', 'refunded'];
 
     protected $fillable = [
         'order_number',
@@ -51,6 +46,9 @@ class Order extends Model
             'subtotal' => 'integer',
             'delivery_fee' => 'integer',
             'total' => 'integer',
+            'status' => OrderStatus::class,
+            'payment_method' => PaymentMethod::class,
+            'payment_status' => PaymentStatus::class,
             'eta_minutes' => 'integer',
             'distance_km' => 'float',
             'dispatched_at' => 'datetime',
@@ -86,11 +84,11 @@ class Order extends Model
 
     public function scopeActive(Builder $query): Builder
     {
-        return $query->whereIn('status', self::ACTIVE_STATUSES);
+        return $query->whereIn('status', OrderStatus::activeValues());
     }
 
     public function isActive(): bool
     {
-        return in_array($this->status, self::ACTIVE_STATUSES, true);
+        return $this->status->isActive();
     }
 }

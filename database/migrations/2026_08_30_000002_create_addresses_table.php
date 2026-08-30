@@ -5,9 +5,6 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
-// PostGIS geografik indeks — lat/lng dan hisoblangan nuqta bo'yicha (funksional GIST).
-// Alohida ustun saqlanmaydi, shu bilan Eloquent yozuvlari sodda qoladi.
-
 return new class extends Migration
 {
     public function up(): void
@@ -29,10 +26,14 @@ return new class extends Migration
             $table->index(['user_id', 'is_default']);
         });
 
+        // lat/lng dan avtomatik hisoblanadigan PostGIS geography ustuni (restaurants bilan bir xil).
         DB::statement(<<<'SQL'
-            CREATE INDEX addresses_geo_gist ON addresses
-            USING GIST ((ST_SetSRID(ST_MakePoint(lng, lat), 4326)::geography))
+            ALTER TABLE addresses
+                ADD COLUMN location geography(Point, 4326)
+                GENERATED ALWAYS AS (ST_SetSRID(ST_MakePoint(lng, lat), 4326)::geography) STORED
         SQL);
+
+        DB::statement('CREATE INDEX addresses_location_gist ON addresses USING GIST (location)');
 
         // Har foydalanuvchida faqat bitta is_default = true manzil bo'lishi mumkin.
         DB::statement(<<<'SQL'

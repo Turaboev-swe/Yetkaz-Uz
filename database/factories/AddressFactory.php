@@ -13,7 +13,7 @@ class AddressFactory extends Factory
     {
         return [
             'user_id' => User::factory(),
-            'label' => fake()->randomElement(['Uy', 'Ish', null]),
+            'label' => fake()->randomElement([Address::LABEL_HOME, Address::LABEL_WORK, null]),
             'lat' => fake()->latitude(41.2, 41.4),
             'lng' => fake()->longitude(69.1, 69.4),
             'address_text' => fake()->streetAddress(),

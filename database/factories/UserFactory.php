@@ -15,8 +15,8 @@ class UserFactory extends Factory
         return [
             'telegram_id' => fake()->unique()->numberBetween(10_000_000, 999_999_999),
             'full_name' => fake()->name(),
-            'phone' => '+9989' . fake()->numberBetween(00_000_000, 99_999_999),
-            'language' => fake()->randomElement(['uz', 'ru']),
+            'phone' => '+998'.fake()->numberBetween(900_000_000, 999_999_999),
+            'language' => fake()->randomElement(User::LANGUAGES),
             'profile_completed' => true,
             'last_seen_at' => now(),
         ];

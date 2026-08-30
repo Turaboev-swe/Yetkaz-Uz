@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use Database\Factories\AddressFactory;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -9,8 +11,13 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Address extends Model
 {
-    /** @use HasFactory<\Database\Factories\AddressFactory> */
+    /** @use HasFactory<AddressFactory> */
     use HasFactory;
+
+    /** Ro'yxatdan o'tishda saqlanadigan asosiy manzil yorlig'i. */
+    public const LABEL_HOME = 'Uy';
+
+    public const LABEL_WORK = 'Ish';
 
     protected $fillable = [
         'user_id',
@@ -23,6 +30,11 @@ class Address extends Model
         'apartment',
         'note',
         'is_default',
+    ];
+
+    /** `location` — PostGIS tomonidan lat/lng dan hisoblanadi, qo'lda yozilmaydi. */
+    protected $hidden = [
+        'location',
     ];
 
     protected function casts(): array
@@ -44,5 +56,10 @@ class Address extends Model
     public function orders(): HasMany
     {
         return $this->hasMany(Order::class);
+    }
+
+    public function scopeDefault(Builder $query): Builder
+    {
+        return $query->where('is_default', true);
     }
 }

@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Enums\OrderStatus;
 use App\Models\Address;
 use App\Models\Category;
 use App\Models\City;
@@ -50,17 +51,42 @@ class DatabaseSchemaTest extends TestCase
 
         foreach ([
             'users_telegram_id_unique',
-            'addresses_geo_gist',
+            'users_phone_index',
+            'addresses_location_gist',
             'addresses_one_default_per_user',
-            'restaurants_geo_gist',
+            'restaurants_location_gist',
             'restaurants_name_trgm',
             'products_name_trgm',
             'products_name_unaccent_trgm',
             'orders_order_number_unique',
+            'orders_status_index',
             'orders_restaurant_id_status_index',
         ] as $index) {
             $this->assertContains($index, $indexes, "`{$index}` indeksi topilmadi");
         }
+    }
+
+    public function test_geography_location_columns_are_generated(): void
+    {
+        foreach (['restaurants', 'addresses'] as $table) {
+            $col = DB::selectOne(
+                'SELECT is_generated, udt_name FROM information_schema.columns
+                 WHERE table_name = ? AND column_name = ?',
+                [$table, 'location'],
+            );
+
+            $this->assertNotNull($col, "`{$table}.location` ustuni yo'q");
+            $this->assertSame('ALWAYS', $col->is_generated);
+            $this->assertSame('geography', $col->udt_name);
+        }
+
+        // lat/lng dan avtomatik to'ladi
+        $r = Restaurant::factory()->create(['lat' => 41.3, 'lng' => 69.25]);
+        $wkt = DB::selectOne(
+            'SELECT ST_AsText(location::geometry) AS wkt FROM restaurants WHERE id = ?',
+            [$r->id],
+        )->wkt;
+        $this->assertSame('POINT(69.25 41.3)', $wkt);
     }
 
     public function test_full_relationship_graph(): void
@@ -79,7 +105,7 @@ class DatabaseSchemaTest extends TestCase
         ]);
         OrderStatusHistory::create([
             'order_id' => $order->id,
-            'status' => 'new',
+            'status' => OrderStatus::New->value,
             'changed_by' => 'system',
         ]);
 

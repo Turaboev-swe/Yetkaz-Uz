@@ -42,12 +42,16 @@ return new class extends Migration
 
         DB::statement("ALTER TABLE restaurants ADD CONSTRAINT restaurants_pos_type_check CHECK (pos_type IN ('jowi','poster','iiko','escpos','manual'))");
 
-        // lat/lng dan hisoblangan geografik nuqta bo'yicha funksional GIST indeks
-        // (ST_DWithin bilan yetkazish radiusidagi restoranlarni tez topish uchun).
+        // lat/lng dan avtomatik hisoblanadigan PostGIS geography ustuni.
+        // GENERATED ALWAYS — qo'lda yozib bo'lmaydi, Postgres o'zi to'ldiradi.
         DB::statement(<<<'SQL'
-            CREATE INDEX restaurants_geo_gist ON restaurants
-            USING GIST ((ST_SetSRID(ST_MakePoint(lng, lat), 4326)::geography))
+            ALTER TABLE restaurants
+                ADD COLUMN location geography(Point, 4326)
+                GENERATED ALWAYS AS (ST_SetSRID(ST_MakePoint(lng, lat), 4326)::geography) STORED
         SQL);
+
+        // ST_DWithin bilan yetkazish radiusidagi restoranlarni tez topish uchun GIST indeks.
+        DB::statement('CREATE INDEX restaurants_location_gist ON restaurants USING GIST (location)');
 
         // Umumiy taom qidiruvida restoran nomini ham chiqarish uchun trigram indeks.
         DB::statement('CREATE INDEX restaurants_name_trgm ON restaurants USING GIN (name gin_trgm_ops)');

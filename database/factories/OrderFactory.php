@@ -2,6 +2,9 @@
 
 namespace Database\Factories;
 
+use App\Enums\OrderStatus;
+use App\Enums\PaymentMethod;
+use App\Enums\PaymentStatus;
 use App\Models\Address;
 use App\Models\Order;
 use App\Models\Restaurant;
@@ -28,15 +31,15 @@ class OrderFactory extends Factory
             'subtotal' => $subtotal,
             'delivery_fee' => $deliveryFee,
             'total' => $subtotal + $deliveryFee,
-            'payment_method' => 'cash',
-            'payment_status' => 'pending',
-            'status' => 'new',
+            'payment_method' => PaymentMethod::Cash,
+            'payment_status' => PaymentStatus::Pending,
+            'status' => OrderStatus::New,
             'eta_minutes' => fake()->numberBetween(25, 60),
             'distance_km' => fake()->randomFloat(2, 0.5, 8),
         ];
     }
 
-    public function status(string $status): static
+    public function status(OrderStatus|string $status): static
     {
         return $this->state(fn () => ['status' => $status]);
     }

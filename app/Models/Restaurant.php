@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Enums\PosType;
+use Database\Factories\RestaurantFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -11,10 +13,8 @@ use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 
 class Restaurant extends Model
 {
-    /** @use HasFactory<\Database\Factories\RestaurantFactory> */
+    /** @use HasFactory<RestaurantFactory> */
     use HasFactory;
-
-    public const POS_TYPES = ['jowi', 'poster', 'iiko', 'escpos', 'manual'];
 
     protected $fillable = [
         'name',
@@ -35,8 +35,10 @@ class Restaurant extends Model
         'pos_credentials',
     ];
 
+    /** `location` — PostGIS tomonidan lat/lng dan hisoblanadi, qo'lda yozilmaydi. */
     protected $hidden = [
         'pos_credentials',
+        'location',
     ];
 
     protected function casts(): array
@@ -50,6 +52,7 @@ class Restaurant extends Model
             'delivery_fee' => 'integer',
             'is_open' => 'boolean',
             'work_hours' => 'array',
+            'pos_type' => PosType::class,
             'pos_credentials' => 'encrypted:array',
             'printer_port' => 'integer',
         ];
@@ -81,21 +84,17 @@ class Restaurant extends Model
 
     /**
      * Berilgan nuqtadan yetkazish radiusi ichidagi restoranlar.
-     * Funksional GIST indeks (restaurants_geo_gist) bilan bir xil ifoda ishlatiladi.
+     * `location` ustuni + GIST indeks (restaurants_location_gist) ishlatiladi.
      */
     public function scopeDeliversTo(Builder $query, float $lat, float $lng): Builder
     {
         return $query->whereRaw(
-            'ST_DWithin(
-                ST_SetSRID(ST_MakePoint(lng, lat), 4326)::geography,
-                ST_SetSRID(ST_MakePoint(?, ?), 4326)::geography,
-                delivery_radius_km * 1000
-            )',
-            [$lng, $lat]
+            'ST_DWithin(location, ST_SetSRID(ST_MakePoint(?, ?), 4326)::geography, delivery_radius_km * 1000)',
+            [$lng, $lat],
         );
     }
 
-    /** Masofani (km) tanlangan nuqtadan hisoblab, `distance_km` ustunini qo'shadi. */
+    /** Tanlangan nuqtadan masofani (km) hisoblab `distance_km` ustunini qo'shadi. */
     public function scopeWithDistanceKm(Builder $query, float $lat, float $lng): Builder
     {
         if (empty($query->getQuery()->columns)) {
@@ -103,11 +102,8 @@ class Restaurant extends Model
         }
 
         return $query->selectRaw(
-            'ST_Distance(
-                ST_SetSRID(ST_MakePoint(restaurants.lng, restaurants.lat), 4326)::geography,
-                ST_SetSRID(ST_MakePoint(?, ?), 4326)::geography
-            ) / 1000 AS distance_km',
-            [$lng, $lat]
+            'ST_Distance(location, ST_SetSRID(ST_MakePoint(?, ?), 4326)::geography) / 1000 AS distance_km',
+            [$lng, $lat],
         );
     }
 

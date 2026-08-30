@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use Database\Factories\UserFactory;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -9,8 +11,10 @@ use Illuminate\Notifications\Notifiable;
 
 class User extends Authenticatable
 {
-    /** @use HasFactory<\Database\Factories\UserFactory> */
+    /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable;
+
+    public const LANGUAGES = ['uz', 'ru'];
 
     protected $fillable = [
         'telegram_id',
@@ -50,5 +54,10 @@ class User extends Authenticatable
     {
         return $this->addresses->firstWhere('is_default', true)
             ?? $this->addresses->first();
+    }
+
+    public function scopeByTelegramId(Builder $query, int $telegramId): Builder
+    {
+        return $query->where('telegram_id', $telegramId);
     }
 }

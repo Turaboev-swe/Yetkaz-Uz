@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Enums\PosType;
 use App\Models\Category;
 use App\Models\City;
 use App\Models\Product;
@@ -9,8 +10,9 @@ use App\Models\Restaurant;
 use Illuminate\Database\Seeder;
 
 /**
- * Rivojlantirish uchun namuna ma'lumot: bitta shahar, ikkita restoran, menyu.
- * Narxlar tiyinda (1 so'm = 100 tiyin).
+ * Test uchun namuna ma'lumot: Toshkent, 2 restoran, har birida 2 kategoriya va 5-6 taom.
+ * Narxlar tiyinda (1 so'm = 100 tiyin). Koordinatalar Toshkent markazi atrofida —
+ * markazdan lokatsiya yuborgan tester ikkala restoranni ham ko'radi.
  */
 class DemoSeeder extends Seeder
 {
@@ -39,7 +41,7 @@ class DemoSeeder extends Seeder
             'delivery_fee' => 1_500_000,
             'is_open' => true,
             'work_hours' => $work,
-            'pos_type' => 'manual',
+            'pos_type' => PosType::Manual,
         ]);
 
         $fast = Restaurant::create([
@@ -53,7 +55,7 @@ class DemoSeeder extends Seeder
             'delivery_fee' => 1_000_000,
             'is_open' => true,
             'work_hours' => $work,
-            'pos_type' => 'escpos',
+            'pos_type' => PosType::EscPos,
             'printer_host' => '192.168.1.50',
         ]);
 
