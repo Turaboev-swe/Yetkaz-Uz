@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Enums\OrderStatus;
 use App\Enums\PaymentMethod;
 use App\Enums\PaymentStatus;
+use App\Models\Concerns\ScopedToRestaurant;
 use Database\Factories\OrderFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -16,6 +17,8 @@ class Order extends Model
 {
     /** @use HasFactory<OrderFactory> */
     use HasFactory;
+
+    use ScopedToRestaurant;
 
     protected $fillable = [
         'order_number',
@@ -85,6 +88,12 @@ class Order extends Model
     public function scopeActive(Builder $query): Builder
     {
         return $query->whereIn('status', OrderStatus::activeValues());
+    }
+
+    /** RestaurantScope tomonidan chaqiriladi (restaurant_owner uchun). */
+    public function scopeForRestaurant(Builder $query, int $restaurantId): Builder
+    {
+        return $query->where($this->qualifyColumn('restaurant_id'), $restaurantId);
     }
 
     public function isActive(): bool

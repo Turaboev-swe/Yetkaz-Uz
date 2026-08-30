@@ -2,16 +2,23 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\ScopedToRestaurant;
+use App\Observers\ProductObserver;
 use Database\Factories\ProductFactory;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
+#[ObservedBy(ProductObserver::class)]
 class Product extends Model
 {
     /** @use HasFactory<ProductFactory> */
     use HasFactory;
+
+    use ScopedToRestaurant;
 
     protected $fillable = [
         'category_id',
@@ -46,9 +53,27 @@ class Product extends Model
         return $this->category?->restaurant;
     }
 
+    /** @return HasMany<ProductPriceHistory> */
+    public function priceHistory(): HasMany
+    {
+        return $this->hasMany(ProductPriceHistory::class)->orderByDesc('changed_at');
+    }
+
     public function scopeAvailable(Builder $query): Builder
     {
         return $query->where('is_available', true);
+    }
+
+    /** RestaurantScope tomonidan chaqiriladi (restaurant_owner uchun). */
+    public function scopeForRestaurant(Builder $query, int $restaurantId): Builder
+    {
+        return $query->whereIn(
+            $this->qualifyColumn('category_id'),
+            Category::query()
+                ->withoutGlobalScopes()
+                ->where('restaurant_id', $restaurantId)
+                ->select('id'),
+        );
     }
 
     /**
