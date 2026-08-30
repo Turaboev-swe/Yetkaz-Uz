@@ -6,11 +6,14 @@ Telegram bot + Mini App orqali foydalanuvchi o'z shahridagi restoran va fast-foo
 ovqat buyurtma qiladi. Buyurtma avtomat ravishda oshxonaga tushadi, chek printerdan
 chiqadi, mijozga esa yetkazib berish vaqti hisoblanib yuboriladi.
 
-Tizim uch tomonga xizmat qiladi:
+Tizim to'rt tomonga xizmat qiladi:
 
 1. **Mijoz** — Telegram bot va Mini App
-2. **Oshxona** — real-time admin panel + chek printeri
-3. **Platforma admini** — restoranlar, menyular, hisobotlar
+2. **Restoran egasi** — alohida veb-panel (`/restaurant`): o'z menyusi, kategoriyalar,
+   ish vaqti, `is_open`, o'z buyurtmalari
+3. **Oshxona** — real-time panel (`/kitchen`, Filament emas) + chek printeri
+4. **Platforma admini** — veb-panel (`/admin`): barcha restoranlar, xodimlar,
+   buyurtmalar, hisobotlar
 
 ---
 
@@ -49,7 +52,10 @@ app/
     Dispatch/                  # Buyurtmani oshxonaga yuborish (POS yoki agent)
       Drivers/                 # JowiDriver, PosterDriver, IikoDriver, EscPosDriver
   Models/
-  Filament/                    # Admin va oshxona panellari
+  Filament/
+    Admin/                     # /admin paneli (platform_admin)
+    Restaurant/                # /restaurant paneli (restaurant_owner)
+  Policies/                    # rol izolyatsiyasi
   Jobs/                        # Fon vazifalari
   Events/                      # WebSocket eventlari
 database/migrations/
@@ -97,10 +103,22 @@ orders
 
 order_status_history
   id, order_id, status, changed_at, changed_by
+
+staff
+  id, restaurant_id (nullable — platform_admin uchun null),
+  name, email (unique), password,
+  role (enum: platform_admin | restaurant_owner | kitchen_staff),
+  is_active (bool), last_login_at
+
+product_price_history
+  id, product_id, staff_id, old_price, new_price, changed_at
 ```
 
 Buyurtma `items` jsonb'da saqlanadi (nom, narx, miqdor snapshot bilan) — menyu
 keyin o'zgarsa ham eski buyurtma buzilmaydi.
+
+`staff` — Telegram foydalanuvchilaridan (`users`) alohida jadval va alohida
+autentifikatsiya guard'i (`staff`). Filament panellari shu guard bilan ishlaydi.
 
 ---
 
@@ -116,6 +134,29 @@ Bu qoidalarni buzmang, ular loyihaning asosi.
   bo'lgach, boshqa hech qachon so'ralmaydi.
 - Profilni o'zgartirish faqat "Sozlamalar" bo'limida bo'ladi.
 - Foydalanuvchi bir nechta manzil saqlashi mumkin ("Uy", "Ish"), biri `is_default`.
+
+### Panellar va rol izolyatsiyasi
+
+Ikkita Filament paneli, `staff` guard bilan:
+
+- `/admin` — `platform_admin`: restoranlar CRUD, xodimlar boshqaruvi, barcha
+  buyurtmalar, hisobotlar
+- `/restaurant` — `restaurant_owner`: **faqat o'z restorani** — kategoriyalar,
+  taomlar, ish vaqti, `is_open` toggle, o'z buyurtmalari
+
+`restaurant_owner` faqat o'z `restaurant_id` siga tegishli Category / Product /
+Order yozuvlarini ko'radi va tahrirlaydi. Bu **global scope + Policy klasslar**
+bilan ta'minlanadi — Filament UI'da yashirish yetarli emas. Boshqa restoran
+yozuviga kirishga urinish 403/404 qaytaradi. Global scope faqat `restaurant_owner`
+autentifikatsiya qilinganda ishlaydi (bot, Mini App API, CLI ga ta'sir qilmaydi).
+
+Xodim narxni **so'mda** kiritadi, baza **tiyinda** saqlaydi (Filament mutator).
+Har narx o'zgarishi `product_price_history` ga yoziladi (Product observer): kim,
+qachon, eski/yangi narx. Narx tarixi `/restaurant` panelida taom sahifasida
+ko'rinadi.
+
+Taomlar ro'yxatida `is_available` uchun bir bosishli toggle — oshxonada taom
+tugab qolganda eng tez ishlatiladigan amal.
 
 ### Savat va restoran almashtirish
 
@@ -220,18 +261,22 @@ Har status o'zgarishi mijozga bot orqali avtomat xabar yuboradi.
 
 ## Ishlab chiqish bosqichlari
 
-1. Baza migratsiyalari + modellar
-2. Bot: ro'yxatdan o'tish oqimi (ism, telefon, lokatsiya) va manzil saqlash
-3. Mini App: restoranlar ro'yxati, menyu, savat
-4. Buyurtma yaratish + oshxona paneli (chek yo'q, faqat ekranda)
-5. ETA hisoblash (avval Haversine, keyin OSRM)
-6. Print agent + ESC/POS drayveri
-7. POS integratsiyalari (Poster'dan boshlang — ochiq API bor)
-8. To'lov: Payme va Click
-9. Filament admin: restoran va menyu boshqaruvi, hisobotlar
+1. Baza migratsiyalari + modellar ✓
+2. Bot: ro'yxatdan o'tish oqimi (ism, telefon, lokatsiya) va manzil saqlash ✓
+3. Mini App backend API (initData auth, restoranlar, menyu, qidiruv) ✓
+4. **Filament panellari:** `/admin` (platforma) va `/restaurant` (restoran egasi) —
+   menyu, kategoriyalar, ish vaqti, `is_open`, xodimlar, narx tarixi, rol izolyatsiyasi
+5. Mini App frontend: restoranlar ro'yxati, menyu, savat
+6. Buyurtma yaratish + oshxona paneli (`/kitchen`, Filament emas, chek yo'q)
+7. ETA hisoblash (avval Haversine, keyin OSRM)
+8. Print agent + ESC/POS drayveri
+9. POS integratsiyalari (Poster'dan boshlang — ochiq API bor)
+10. To'lov: Payme va Click
+11. Hisobotlar va analitika (`/admin`)
 
-Har bosqich yakunida ishlaydigan mahsulot bo'lsin. 4-bosqichdan keyin bitta real
-restoran bilan sinov boshlash mumkin.
+Har bosqich yakunida ishlaydigan mahsulot bo'lsin. 4-bosqichdan keyin restoran
+egasi o'z menyusini kirita oladi; 6-bosqichdan keyin bitta real restoran bilan
+to'liq sinov boshlash mumkin.
 
 ---
 
