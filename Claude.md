@@ -74,14 +74,19 @@ users
   profile_completed (bool), created_at
 
 addresses
-  id, user_id, label, lat, lng, address_text,
+  id, user_id, district_id (nullable), label, lat, lng, address_text,
   entrance, floor, apartment, note, is_default
 
-cities
-  id, name, center_lat, center_lng
+regions
+  id, name, code (unique)
+
+districts
+  id, region_id, name, center_lat, center_lng
+  (tuman/shahar; center_lat/lng — FAQAT xaritani markazlashtirish uchun.
+   Masofa / yetkazish radiusi / ETA restoran va manzil lat/lng dan hisoblanadi.)
 
 restaurants
-  id, name, city_id, lat, lng, phone, logo_url,
+  id, name, district_id, lat, lng, phone, logo_url,
   avg_prep_time_min, delivery_radius_km, min_order_amount,
   delivery_fee, is_open, work_hours (jsonb),
   pos_type (enum: jowi|poster|iiko|escpos|manual),
@@ -179,10 +184,15 @@ Foydalanuvchiga faqat quyidagi shartlarni qanoatlantiradigan restoranlar
 ko'rsatiladi:
 
 - `is_open = true` va joriy vaqt `work_hours` ichida
-- Masofa `delivery_radius_km` dan kichik
+- Masofa `delivery_radius_km` dan kichik (PostGIS `ST_DWithin`, restoran/manzil lat/lng)
 
 Radiusdan tashqaridagi restoran ro'yxatda umuman ko'rinmaydi — buyurtma bosqichida
 "yetkazib bera olmaymiz" deyish kech.
+
+Mijoz qo'shimcha ravishda **tuman** bo'yicha filtrlashi mumkin (`district_id`) — bu
+faqat ko'rsatish filtri, masofa/radius hisobiga ta'sir qilmaydi. Restoran egasi
+formada viloyat → tuman tanlaydi, keyin xaritada aniq nuqtani bosadi (lat/lng qo'lda
+kiritilmaydi).
 
 ### ETA hisoblash
 
@@ -253,8 +263,12 @@ Har status o'zgarishi mijozga bot orqali avtomat xabar yuboradi.
 - Migratsiyalarda foreign key va indekslar aniq ko'rsatilsin.
 - Pul `integer` (tiyinda) saqlanadi, `float` emas.
 - Vaqtlar UTC'da saqlanadi, ko'rsatishda `Asia/Tashkent` ga o'giriladi.
-- Interfeys matnlari o'zbek va rus tilida (`lang/uz`, `lang/ru`), kod ichida
-  qattiq yozilmaydi.
+- **Standart til — o'zbekcha** (`APP_LOCALE=uz`, `APP_FALLBACK_LOCALE=uz`,
+  `users.language` default `uz`). Telegram `language_code` ga qarab avtomat
+  almashmaydi — foydalanuvchi tilni faqat "Sozlamalar"da o'zi tanlaydi.
+- Interfeys matnlari `lang/uz` va `lang/ru` da, kod ichida qattiq yozilmaydi.
+  Yangi qatorli matnlar DOIM qo'sh tirnoqda (`"...\n..."`) — bir tirnoqda `\n`
+  harfma-harf chiqadi.
 - Har yangi Service uchun feature test yozing.
 
 ---
