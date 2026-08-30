@@ -26,7 +26,8 @@ class InitDataAuthTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.telegram_id', 42424242);
 
-        $this->assertDatabaseHas('users', ['telegram_id' => 42424242, 'language' => 'ru']);
+        // Standart til — o'zbekcha (Telegram tili ru bo'lsa ham).
+        $this->assertDatabaseHas('users', ['telegram_id' => 42424242, 'language' => 'uz']);
     }
 
     public function test_missing_init_data_is_rejected(): void

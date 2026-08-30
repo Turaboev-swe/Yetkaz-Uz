@@ -4,7 +4,7 @@ namespace Tests\Feature\Api;
 
 use App\Models\Address;
 use App\Models\Category;
-use App\Models\City;
+use App\Models\District;
 use App\Models\Product;
 use App\Models\Restaurant;
 use App\Models\User;
@@ -58,7 +58,7 @@ class RestaurantApiTest extends TestCase
     private function restaurant(array $attrs = []): Restaurant
     {
         return Restaurant::factory()
-            ->for(City::factory())
+            ->for(District::factory())
             ->create(array_replace(['work_hours' => $this->alwaysOpen(), 'is_open' => true], $attrs));
     }
 

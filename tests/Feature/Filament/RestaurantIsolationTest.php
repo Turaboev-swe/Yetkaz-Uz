@@ -6,7 +6,7 @@ use App\Filament\Restaurant\Resources\CategoryResource\Pages\ListCategories;
 use App\Filament\Restaurant\Resources\ProductResource\Pages\EditProduct;
 use App\Filament\Restaurant\Resources\ProductResource\Pages\ListProducts;
 use App\Models\Category;
-use App\Models\City;
+use App\Models\District;
 use App\Models\Order;
 use App\Models\Product;
 use App\Models\Restaurant;
@@ -39,9 +39,9 @@ class RestaurantIsolationTest extends TestCase
     {
         parent::setUp();
 
-        $city = City::factory()->create();
-        $this->restA = Restaurant::factory()->for($city)->create(['name' => 'A restoran']);
-        $this->restB = Restaurant::factory()->for($city)->create(['name' => 'B restoran']);
+        $district = District::factory()->create();
+        $this->restA = Restaurant::factory()->for($district)->create(['name' => 'A restoran']);
+        $this->restB = Restaurant::factory()->for($district)->create(['name' => 'B restoran']);
 
         $this->ownerA = Staff::factory()->owner($this->restA)->create();
 

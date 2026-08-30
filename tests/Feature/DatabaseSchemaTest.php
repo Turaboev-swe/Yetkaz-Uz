@@ -5,7 +5,7 @@ namespace Tests\Feature;
 use App\Enums\OrderStatus;
 use App\Models\Address;
 use App\Models\Category;
-use App\Models\City;
+use App\Models\District;
 use App\Models\Order;
 use App\Models\OrderStatusHistory;
 use App\Models\Product;
@@ -35,8 +35,9 @@ class DatabaseSchemaTest extends TestCase
     public function test_core_tables_exist(): void
     {
         foreach ([
-            'users', 'cities', 'addresses', 'restaurants',
+            'users', 'regions', 'districts', 'addresses', 'restaurants',
             'categories', 'products', 'orders', 'order_status_history',
+            'staff', 'product_price_history',
         ] as $table) {
             $this->assertTrue(
                 DB::getSchemaBuilder()->hasTable($table),
@@ -93,8 +94,8 @@ class DatabaseSchemaTest extends TestCase
     {
         $user = User::factory()->create();
         $address = Address::factory()->for($user)->default()->create();
-        $city = City::factory()->create();
-        $restaurant = Restaurant::factory()->for($city)->create();
+        $district = District::factory()->create();
+        $restaurant = Restaurant::factory()->for($district)->create();
         $category = Category::factory()->for($restaurant)->create();
         $product = Product::factory()->for($category)->create(['name' => "Lag'mon", 'price' => 2_500_000]);
 
@@ -166,14 +167,14 @@ class DatabaseSchemaTest extends TestCase
 
     public function test_restaurant_radius_scope_uses_geography(): void
     {
-        $city = City::factory()->create();
+        $district = District::factory()->create();
 
         // Toshkent markazi
-        $near = Restaurant::factory()->for($city)->create([
+        $near = Restaurant::factory()->for($district)->create([
             'lat' => 41.311, 'lng' => 69.279, 'delivery_radius_km' => 5,
         ]);
         // ~40 km uzoqlikda
-        $far = Restaurant::factory()->for($city)->create([
+        $far = Restaurant::factory()->for($district)->create([
             'lat' => 41.65, 'lng' => 69.60, 'delivery_radius_km' => 5,
         ]);
 

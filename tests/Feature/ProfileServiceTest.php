@@ -26,7 +26,7 @@ class ProfileServiceTest extends TestCase
 
         $this->assertDatabaseHas('users', [
             'telegram_id' => 12345,
-            'language' => 'ru',
+            'language' => 'uz', // Telegram tili ru bo'lsa ham — standart o'zbekcha
             'profile_completed' => false,
         ]);
         $this->assertNull($user->phone);
@@ -43,13 +43,15 @@ class ProfileServiceTest extends TestCase
         $this->assertSame(1, User::where('telegram_id', 777)->count());
     }
 
-    public function test_language_defaults_to_uz_for_non_russian(): void
+    public function test_language_always_defaults_to_uz_regardless_of_telegram_locale(): void
     {
         $this->service->findOrCreateFromTelegram(telegramId: 1, languageCode: 'en');
         $this->service->findOrCreateFromTelegram(telegramId: 2, languageCode: null);
+        $this->service->findOrCreateFromTelegram(telegramId: 3, languageCode: 'ru');
 
         $this->assertSame('uz', User::byTelegramId(1)->value('language'));
         $this->assertSame('uz', User::byTelegramId(2)->value('language'));
+        $this->assertSame('uz', User::byTelegramId(3)->value('language'));
     }
 
     public function test_normalizes_phone_from_contact(): void

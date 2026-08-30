@@ -4,7 +4,7 @@ namespace Tests\Feature\Api;
 
 use App\Models\Address;
 use App\Models\Category;
-use App\Models\City;
+use App\Models\District;
 use App\Models\Product;
 use App\Models\Restaurant;
 use App\Models\User;
@@ -52,7 +52,7 @@ class SearchApiTest extends TestCase
 
     private function dish(string $restaurantName, float $lat, float $lng, string $dish, int $price): Product
     {
-        $restaurant = Restaurant::factory()->for(City::factory())->create([
+        $restaurant = Restaurant::factory()->for(District::factory())->create([
             'name' => $restaurantName,
             'lat' => $lat, 'lng' => $lng,
             'delivery_radius_km' => 8,
@@ -105,7 +105,7 @@ class SearchApiTest extends TestCase
     {
         $this->dish('Ochiq', 41.311, 69.280, "Lag'mon", 2_800_000);
 
-        $closed = Restaurant::factory()->for(City::factory())->create([
+        $closed = Restaurant::factory()->for(District::factory())->create([
             'name' => 'Yopiq', 'lat' => 41.311, 'lng' => 69.281,
             'delivery_radius_km' => 8, 'is_open' => false, 'work_hours' => $this->alwaysOpen(),
         ]);
