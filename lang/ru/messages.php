@@ -70,6 +70,11 @@ return [
         'escpos' => 'ESC/POS принтер',
         'manual' => 'Вручную (панель)',
     ],
+    'staff_role' => [
+        'platform_admin' => 'Администратор платформы',
+        'restaurant_owner' => 'Владелец ресторана',
+        'kitchen_staff' => 'Сотрудник кухни',
+    ],
 
     'eta_range' => 'Примерная доставка: :from–:to минут.',
 ];

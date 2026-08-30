@@ -70,6 +70,11 @@ return [
         'escpos' => 'ESC/POS printer',
         'manual' => "Qo'lda (panel)",
     ],
+    'staff_role' => [
+        'platform_admin' => 'Platforma admini',
+        'restaurant_owner' => 'Restoran egasi',
+        'kitchen_staff' => 'Oshxona xodimi',
+    ],
 
     'eta_range' => 'Taxminiy yetkazib berish: :from–:to daqiqa.',
 ];

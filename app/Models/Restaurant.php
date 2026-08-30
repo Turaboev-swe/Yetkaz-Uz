@@ -87,6 +87,12 @@ class Restaurant extends Model
         return $this->hasMany(Order::class);
     }
 
+    /** @return HasMany<Staff> */
+    public function staff(): HasMany
+    {
+        return $this->hasMany(Staff::class);
+    }
+
     /**
      * Berilgan nuqtadan yetkazish radiusi ichidagi restoranlar.
      * `location` ustuni + GIST indeks (restaurants_location_gist) ishlatiladi.
