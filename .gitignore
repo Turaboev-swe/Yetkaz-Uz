@@ -19,6 +19,8 @@
 # Filament nashr qilingan assetlar — composer dump-autoload (filament:upgrade) qayta yaratadi
 /public/css/filament
 /public/js/filament
+/public/css/dotswan
+/public/js/dotswan
 /storage/*.key
 /storage/pail
 /vendor

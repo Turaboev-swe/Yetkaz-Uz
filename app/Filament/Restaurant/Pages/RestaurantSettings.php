@@ -2,6 +2,7 @@
 
 namespace App\Filament\Restaurant\Pages;
 
+use App\Filament\Support\RestaurantLocationForm;
 use App\Filament\Support\WorkHoursForm;
 use App\Models\Restaurant;
 use Filament\Forms\Components\Section;
@@ -36,8 +37,12 @@ class RestaurantSettings extends Page implements HasForms
 
     public function mount(): void
     {
-        $data = $this->restaurant()->attributesToArray();
-        $data['work_hours'] = WorkHoursForm::toRows($this->restaurant()->work_hours);
+        $restaurant = $this->restaurant();
+
+        $data = $restaurant->attributesToArray();
+        $data['work_hours'] = WorkHoursForm::toRows($restaurant->work_hours);
+        $data['region_id'] = $restaurant->district?->region_id;
+        $data['location'] = ['lat' => (float) $restaurant->lat, 'lng' => (float) $restaurant->lng];
 
         $this->form->fill($data);
     }
@@ -79,6 +84,11 @@ class RestaurantSettings extends Page implements HasForms
                     ])
                     ->columns(2),
 
+                Section::make('Joylashuv')
+                    ->description('Viloyat va tumanni tanlang, keyin xaritada aniq nuqtani bosing. Masofa va yetkazish radiusi shu nuqtadan hisoblanadi.')
+                    ->schema(RestaurantLocationForm::schema())
+                    ->columns(2),
+
                 Section::make('Ish vaqti')
                     ->schema([
                         WorkHoursForm::make('work_hours'),
@@ -92,6 +102,7 @@ class RestaurantSettings extends Page implements HasForms
     {
         $data = $this->form->getState();
         $data['work_hours'] = WorkHoursForm::toSchedule($data['work_hours'] ?? []);
+        unset($data['region_id'], $data['location']); // faqat ko'rish uchun; district_id/lat/lng saqlanadi
 
         $this->restaurant()->update($data);
 

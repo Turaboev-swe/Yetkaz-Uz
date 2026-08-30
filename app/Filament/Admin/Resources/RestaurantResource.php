@@ -4,6 +4,7 @@ namespace App\Filament\Admin\Resources;
 
 use App\Enums\PosType;
 use App\Filament\Admin\Resources\RestaurantResource\Pages;
+use App\Filament\Support\RestaurantLocationForm;
 use App\Filament\Support\WorkHoursForm;
 use App\Models\Restaurant;
 use Filament\Forms;
@@ -31,14 +32,15 @@ class RestaurantResource extends Resource
         return $form->schema([
             Forms\Components\Section::make('Asosiy')->schema([
                 Forms\Components\TextInput::make('name')->label('Nomi')->required()->maxLength(255),
-                Forms\Components\Select::make('city_id')->label('Shahar')
-                    ->relationship('city', 'name')->required()->native(false),
                 Forms\Components\TextInput::make('phone')->label('Telefon')->tel()->maxLength(32),
                 Forms\Components\TextInput::make('logo_url')->label('Logo URL')->url()->maxLength(500),
-                Forms\Components\TextInput::make('lat')->label('Kenglik')->numeric()->required(),
-                Forms\Components\TextInput::make('lng')->label('Uzunlik')->numeric()->required(),
                 Forms\Components\Toggle::make('is_open')->label('Ochiq')->default(true),
             ])->columns(2),
+
+            Forms\Components\Section::make('Joylashuv')
+                ->description('Viloyat va tumanni tanlang, keyin xaritada aniq nuqtani bosing.')
+                ->schema(RestaurantLocationForm::schema())
+                ->columns(2),
 
             Forms\Components\Section::make('Yetkazish')->schema([
                 Forms\Components\TextInput::make('delivery_radius_km')->label('Radius (km)')->numeric()->default(5),
@@ -74,7 +76,8 @@ class RestaurantResource extends Resource
         return $table
             ->columns([
                 Tables\Columns\TextColumn::make('name')->label('Nomi')->searchable()->sortable(),
-                Tables\Columns\TextColumn::make('city.name')->label('Shahar')->sortable(),
+                Tables\Columns\TextColumn::make('district.name')->label('Tuman')->sortable(),
+                Tables\Columns\TextColumn::make('district.region.name')->label('Viloyat')->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('pos_type')->label('POS')
                     ->badge()->formatStateUsing(fn (PosType $state) => $state->label()),
                 Tables\Columns\ToggleColumn::make('is_open')->label('Ochiq'),
@@ -82,7 +85,8 @@ class RestaurantResource extends Resource
                 Tables\Columns\TextColumn::make('created_at')->label('Qo`shilgan')->date()->sortable()->toggleable(),
             ])
             ->filters([
-                Tables\Filters\SelectFilter::make('city_id')->label('Shahar')->relationship('city', 'name'),
+                Tables\Filters\SelectFilter::make('district_id')->label('Tuman')
+                    ->relationship('district', 'name')->searchable(),
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),
