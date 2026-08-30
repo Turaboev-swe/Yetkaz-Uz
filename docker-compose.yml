@@ -52,6 +52,18 @@ services:
     command: php artisan schedule:work
     ports: []
 
+  # --- Telegram bot: long polling (lokal muhit) ---
+  # DIQQAT: Telegram bir vaqtda faqat BITTA long polling ulanishiga ruxsat beradi.
+  # Bu konteyner ishlab turганda qo'lda `php artisan nutgram:run` ISHLATMANG —
+  # aks holda Telegram 409 Conflict qaytaradi.
+  # Kod o'zgarsa: `docker compose restart bot`.
+  bot:
+    <<: *app
+    command: php artisan nutgram:run
+    ports: []
+    restart: unless-stopped
+    stop_grace_period: 15s
+
   # --- PostgreSQL 16 + PostGIS ---
   postgres:
     image: postgis/postgis:16-3.4
