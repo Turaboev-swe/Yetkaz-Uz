@@ -23,7 +23,7 @@ class Restaurant extends Model
 
     protected $fillable = [
         'name',
-        'city_id',
+        'district_id',
         'lat',
         'lng',
         'phone',
@@ -63,10 +63,10 @@ class Restaurant extends Model
         ];
     }
 
-    /** @return BelongsTo<City, Restaurant> */
-    public function city(): BelongsTo
+    /** @return BelongsTo<District, Restaurant> */
+    public function district(): BelongsTo
     {
-        return $this->belongsTo(City::class);
+        return $this->belongsTo(District::class);
     }
 
     /** @return HasMany<Category> */

@@ -12,7 +12,8 @@ return new class extends Migration
         Schema::create('restaurants', function (Blueprint $table) {
             $table->id();
             $table->string('name');
-            $table->foreignId('city_id')->constrained()->restrictOnDelete();
+            // Tuman — filtrlash va ko'rsatish uchun. Masofa/radius/ETA lat/lng dan.
+            $table->foreignId('district_id')->constrained()->restrictOnDelete();
             $table->decimal('lat', 10, 7);
             $table->decimal('lng', 10, 7);
             $table->string('phone', 32)->nullable();
@@ -34,9 +35,9 @@ return new class extends Migration
 
             $table->timestamps();
 
-            $table->index('city_id');
+            $table->index('district_id');
             $table->index('is_open');
-            $table->index(['city_id', 'is_open']);
+            $table->index(['district_id', 'is_open']);
             $table->index('pos_type');
         });
 

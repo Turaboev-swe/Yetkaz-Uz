@@ -12,6 +12,9 @@ return new class extends Migration
         Schema::create('addresses', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->constrained()->cascadeOnDelete();
+            // Tuman — ko'rsatish/filtrlash uchun; masofa har doim lat/lng dan.
+            // Nullable: mijoz lokatsiyani yuboradi, tuman keyin aniqlanishi mumkin.
+            $table->foreignId('district_id')->nullable()->constrained()->nullOnDelete();
             $table->string('label')->nullable();          // "Uy", "Ish"
             $table->decimal('lat', 10, 7);
             $table->decimal('lng', 10, 7);
@@ -24,6 +27,7 @@ return new class extends Migration
             $table->timestamps();
 
             $table->index(['user_id', 'is_default']);
+            $table->index('district_id');
         });
 
         // lat/lng dan avtomatik hisoblanadigan PostGIS geography ustuni (restaurants bilan bir xil).

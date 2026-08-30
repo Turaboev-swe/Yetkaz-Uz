@@ -24,6 +24,7 @@ class Address extends Model
 
     protected $fillable = [
         'user_id',
+        'district_id',
         'label',
         'lat',
         'lng',
@@ -53,6 +54,12 @@ class Address extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    /** @return BelongsTo<District, Address> */
+    public function district(): BelongsTo
+    {
+        return $this->belongsTo(District::class);
     }
 
     /** @return HasMany<Order> */

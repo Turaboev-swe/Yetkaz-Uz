@@ -3,7 +3,7 @@
 namespace Database\Factories;
 
 use App\Enums\PosType;
-use App\Models\City;
+use App\Models\District;
 use App\Models\Restaurant;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
@@ -14,9 +14,9 @@ class RestaurantFactory extends Factory
     {
         return [
             'name' => fake()->company(),
-            'city_id' => City::factory(),
-            'lat' => fake()->latitude(41.2, 41.4),
-            'lng' => fake()->longitude(69.1, 69.4),
+            'district_id' => District::factory(),
+            'lat' => fake()->latitude(40.4, 41.0),
+            'lng' => fake()->longitude(71.9, 73.0),
             'phone' => '+9987'.fake()->numberBetween(1_000_000, 9_999_999),
             'logo_url' => null,
             'avg_prep_time_min' => fake()->numberBetween(15, 40),

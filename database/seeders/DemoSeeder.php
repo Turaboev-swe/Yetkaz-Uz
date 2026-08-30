@@ -4,24 +4,23 @@ namespace Database\Seeders;
 
 use App\Enums\PosType;
 use App\Models\Category;
-use App\Models\City;
+use App\Models\District;
 use App\Models\Product;
 use App\Models\Restaurant;
 use Illuminate\Database\Seeder;
 
 /**
- * Test uchun namuna ma'lumot: Toshkent, 2 restoran, har birida 2 kategoriya va 5-6 taom.
- * Narxlar tiyinda (1 so'm = 100 tiyin). Koordinatalar Toshkent markazi atrofida —
- * markazdan lokatsiya yuborgan tester ikkala restoranni ham ko'radi.
+ * Test uchun namuna ma'lumot: Andijon shahri, 2 restoran, har birida 2 kategoriya
+ * va 5-6 taom. Narxlar tiyinda (1 so'm = 100 tiyin). Koordinatalar Andijon markazi
+ * atrofida — markazdan lokatsiya yuborgan tester ikkala restoranni ham ko'radi.
+ *
+ * AndijanGeoSeeder'dan keyin ishlaydi (DatabaseSeeder tartibiga qarang).
  */
 class DemoSeeder extends Seeder
 {
     public function run(): void
     {
-        $tashkent = City::firstOrCreate(
-            ['name' => 'Toshkent'],
-            ['center_lat' => 41.311081, 'center_lng' => 69.240562, 'is_active' => true],
-        );
+        $district = District::where('name', 'Andijon shahri')->firstOrFail();
 
         $work = [
             'mon' => [['09:00', '23:00']], 'tue' => [['09:00', '23:00']],
@@ -32,9 +31,9 @@ class DemoSeeder extends Seeder
 
         $milliy = Restaurant::create([
             'name' => 'Milliy Taomlar',
-            'city_id' => $tashkent->id,
-            'lat' => 41.311500, 'lng' => 69.279700,
-            'phone' => '+998711234567',
+            'district_id' => $district->id,
+            'lat' => 40.782500, 'lng' => 72.350000,
+            'phone' => '+998741234567',
             'avg_prep_time_min' => 25,
             'delivery_radius_km' => 7,
             'min_order_amount' => 5_000_000,
@@ -46,9 +45,9 @@ class DemoSeeder extends Seeder
 
         $fast = Restaurant::create([
             'name' => 'Evos Burger',
-            'city_id' => $tashkent->id,
-            'lat' => 41.325000, 'lng' => 69.250000,
-            'phone' => '+998711112233',
+            'district_id' => $district->id,
+            'lat' => 40.788000, 'lng' => 72.325000,
+            'phone' => '+998741112233',
             'avg_prep_time_min' => 15,
             'delivery_radius_km' => 10,
             'min_order_amount' => 3_000_000,

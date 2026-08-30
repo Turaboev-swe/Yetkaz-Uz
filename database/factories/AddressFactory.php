@@ -13,9 +13,10 @@ class AddressFactory extends Factory
     {
         return [
             'user_id' => User::factory(),
+            'district_id' => null,
             'label' => fake()->randomElement([Address::LABEL_HOME, Address::LABEL_WORK, null]),
-            'lat' => fake()->latitude(41.2, 41.4),
-            'lng' => fake()->longitude(69.1, 69.4),
+            'lat' => fake()->latitude(40.4, 41.0),
+            'lng' => fake()->longitude(71.9, 73.0),
             'address_text' => fake()->streetAddress(),
             'entrance' => (string) fake()->numberBetween(1, 6),
             'floor' => (string) fake()->numberBetween(1, 9),
