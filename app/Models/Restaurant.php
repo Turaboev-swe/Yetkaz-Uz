@@ -3,6 +3,9 @@
 namespace App\Models;
 
 use App\Enums\PosType;
+use App\Models\Concerns\HasGeneratedLocation;
+use App\Support\WorkHours;
+use Carbon\CarbonImmutable;
 use Database\Factories\RestaurantFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -15,6 +18,8 @@ class Restaurant extends Model
 {
     /** @use HasFactory<RestaurantFactory> */
     use HasFactory;
+
+    use HasGeneratedLocation;
 
     protected $fillable = [
         'name',
@@ -110,5 +115,24 @@ class Restaurant extends Model
     public function scopeOpen(Builder $query): Builder
     {
         return $query->where('is_open', true);
+    }
+
+    public function workHours(): WorkHours
+    {
+        return WorkHours::from($this->work_hours);
+    }
+
+    /** is_open bayrog'i VA joriy vaqt (Asia/Tashkent) work_hours ichida. */
+    public function isOpenNow(): bool
+    {
+        if (! $this->is_open) {
+            return false;
+        }
+
+        $hours = $this->workHours();
+
+        // Jadval bo'sh bo'lsa faqat is_open bayrog'iga tayanamiz.
+        return $hours->isEmpty()
+            || $hours->isOpenAt(CarbonImmutable::now(config('app.display_timezone')));
     }
 }

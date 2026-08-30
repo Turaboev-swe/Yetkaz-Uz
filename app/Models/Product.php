@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Database\Factories\ProductFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -9,7 +10,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Product extends Model
 {
-    /** @use HasFactory<\Database\Factories\ProductFactory> */
+    /** @use HasFactory<ProductFactory> */
     use HasFactory;
 
     protected $fillable = [
@@ -53,8 +54,8 @@ class Product extends Model
     /**
      * Umumiy taom qidiruvi ("lag'mon" -> barcha restoranlardagi mos taomlar).
      *
-     * - `%`   : pg_trgm o'xshashlik operatori (products_name_unaccent_trgm GIN indeksi)
-     * - ILIKE : qism-satr mosligi (qisqa so'rovlar uchun)
+     * word_similarity — qidiruv so'zi nomdagi bironta so'zga o'xshasa yetadi
+     * ("lag'mon" -> "Tovuqli lag'mon"); ILIKE — aniq qism-satr.
      * Tartib: eng o'xshashi birinchi.
      */
     public function scopeSearch(Builder $query, string $term): Builder
@@ -62,10 +63,10 @@ class Product extends Model
         $term = trim($term);
 
         return $query
-            ->whereRaw('(f_unaccent(name) % f_unaccent(?) OR f_unaccent(name) ILIKE ?)', [
+            ->whereRaw('(word_similarity(f_unaccent(?), f_unaccent(name)) >= 0.4 OR f_unaccent(name) ILIKE ?)', [
                 $term,
                 '%'.$term.'%',
             ])
-            ->orderByRaw('similarity(f_unaccent(name), f_unaccent(?)) DESC', [$term]);
+            ->orderByRaw('word_similarity(f_unaccent(?), f_unaccent(name)) DESC', [$term]);
     }
 }

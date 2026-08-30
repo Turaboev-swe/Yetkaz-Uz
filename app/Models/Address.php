@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasGeneratedLocation;
 use Database\Factories\AddressFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -13,6 +14,8 @@ class Address extends Model
 {
     /** @use HasFactory<AddressFactory> */
     use HasFactory;
+
+    use HasGeneratedLocation;
 
     /** Ro'yxatdan o'tishda saqlanadigan asosiy manzil yorlig'i. */
     public const LABEL_HOME = 'Uy';
