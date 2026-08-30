@@ -81,11 +81,14 @@ class ProfileService
             && $user->addresses()->exists();
     }
 
+    /**
+     * Yangi foydalanuvchi doim o'zbekcha boshlaydi — Telegram profilidagi
+     * language_code ga qarab avtomat almashmaydi. Tilni faqat "Sozlamalar"da
+     * foydalanuvchi o'zi o'zgartiradi.
+     */
     private function normalizeLanguage(?string $code): string
     {
-        $code = strtolower((string) $code);
-
-        return str_starts_with($code, 'ru') ? 'ru' : 'uz';
+        return 'uz';
     }
 
     /** `998901234567` / `+998 90 123 45 67` -> `+998901234567` */

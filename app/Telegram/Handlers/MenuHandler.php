@@ -27,7 +27,7 @@ class MenuHandler
 
         $user = $profiles->findOrCreateFromTelegram($from->id, $from->language_code);
         $profiles->touch($user);
-        app()->setLocale($user->language);
+        app()->setLocale($user->language ?: 'uz');
 
         if (! $user->profile_completed) {
             $bot->sendMessage(__('messages.welcome'));

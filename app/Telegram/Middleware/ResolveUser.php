@@ -19,10 +19,8 @@ class ResolveUser
             ? User::byTelegramId($from->id)->first()
             : null;
 
-        $locale = $user?->language
-            ?? (str_starts_with(strtolower($from?->language_code ?? ''), 'ru') ? 'ru' : 'uz');
-
-        app()->setLocale($locale);
+        // Standart til — o'zbekcha. Faqat foydalanuvchi Sozlamalarda o'zgartirsa boshqasi.
+        app()->setLocale($user?->language ?: 'uz');
 
         if ($user !== null) {
             $bot->set('user', $user);

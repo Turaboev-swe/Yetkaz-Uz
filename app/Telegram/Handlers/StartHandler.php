@@ -26,7 +26,7 @@ class StartHandler
         );
         $profiles->touch($user);
 
-        app()->setLocale($user->language);
+        app()->setLocale($user->language ?: 'uz');
 
         if ($user->profile_completed) {
             $bot->sendMessage(

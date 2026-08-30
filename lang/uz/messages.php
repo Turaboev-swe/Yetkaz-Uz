@@ -1,6 +1,12 @@
 <?php
 
-// O'zbekcha interfeys matnlari. Kod ichida qattiq yozilmaydi — __('messages.key').
+/*
+ * O'zbekcha interfeys matnlari. Standart til — shu.
+ * Kod ichida qattiq yozilmaydi: __('messages.key').
+ *
+ * DIQQAT: yangi qatorli matnlar DOIM qo'sh tirnoqda ("..."), aks holda \n
+ * matn bo'lib chiqadi (bir tirnoqda \n harfma-harf yoziladi).
+ */
 
 return [
     // Umumiy
@@ -20,7 +26,7 @@ return [
         'phone_must_be_own' => "Iltimos, o'zingizning raqamingizni yuboring.",
         'ask_name' => 'Ismingizni kiriting:',
         'name_too_short' => "Ism juda qisqa. To'liq ismingizni yozing:",
-        'ask_location' => "Endi yetkazib berish manzilingizni yuboring.\n\nPastdagi «📍 Lokatsiyani yuborish» tugmasini bosing yoki xarita orqali joylashuvni tanlang.",
+        'ask_location' => "Endi yetkazib berish manzilingizni yuboring.\n\nPastdagi «📍 Lokatsiyani yuborish» tugmasini bosing yoki xarita orqali joyni tanlang.",
         'ask_location_button' => '📍 Lokatsiyani yuborish',
         'location_must_use_button' => 'Iltimos, «📍 Lokatsiyani yuborish» tugmasi orqali joylashuvingizni yuboring.',
         'done' => "Rahmat! Ro'yxatdan o'tish tugadi ✅\nEndi buyurtma berishingiz mumkin.",
@@ -34,7 +40,15 @@ return [
         'restaurants' => '🏪 Restoranlar',
         'orders' => '📋 Buyurtmalarim',
         'settings' => '⚙️ Sozlamalar',
-        'coming_soon' => 'Bu bo\'lim keyingi bosqichda ishga tushadi.',
+        'coming_soon' => "Bu bo'lim keyingi bosqichda ishga tushadi.",
+    ],
+
+    // Sozlamalar
+    'settings' => [
+        'title' => 'Sozlamalar',
+        'language' => 'Til',
+        'language_changed' => 'Til o‘zbekchaga o‘zgartirildi.',
+        'choose_language' => 'Tilni tanlang:',
     ],
 
     // Savat / restoran

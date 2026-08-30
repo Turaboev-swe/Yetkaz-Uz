@@ -49,7 +49,7 @@ class ValidateTelegramInitData
         $this->profiles->touch($user);
 
         $request->setUserResolver(fn () => $user);
-        app()->setLocale($user->language);
+        app()->setLocale($user->language ?: 'uz');
 
         return $next($request);
     }
