@@ -1,8 +1,8 @@
 .DEFAULT_GOAL := help
 DC := docker compose
 
-.PHONY: help build up down restart logs shell psql redis \
-        migrate fresh seed test key install-deps horizon reverb
+.PHONY: help build up down down-v restart restart-bot reload logs bot-logs shell psql redis \
+        migrate fresh seed test key install-deps horizon
 
 help: ## Buyruqlar ro'yxati
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -11,11 +11,8 @@ help: ## Buyruqlar ro'yxati
 build: ## Docker image'larni yig'ish
 	$(DC) build
 
-up: ## Barcha servislarni ko'tarish (app, horizon, reverb, scheduler, postgres, redis)
+up: ## Barcha servislarni ko'tarish (app, bot, horizon, reverb, scheduler, postgres, redis)
 	$(DC) up -d
-
-up-dev: ## up + Vite dev server
-	$(DC) --profile dev up -d
 
 down: ## Servislarni to'xtatish
 	$(DC) down
@@ -26,8 +23,17 @@ down-v: ## Servislarni to'xtatish + volume'larni o'chirish (baza tozalanadi)
 restart: ## app'ni qayta ishga tushirish
 	$(DC) restart app
 
+restart-bot: ## bot'ni qayta ishga tushirish (routes/telegram.php o'zgargandan keyin)
+	$(DC) restart bot
+
+reload: ## Octane worker'larini qayta yuklash (app/ , config/ PHP kodi o'zgargandan keyin)
+	$(DC) exec app php artisan octane:reload
+
 logs: ## Loglar (app)
 	$(DC) logs -f app
+
+bot-logs: ## Bot loglari (long polling, getMe, kelgan updatelar)
+	$(DC) logs -f bot
 
 shell: ## app konteyneriga kirish
 	$(DC) exec app bash
