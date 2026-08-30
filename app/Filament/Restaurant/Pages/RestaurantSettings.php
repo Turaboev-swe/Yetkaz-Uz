@@ -1,0 +1,105 @@
+<?php
+
+namespace App\Filament\Restaurant\Pages;
+
+use App\Filament\Support\WorkHoursForm;
+use App\Models\Restaurant;
+use Filament\Forms\Components\Section;
+use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Toggle;
+use Filament\Forms\Concerns\InteractsWithForms;
+use Filament\Forms\Contracts\HasForms;
+use Filament\Forms\Form;
+use Filament\Notifications\Notification;
+use Filament\Pages\Page;
+
+/**
+ * Restoran egasi o'z restorani sozlamalarini boshqaradi: asosiy ma'lumot,
+ * yetkazish parametrlari, ish vaqti va `is_open` toggle.
+ */
+class RestaurantSettings extends Page implements HasForms
+{
+    use InteractsWithForms;
+
+    protected static ?string $navigationIcon = 'heroicon-o-cog-6-tooth';
+
+    protected static ?string $navigationLabel = 'Restoran sozlamalari';
+
+    protected static ?string $title = 'Restoran sozlamalari';
+
+    protected static ?int $navigationSort = 10;
+
+    protected static string $view = 'filament.restaurant.pages.restaurant-settings';
+
+    /** @var array<string, mixed> */
+    public array $data = [];
+
+    public function mount(): void
+    {
+        $data = $this->restaurant()->attributesToArray();
+        $data['work_hours'] = WorkHoursForm::toRows($this->restaurant()->work_hours);
+
+        $this->form->fill($data);
+    }
+
+    public function form(Form $form): Form
+    {
+        return $form
+            ->schema([
+                Section::make('Asosiy')
+                    ->schema([
+                        TextInput::make('name')->label('Nomi')->required()->maxLength(255),
+                        TextInput::make('phone')->label('Telefon')->tel()->maxLength(32),
+                        TextInput::make('logo_url')->label('Logo URL')->url()->maxLength(500),
+                        Toggle::make('is_open')
+                            ->label('Hozir ochiq')
+                            ->helperText('O`chirilsa restoran mijozlarga umuman ko`rinmaydi.')
+                            ->inline(false),
+                    ])
+                    ->columns(2),
+
+                Section::make('Yetkazish')
+                    ->schema([
+                        TextInput::make('min_order_amount')
+                            ->label("Minimal buyurtma (so'm)")
+                            ->numeric()->minValue(0)->step(1000)->suffix("so'm")
+                            ->formatStateUsing(fn (?int $state) => $state === null ? null : intdiv($state, 100))
+                            ->dehydrateStateUsing(fn ($state) => (int) round((float) $state * 100)),
+                        TextInput::make('delivery_fee')
+                            ->label("Yetkazish narxi (so'm)")
+                            ->numeric()->minValue(0)->step(1000)->suffix("so'm")
+                            ->formatStateUsing(fn (?int $state) => $state === null ? null : intdiv($state, 100))
+                            ->dehydrateStateUsing(fn ($state) => (int) round((float) $state * 100)),
+                        TextInput::make('delivery_radius_km')
+                            ->label('Yetkazish radiusi (km)')
+                            ->numeric()->minValue(0)->step(0.5)->suffix('km'),
+                        TextInput::make('avg_prep_time_min')
+                            ->label("O'rtacha tayyorlash (daqiqa)")
+                            ->numeric()->minValue(0),
+                    ])
+                    ->columns(2),
+
+                Section::make('Ish vaqti')
+                    ->schema([
+                        WorkHoursForm::make('work_hours'),
+                    ]),
+            ])
+            ->statePath('data')
+            ->model($this->restaurant());
+    }
+
+    public function save(): void
+    {
+        $data = $this->form->getState();
+        $data['work_hours'] = WorkHoursForm::toSchedule($data['work_hours'] ?? []);
+
+        $this->restaurant()->update($data);
+
+        Notification::make()->title('Saqlandi')->success()->send();
+    }
+
+    protected function restaurant(): Restaurant
+    {
+        return auth('staff')->user()->restaurant;
+    }
+}
