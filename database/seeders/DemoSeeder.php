@@ -1,0 +1,113 @@
+<?php
+
+namespace Database\Seeders;
+
+use App\Models\Category;
+use App\Models\City;
+use App\Models\Product;
+use App\Models\Restaurant;
+use Illuminate\Database\Seeder;
+
+/**
+ * Rivojlantirish uchun namuna ma'lumot: bitta shahar, ikkita restoran, menyu.
+ * Narxlar tiyinda (1 so'm = 100 tiyin).
+ */
+class DemoSeeder extends Seeder
+{
+    public function run(): void
+    {
+        $tashkent = City::firstOrCreate(
+            ['name' => 'Toshkent'],
+            ['center_lat' => 41.311081, 'center_lng' => 69.240562, 'is_active' => true],
+        );
+
+        $work = [
+            'mon' => [['09:00', '23:00']], 'tue' => [['09:00', '23:00']],
+            'wed' => [['09:00', '23:00']], 'thu' => [['09:00', '23:00']],
+            'fri' => [['09:00', '23:00']], 'sat' => [['10:00', '23:00']],
+            'sun' => [['10:00', '23:00']],
+        ];
+
+        $milliy = Restaurant::create([
+            'name' => 'Milliy Taomlar',
+            'city_id' => $tashkent->id,
+            'lat' => 41.311500, 'lng' => 69.279700,
+            'phone' => '+998711234567',
+            'avg_prep_time_min' => 25,
+            'delivery_radius_km' => 7,
+            'min_order_amount' => 5_000_000,
+            'delivery_fee' => 1_500_000,
+            'is_open' => true,
+            'work_hours' => $work,
+            'pos_type' => 'manual',
+        ]);
+
+        $fast = Restaurant::create([
+            'name' => 'Evos Burger',
+            'city_id' => $tashkent->id,
+            'lat' => 41.325000, 'lng' => 69.250000,
+            'phone' => '+998711112233',
+            'avg_prep_time_min' => 15,
+            'delivery_radius_km' => 10,
+            'min_order_amount' => 3_000_000,
+            'delivery_fee' => 1_000_000,
+            'is_open' => true,
+            'work_hours' => $work,
+            'pos_type' => 'escpos',
+            'printer_host' => '192.168.1.50',
+        ]);
+
+        $this->menu($milliy, [
+            'Milliy taomlar' => [
+                ['Osh', 3_200_000, 30],
+                ["Lag'mon", 2_800_000, 20],
+                ['Manti (5 dona)', 2_500_000, 25],
+                ['Norin', 3_000_000, 15],
+            ],
+            'Ichimliklar' => [
+                ['Choy (choynak)', 500_000, 3],
+                ['Coca-Cola 0.5', 900_000, 1],
+            ],
+        ]);
+
+        $this->menu($fast, [
+            'Burgerlar' => [
+                ['Klassik burger', 2_600_000, 12],
+                ['Chizburger', 2_900_000, 12],
+                ['Dabl burger', 3_900_000, 15],
+            ],
+            'Qo\'shimchalar' => [
+                ['Fri kartoshka', 1_200_000, 8],
+                ['Naggets (6 dona)', 1_800_000, 10],
+            ],
+        ]);
+    }
+
+    /** @param  array<string, array<int, array{0:string,1:int,2:int}>>  $categories */
+    private function menu(Restaurant $restaurant, array $categories): void
+    {
+        $sort = 0;
+
+        foreach ($categories as $categoryName => $products) {
+            $category = Category::create([
+                'restaurant_id' => $restaurant->id,
+                'name' => $categoryName,
+                'sort_order' => $sort++,
+                'is_active' => true,
+            ]);
+
+            $pSort = 0;
+
+            foreach ($products as [$name, $price, $prep]) {
+                Product::create([
+                    'category_id' => $category->id,
+                    'name' => $name,
+                    'price' => $price,
+                    'prep_time_min' => $prep,
+                    'is_available' => true,
+                    'sort_order' => $pSort++,
+                ]);
+            }
+        }
+    }
+}

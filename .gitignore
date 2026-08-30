@@ -1,0 +1,33 @@
+*.log
+.DS_Store
+.env
+.env.backup
+.env.production
+.phpactor.json
+.phpunit.result.cache
+/.fleet
+/.idea
+/.nova
+/.phpunit.cache
+/.vscode
+/.zed
+/auth.json
+/node_modules
+/public/build
+/public/hot
+/public/storage
+/storage/*.key
+/storage/pail
+/vendor
+Homestead.json
+Homestead.yaml
+Thumbs.db
+
+# Docker / Octane
+/rr
+.rr.pid
+
+# Print agent (Python)
+/print-agent/.venv
+/print-agent/__pycache__
+/print-agent/*.sqlite

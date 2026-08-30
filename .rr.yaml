@@ -1,0 +1,14 @@
+version: "3"
+
+# Laravel Octane RoadRunner konfiguratsiyasini o'zi boshqaradi (server.command,
+# worker pool). Bu yerda faqat tarmoq va log sozlamalari.
+
+rpc:
+  listen: tcp://127.0.0.1:6001
+
+http:
+  address: "0.0.0.0:8000"
+
+logs:
+  mode: production
+  level: warn

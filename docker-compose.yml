@@ -1,0 +1,103 @@
+name: yetkaz
+
+x-app: &app
+  build:
+    context: .
+    dockerfile: docker/php/Dockerfile
+    args:
+      UID: ${UID:-1000}
+      GID: ${GID:-1000}
+  image: yetkaz-app:local
+  user: "${UID:-1000}:${GID:-1000}"
+  env_file: .env
+  volumes:
+    - ./:/app
+    - vendor:/app/vendor
+  depends_on:
+    postgres:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+
+services:
+  # --- Octane (RoadRunner) HTTP server ---
+  app:
+    <<: *app
+    command: php artisan octane:start --server=roadrunner --host=0.0.0.0 --port=8000
+    ports:
+      - "${APP_FORWARD_PORT:-8010}:8000"
+
+  # --- Navbat ishchilari: Laravel Horizon ---
+  horizon:
+    <<: *app
+    command: php artisan horizon
+    ports: []
+    stop_signal: SIGTERM
+    healthcheck:
+      test: ["CMD", "php", "artisan", "horizon:status"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # --- WebSocket: Laravel Reverb ---
+  reverb:
+    <<: *app
+    command: php artisan reverb:start --host=0.0.0.0 --port=8080
+    ports:
+      - "${REVERB_FORWARD_PORT:-8080}:8080"
+
+  # --- Rejalashtiruvchi (cron) ---
+  scheduler:
+    <<: *app
+    command: php artisan schedule:work
+    ports: []
+
+  # --- PostgreSQL 16 + PostGIS ---
+  postgres:
+    image: postgis/postgis:16-3.4
+    environment:
+      POSTGRES_DB: ${DB_DATABASE:-yetkaz}
+      POSTGRES_USER: ${DB_USERNAME:-yetkaz}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-secret}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
+    ports:
+      - "${DB_FORWARD_PORT:-55432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-yetkaz} -d ${DB_DATABASE:-yetkaz}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # --- Redis (navbat / kesh / sessiya / savat) ---
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes
+    volumes:
+      - redisdata:/data
+    ports:
+      - "${REDIS_FORWARD_PORT:-56379}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # --- Vite dev server (Mini App) ---
+  vite:
+    image: node:22-alpine
+    working_dir: /app
+    command: sh -c "npm install && npm run dev -- --host"
+    volumes:
+      - ./:/app
+      - node_modules:/app/node_modules
+    ports:
+      - "${VITE_FORWARD_PORT:-5174}:5173"
+    profiles: ["dev"]
+
+volumes:
+  pgdata:
+  redisdata:
+  vendor:
+  node_modules:
