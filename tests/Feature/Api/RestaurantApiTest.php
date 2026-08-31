@@ -129,6 +129,42 @@ class RestaurantApiTest extends TestCase
             ->assertJsonValidationErrorFor('address_id');
     }
 
+    public function test_include_closed_returns_closed_restaurants_last_with_flag(): void
+    {
+        $this->restaurant(['name' => 'Ochiq', 'lat' => 41.311, 'lng' => 69.280]);
+        $this->restaurant(['name' => 'Yopiq', 'lat' => 41.311, 'lng' => 69.280, 'is_open' => false]);
+
+        $data = $this->getJson(
+            '/api/restaurants?address_id='.$this->address->id.'&include_closed=1',
+            $this->headers(),
+        )->assertOk()->json('data');
+
+        $this->assertSame(['Ochiq', 'Yopiq'], array_column($data, 'name'));
+        $this->assertTrue($data[0]['is_open_now']);
+        $this->assertFalse($data[1]['is_open_now']);
+    }
+
+    public function test_include_closed_still_excludes_out_of_radius(): void
+    {
+        $this->restaurant(['name' => 'Uzoq', 'lat' => 41.700, 'lng' => 69.700, 'delivery_radius_km' => 3, 'is_open' => false]);
+
+        $this->getJson(
+            '/api/restaurants?address_id='.$this->address->id.'&include_closed=1',
+            $this->headers(),
+        )->assertOk()->assertJsonCount(0, 'data');
+    }
+
+    public function test_show_returns_single_restaurant_without_distance(): void
+    {
+        $restaurant = $this->restaurant(['name' => 'Bitta']);
+
+        $this->getJson("/api/restaurants/{$restaurant->id}", $this->headers())
+            ->assertOk()
+            ->assertJsonPath('data.name', 'Bitta')
+            ->assertJsonPath('data.is_open_now', true)
+            ->assertJsonMissingPath('data.distance_km');
+    }
+
     public function test_menu_returns_active_categories_with_available_products(): void
     {
         $restaurant = $this->restaurant(['lat' => 41.311, 'lng' => 69.280]);

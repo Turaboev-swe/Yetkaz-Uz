@@ -1,0 +1,42 @@
+@import 'tailwindcss';
+
+@source './**/*.jsx';
+
+/*
+ * Ranglar Telegram themeParams'dan keladi (lib/telegram.js JS orqali o'rnatadi).
+ * Bu yerda faqat zaxira (dark) qiymatlar — Telegramsiz brauzerda ham ko'rinsin.
+ */
+:root {
+    --tg-bg: #0e1621;
+    --tg-secondary-bg: #17212b;
+    --tg-section-bg: #17212b;
+    --tg-text: #ffffff;
+    --tg-hint: #7d8b99;
+    --tg-link: #6ab7ff;
+    --tg-button: #3390ec;
+    --tg-button-text: #ffffff;
+    --tg-destructive: #ec3942;
+}
+
+html,
+body {
+    margin: 0;
+    background: var(--tg-bg);
+    color: var(--tg-text);
+    font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    -webkit-tap-highlight-color: transparent;
+    overscroll-behavior-y: none;
+}
+
+/* Sticky kategoriya tablari ostiga taom bo'limi yashirinib qolmasin */
+.menu-section {
+    scroll-margin-top: 56px;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+    display: none;
+}
+.no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}

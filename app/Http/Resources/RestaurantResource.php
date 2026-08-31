@@ -17,6 +17,7 @@ class RestaurantResource extends JsonResource
             'name' => $this->name,
             'logo_url' => $this->logo_url,
             'phone' => $this->phone,
+            'is_open_now' => $this->resource->isOpenNow(),
             'lat' => $this->lat,
             'lng' => $this->lng,
             'district' => $this->whenLoaded('district', fn () => [

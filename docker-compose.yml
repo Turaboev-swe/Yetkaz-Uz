@@ -98,7 +98,25 @@ services:
       timeout: 5s
       retries: 10
 
-  # Mini App (Vite dev server) — 3-bosqichda qo'shiladi.
+  # --- Mini App: Vite dev server (React) ---
+  # Blade `/app` @vite orqali shu serverdan asset oladi (public/hot mavjud bo'lsa).
+  # `profiles: [dev]` — `docker compose up -d` bilan AVTOMAT ko'tarilmaydi, chunki
+  # dev server faqat localhost:${VITE_FORWARD_PORT} ga ishora qiladi (telefonda
+  # ko'rinmaydi). Kompyuter brauzerida ishlash uchun: `docker compose up -d vite`.
+  # Telegram testi uchun: `docker compose stop vite && npm run build`.
+  vite:
+    image: node:22-alpine
+    profiles: ["dev"]
+    working_dir: /app
+    user: "${UID:-1000}:${GID:-1000}"
+    environment:
+      VITE_PORT: "${VITE_FORWARD_PORT:-5174}"
+    volumes:
+      - ./:/app
+    ports:
+      - "${VITE_FORWARD_PORT:-5174}:5173"
+    command: sh -c "npm install && npm run dev"
+    restart: unless-stopped
 
 volumes:
   pgdata:

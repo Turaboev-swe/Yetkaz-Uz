@@ -74,6 +74,7 @@ docker compose exec app php artisan db:seed        # namuna ma'lumot (ixtiyoriy)
 | `scheduler` | `schedule:work` (cron) | (tashqi port yo'q) | — |
 | `postgres` | PostgreSQL 16 + PostGIS | localhost:55432 | `DB_FORWARD_PORT` |
 | `redis` | Kesh / navbat / sessiya | localhost:56379 | `REDIS_FORWARD_PORT` |
+| `vite` | Mini App dev server (React) — `profiles: [dev]`, `docker compose up -d vite` | http://localhost:5174 | `VITE_FORWARD_PORT` |
 
 Portlar boshqa loyihalar bilan to'qnashmasligi uchun nostandart tanlangan.
 
@@ -115,7 +116,58 @@ Shuning uchun:
 2. `/start` yuboring.
 3. Bot javob beradi: salomlashadi va sizning `telegram_id` ingizni qaytaradi.
 
-Bu handler bazaga tegmaydi — faqat ulanishni tekshirish uchun.
+---
+
+## Mini App (Telegram Web App)
+
+React + Vite. Laravel `/app` marshruti SPA'ni beradi, API `/api/*` xuddi shu
+domenda (CORS shart emas).
+
+**Ikki rejim** — bir vaqtda bittasi (`public/hot` fayli hal qiladi):
+
+| Rejim | Qachon | Ishga tushirish |
+|---|---|---|
+| Dev server (HMR) | Kompyuter brauzerida ishlash | `docker compose up -d vite` |
+| Build (statik) | Telegram / telefon orqali test | `docker compose stop vite && npm run build` |
+
+`vite` konteyneri `npm install` ni o'zi bajaradi. Build faqat kompyuter
+brauzeriga (`localhost:5174`) ishora qiladi — telefonda ko'rinmaydi, shuning
+uchun Telegram testi uchun `npm run build` kerak.
+
+### Kompyuter brauzerida sinash (Telegramsiz)
+
+1. `docker compose up -d vite`
+2. Imzolangan initData oling (bot tokeni chiqmaydi):
+
+   ```bash
+   docker compose exec app php artisan telegram:test-init-data <telegram_id>
+   ```
+
+3. Natijani `.env` ga `TELEGRAM_DEV_INIT_DATA=`, `docker compose up -d`.
+4. http://localhost:8010/app — `<telegram_id>` botda ro'yxatdan o'tgan bo'lsa
+   (telefon+ism+manzil) restoranlar ro'yxati chiqadi.
+
+### Telegram ichida sinash
+
+1. Public HTTPS tunnel (hisob shart emas, Docker orqali):
+
+   ```bash
+   docker run -d --name yetkaz-tunnel --network host --restart unless-stopped \
+     cloudflare/cloudflared:latest tunnel --url http://localhost:8010 --no-autoupdate
+   docker logs yetkaz-tunnel 2>&1 | grep -o 'https://[a-z-]*\.trycloudflare\.com'
+   ```
+
+2. `docker compose stop vite && npm run build`
+3. `.env` ga: `TELEGRAM_MINI_APP_URL=https://<tunnel>.trycloudflare.com/app`,
+   `docker compose restart bot`.
+4. BotFather → menyu tugmasi URL'i: xuddi shu `https://<tunnel>.../app`
+   (yoki `/empty` — `/start` dagi inline tugmalar baribir ishlaydi).
+5. Telegram'da `/start` — restoranlar ro'yxati inline tugmalar bilan
+   ("Buyurtma berish" dan oldin). Tugma Mini App'ni o'sha restoran menyusida ochadi.
+
+> ⚠️ Bepul `trycloudflare.com` manzili tunnel qayta ishga tushganda o'zgaradi —
+> `.env` va BotFather menyu tugmasini yangilash kerak. JS o'zgarsa: `npm run build`.
+> Tunnel loglari: `docker logs -f yetkaz-tunnel`.
 
 ---
 
@@ -124,6 +176,7 @@ Bu handler bazaga tegmaydi — faqat ulanishni tekshirish uchun.
 | Nima | Buyruq |
 |---|---|
 | Bot (long polling, kelgan `/start` lar) | `docker compose logs -f bot` |
+| Mini App (Vite dev server) | `docker compose logs -f vite` |
 | Octane / HTTP | `docker compose logs -f app` |
 | Horizon (navbat) | `docker compose logs -f horizon` |
 | Laravel log fayli | `docker compose exec app tail -f storage/logs/laravel.log` |
@@ -141,6 +194,8 @@ avtomat ko'rinmaydi:
 |---|---|
 | PHP kod (`app/`, `routes/web.php`) | `docker compose exec app php artisan octane:reload` (~1s) |
 | Bot handlerlari (`routes/telegram.php`) | `docker compose restart bot` |
+| Mini App (`resources/js/miniapp/`) — dev server | hech narsa — Vite HMR avtomat |
+| Mini App (`resources/js/miniapp/`) — Telegram testi | `npm run build` |
 | `config/*.php` | `docker compose restart app bot horizon scheduler` |
 | `.env` | `docker compose up -d` (o'zgargan konteynerlar qayta yaratiladi) |
 | Yangi migratsiya fayli | `docker compose exec app php artisan migrate` |

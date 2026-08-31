@@ -22,21 +22,31 @@ class RestaurantController extends Controller
     ) {}
 
     /**
-     * GET /api/restaurants?address_id=&district_id= — shu manzilга yetkazadigan
-     * ochiq restoranlar. `district_id` — ixtiyoriy ko'rsatish filtri.
+     * GET /api/restaurants?address_id=&district_id=&include_closed= — shu manzilга
+     * yetkazadigan restoranlar. `district_id` — ixtiyoriy ko'rsatish filtri.
+     * `include_closed=1` — Mini App ro'yxati uchun yopiqlarni ham qaytaradi
+     * (`is_open_now` bayrog'i bilan; ochiqlari yuqorida).
      */
     public function index(Request $request): AnonymousResourceCollection
     {
         $validated = $request->validate([
             'district_id' => ['nullable', 'integer', 'exists:districts,id'],
+            'include_closed' => ['nullable', 'boolean'],
         ]);
 
         return RestaurantResource::collection(
             $this->finder->deliveringTo(
                 $this->resolveUserAddress($request),
                 $validated['district_id'] ?? null,
+                (bool) ($validated['include_closed'] ?? false),
             ),
         );
+    }
+
+    /** GET /api/restaurants/{restaurant} — bitta restoran (menyu sarlavhasi uchun; masofasiz). */
+    public function show(Restaurant $restaurant): RestaurantResource
+    {
+        return new RestaurantResource($restaurant->load('district.region'));
     }
 
     /** GET /api/restaurants/{restaurant}/menu — faol kategoriyalar + mavjud taomlar. */

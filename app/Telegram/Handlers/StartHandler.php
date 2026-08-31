@@ -5,6 +5,7 @@ namespace App\Telegram\Handlers;
 use App\Services\User\ProfileService;
 use App\Telegram\Conversations\RegistrationConversation;
 use App\Telegram\Support\Keyboards;
+use App\Telegram\Support\RestaurantListMessage;
 use SergiX44\Nutgram\Nutgram;
 
 /**
@@ -29,6 +30,14 @@ class StartHandler
         app()->setLocale($user->language ?: 'uz');
 
         if ($user->profile_completed) {
+            // Restoranlar ro'yxati "Buyurtma berish" (asosiy menyu) dan OLDIN.
+            if ($restaurants = RestaurantListMessage::keyboard($user)) {
+                $bot->sendMessage(
+                    __('messages.restaurants.pick'),
+                    reply_markup: $restaurants,
+                );
+            }
+
             $bot->sendMessage(
                 __('messages.welcome_back', ['name' => $user->full_name ?: $from->first_name]),
                 reply_markup: Keyboards::mainMenu(),

@@ -51,6 +51,13 @@ return [
         'choose_language' => 'Tilni tanlang:',
     ],
 
+    // Restoranlar ro'yxati (inline, "Buyurtma berish" dan oldin)
+    'restaurants' => [
+        'pick' => 'Restoranni tanlang:',
+        'open_app' => '📋 Barcha restoranlar',
+        'none' => 'Hozircha manzilingizga yetkazadigan restoran yo‘q.',
+    ],
+
     // Savat / restoran
     'cart_kept' => 'Savatingiz saqlanadi.',
     'min_order_not_met' => "Minimal buyurtma summasi: :amount so'm.",

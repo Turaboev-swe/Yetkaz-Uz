@@ -17,6 +17,11 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'telegram.initdata' => ValidateTelegramInitData::class,
         ]);
+
+        // Mini App reverse-proxy / tunnel (cloudflared, ngrok, production LB) ortida
+        // ishlaydi — X-Forwarded-Proto ni hisobga olib https URL generatsiya qilsin
+        // (aks holda https sahifada http asset = mixed-content bloklanadi).
+        $middleware->trustProxies(at: '*');
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

@@ -13,4 +13,11 @@ return [
     */
     'mini_app_url' => env('TELEGRAM_MINI_APP_URL'),
 
+    /*
+    | Faqat lokal dev: brauzerda (Telegramsiz) Mini App'ni sinash uchun
+    | imzolangan initData. `php artisan telegram:test-init-data --curl` bilan
+    | oling. Faqat APP_ENV=local da blade'ga uzatiladi.
+    */
+    'dev_init_data' => env('TELEGRAM_DEV_INIT_DATA'),
+
 ];

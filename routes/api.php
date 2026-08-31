@@ -29,6 +29,7 @@ Route::middleware('telegram.initdata')->group(function () {
     Route::get('/districts', [GeoController::class, 'districts']);
 
     Route::get('/restaurants', [RestaurantController::class, 'index']);
+    Route::get('/restaurants/{restaurant}', [RestaurantController::class, 'show']);
     Route::get('/restaurants/{restaurant}/menu', [RestaurantController::class, 'menu']);
 
     Route::get('/search', [SearchController::class, 'index']);

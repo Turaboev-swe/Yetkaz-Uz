@@ -19,20 +19,30 @@ class RestaurantFinder
     /**
      * @param  int|null  $districtId  faqat shu tuman restoranlari (ko'rsatish filtri;
      *                                masofa/radius baribir lat/lng dan)
+     * @param  bool  $includeClosed  Mini App ro'yxati uchun — yopiq restoranlarni ham
+     *                               qaytaradi (ochiqlari yuqorida, keyin masofa bo'yicha).
+     *                               Yopiqlar `is_open_now = false` bilan belgilanadi.
      * @return Collection<int, Restaurant>
      */
-    public function deliveringTo(Address $address, ?int $districtId = null): Collection
+    public function deliveringTo(Address $address, ?int $districtId = null, bool $includeClosed = false): Collection
     {
-        return Restaurant::query()
+        $restaurants = Restaurant::query()
             ->select('restaurants.*')
-            ->where('is_open', true)
+            ->when(! $includeClosed, fn ($q) => $q->where('is_open', true))
             ->when($districtId, fn ($q) => $q->where('district_id', $districtId))
             ->deliversTo($address->lat, $address->lng)
             ->withDistanceKm($address->lat, $address->lng)
             ->with('district.region')
             ->orderBy('distance_km')
-            ->get()
-            ->filter(fn (Restaurant $r) => $r->isOpenNow())
+            ->get();
+
+        if (! $includeClosed) {
+            return $restaurants->filter(fn (Restaurant $r) => $r->isOpenNow())->values();
+        }
+
+        // Ochiqlar oldinda, har guruh ichida masofa bo'yicha (so'rov allaqachon saralagan).
+        return $restaurants
+            ->sortByDesc(fn (Restaurant $r) => $r->isOpenNow() ? 1 : 0)
             ->values();
     }
 

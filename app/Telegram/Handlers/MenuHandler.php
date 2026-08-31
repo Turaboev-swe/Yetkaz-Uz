@@ -5,6 +5,7 @@ namespace App\Telegram\Handlers;
 use App\Services\User\ProfileService;
 use App\Telegram\Conversations\RegistrationConversation;
 use App\Telegram\Support\Keyboards;
+use App\Telegram\Support\RestaurantListMessage;
 use SergiX44\Nutgram\Nutgram;
 
 /**
@@ -38,9 +39,18 @@ class MenuHandler
 
         $text = trim((string) $bot->message()?->text);
 
+        if ($text === __('messages.main_menu.restaurants')) {
+            if ($restaurants = RestaurantListMessage::keyboard($user)) {
+                $bot->sendMessage(__('messages.restaurants.pick'), reply_markup: $restaurants);
+            } else {
+                $bot->sendMessage(__('messages.main_menu.coming_soon'));
+            }
+
+            return;
+        }
+
         $known = [
             __('messages.main_menu.search'),
-            __('messages.main_menu.restaurants'),
             __('messages.main_menu.orders'),
             __('messages.main_menu.settings'),
         ];
