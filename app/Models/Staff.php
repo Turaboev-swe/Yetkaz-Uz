@@ -59,6 +59,19 @@ class Staff extends Authenticatable implements FilamentUser
         return $this->role === StaffRole::RestaurantOwner;
     }
 
+    public function isKitchenStaff(): bool
+    {
+        return $this->role === StaffRole::KitchenStaff;
+    }
+
+    /** Oshxona paneliga (/kitchen) kira oladimi — o'z restorani buyurtmalari. */
+    public function canManageKitchen(): bool
+    {
+        return $this->is_active
+            && $this->restaurant_id !== null
+            && ($this->isRestaurantOwner() || $this->isKitchenStaff());
+    }
+
     /** Filament: qaysi panelga kira oladi. */
     public function canAccessPanel(Panel $panel): bool
     {

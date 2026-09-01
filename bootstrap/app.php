@@ -22,6 +22,9 @@ return Application::configure(basePath: dirname(__DIR__))
         // ishlaydi — X-Forwarded-Proto ni hisobga olib https URL generatsiya qilsin
         // (aks holda https sahifada http asset = mixed-content bloklanadi).
         $middleware->trustProxies(at: '*');
+
+        // Autentifikatsiyasiz mehmon: /kitchen -> restoran login, aks holda admin.
+        $middleware->redirectGuestsTo(fn ($request) => $request->is('kitchen*') ? '/restaurant/login' : '/admin/login');
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

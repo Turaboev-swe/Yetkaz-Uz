@@ -2,6 +2,8 @@
 
 namespace Tests\Feature;
 
+use App\Enums\OrderStatus;
+use App\Jobs\NotifyCustomerOfStatusChange;
 use App\Jobs\NotifyRestaurantOfNewOrder;
 use App\Models\Address;
 use App\Models\Category;
@@ -110,5 +112,23 @@ class OrderNotificationTest extends TestCase
 
         $bot->assertCalled('sendMessage');
         $bot->assertCalled('sendLocation', 0);
+    }
+
+    public function test_customer_status_message_uses_customer_language(): void
+    {
+        $order = $this->order();
+        $order->user->update(['language' => 'ru', 'telegram_id' => 700123]);
+        $order->update(['status' => OrderStatus::Preparing]);
+
+        $bot = app(Nutgram::class);
+        (new NotifyCustomerOfStatusChange($order->id))->handle($bot);
+
+        $bot->assertRaw(fn ($request) => str_contains((string) $request->getBody(), 'готовится'), 0);
+
+        // uz mijoz -> o'zbekcha
+        $order->user->update(['language' => 'uz']);
+        $order->update(['status' => OrderStatus::OnTheWay]);
+        (new NotifyCustomerOfStatusChange($order->id))->handle($bot);
+        $bot->assertRaw(fn ($request) => str_contains((string) $request->getBody(), 'lga chiqdi'), 1);
     }
 }

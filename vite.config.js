@@ -13,6 +13,7 @@ export default defineConfig({
                 'resources/css/app.css',
                 'resources/js/app.js',
                 'resources/js/miniapp/main.jsx',
+                'resources/js/kitchen/main.jsx',
             ],
             refresh: true,
         }),

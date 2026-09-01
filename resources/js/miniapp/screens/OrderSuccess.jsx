@@ -22,7 +22,7 @@ export default function OrderSuccess() {
 
     const o = q.data.data;
     const pickup = o.delivery_type === 'pickup';
-    const eta = `${o.eta_minutes}–${o.eta_minutes + 15}`;
+    const eta = o.eta_low && o.eta_high ? `${o.eta_low}–${o.eta_high}` : `${o.eta_minutes}`;
 
     return (
         <div className="mx-auto max-w-md px-4 pb-28 pt-10">

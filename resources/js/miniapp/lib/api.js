@@ -51,6 +51,7 @@ export const api = {
     addresses: () => request('/addresses'),
     createAddress: (body) => request('/addresses', { method: 'POST', body }),
     reverse: (lat, lng) => request('/geo/reverse', { params: { lat, lng } }),
+    estimateOrder: (body) => request('/orders/estimate', { method: 'POST', body }),
     createOrder: (body) => request('/orders', { method: 'POST', body }),
     order: (id) => request(`/orders/${id}`),
 };

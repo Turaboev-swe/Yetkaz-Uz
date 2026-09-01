@@ -6,6 +6,7 @@ use App\Enums\DeliveryType;
 use App\Enums\OrderStatus;
 use App\Enums\PaymentMethod;
 use App\Enums\PaymentStatus;
+use App\Events\OrderPlaced;
 use App\Jobs\NotifyRestaurantOfNewOrder;
 use App\Models\Order;
 use App\Models\OrderStatusHistory;
@@ -13,6 +14,8 @@ use App\Models\Product;
 use App\Models\Restaurant;
 use App\Models\User;
 use App\Services\Delivery\RestaurantFinder;
+use App\Services\Eta\EtaEstimate;
+use App\Services\Eta\EtaEstimator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -25,7 +28,10 @@ use Illuminate\Validation\ValidationException;
  */
 class OrderService
 {
-    public function __construct(private readonly RestaurantFinder $finder) {}
+    public function __construct(
+        private readonly RestaurantFinder $finder,
+        private readonly EtaEstimator $eta,
+    ) {}
 
     /**
      * @param  array{restaurant_id:int, delivery_type:string, address_id?:int|null,
@@ -67,7 +73,8 @@ class OrderService
         }
 
         $deliveryFee = $type->isPickup() ? 0 : (int) $restaurant->delivery_fee;
-        $eta = $this->etaMinutes($restaurant, $type, $distanceKm);
+        $maxPrep = max(array_map(fn ($l) => $l['prep'], $lines) ?: [(int) $restaurant->avg_prep_time_min]);
+        $eta = $this->eta->estimate($restaurant, $type, $distanceKm, $maxPrep)->minutes;
 
         $order = DB::transaction(function () use ($user, $restaurant, $address, $type, $lines, $subtotal, $deliveryFee, $eta, $distanceKm, $data) {
             $order = Order::create([
@@ -99,15 +106,42 @@ class OrderService
             return $order;
         });
 
-        // Restoran egasiga Telegram bildirishnomasi (navbatga).
+        // Oshxona paneli (Reverb) + restoran egasiga Telegram DM (navbatga).
+        OrderPlaced::dispatch($order->id, $order->restaurant_id);
         NotifyRestaurantOfNewOrder::dispatch($order->id);
 
         return $order;
     }
 
     /**
+     * Rasmiylashtirish ekrani uchun ETA oldindan ko'rsatiladi (buyurtma yaratilmaydi).
+     *
+     * @param  array{restaurant_id:int, delivery_type:string, address_id?:int|null,
+     *               items?:array<int, array{product_id:int, qty:int}>}  $data
+     */
+    public function estimateEta(User $user, array $data): EtaEstimate
+    {
+        $restaurant = Restaurant::query()->findOrFail($data['restaurant_id']);
+        $type = DeliveryType::from($data['delivery_type']);
+
+        $distanceKm = null;
+        if (! $type->isPickup() && ! empty($data['address_id'])) {
+            $address = $user->addresses()->find($data['address_id']);
+            if ($address !== null) {
+                $distanceKm = $this->finder->distanceKm($restaurant, $address);
+            }
+        }
+
+        $ids = array_column($data['items'] ?? [], 'product_id');
+        $maxPrep = (int) (Product::query()->forRestaurant($restaurant->id)
+            ->whereIn('id', $ids)->max('prep_time_min') ?: $restaurant->avg_prep_time_min);
+
+        return $this->eta->estimate($restaurant, $type, $distanceKm, $maxPrep);
+    }
+
+    /**
      * @param  array<int, array{product_id:int, qty:int}>  $items
-     * @return array<int, array{product_id:int, name:string, price:int, qty:int, note:null}>
+     * @return array<int, array{product_id:int, name:string, price:int, qty:int, prep:int, note:null}>
      */
     private function resolveLines(Restaurant $restaurant, array $items): array
     {
@@ -131,6 +165,7 @@ class OrderService
             'name' => $p->name,
             'price' => (int) $p->price,
             'qty' => (int) $qtyById[$p->id],
+            'prep' => (int) $p->prep_time_min,
             'note' => null,
         ])->values()->all();
     }
@@ -148,17 +183,6 @@ class OrderService
             'floor' => $address->floor,
             'apartment' => $address->apartment,
         ];
-    }
-
-    /** prep_time + yo'l vaqti (~18 km/soat), 5 daqiqaga yaxlitlangan. Pickup: faqat prep. */
-    private function etaMinutes(Restaurant $restaurant, DeliveryType $type, ?float $distanceKm): int
-    {
-        $prep = (int) $restaurant->avg_prep_time_min;
-        $travel = ! $type->isPickup() && $distanceKm !== null
-            ? (int) round($distanceKm / 18 * 60)
-            : 0;
-
-        return max(15, (int) ceil(($prep + $travel) / 5) * 5);
     }
 
     private function orderNumber(): string

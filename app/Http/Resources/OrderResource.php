@@ -29,7 +29,10 @@ class OrderResource extends JsonResource
             'delivery_fee' => $this->delivery_fee,
             'total' => $this->total,
 
+            // Mijozga aniq raqam emas, oraliq: minutes-5 … minutes+10 (5 ga yaxlit).
             'eta_minutes' => $this->eta_minutes,
+            'eta_low' => $this->eta_minutes ? max(5, (int) (round(($this->eta_minutes - 5) / 5) * 5)) : null,
+            'eta_high' => $this->eta_minutes ? (int) (round(($this->eta_minutes + 10) / 5) * 5) : null,
             'distance_km' => $this->distance_km !== null ? round((float) $this->distance_km, 2) : null,
 
             'address_snapshot' => $this->address_snapshot,

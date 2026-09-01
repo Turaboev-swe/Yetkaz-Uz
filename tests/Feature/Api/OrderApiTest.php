@@ -47,8 +47,8 @@ class OrderApiTest extends TestCase
             'min_order_amount' => 3_000_000, 'avg_prep_time_min' => 20,
         ]);
         $cat = Category::factory()->for($this->restaurant)->create(['is_active' => true]);
-        $this->osh = Product::factory()->for($cat)->create(['name' => 'Osh', 'price' => 3_200_000, 'is_available' => true]);
-        $this->choy = Product::factory()->for($cat)->create(['name' => 'Choy', 'price' => 500_000, 'is_available' => true]);
+        $this->osh = Product::factory()->for($cat)->create(['name' => 'Osh', 'price' => 3_200_000, 'prep_time_min' => 20, 'is_available' => true]);
+        $this->choy = Product::factory()->for($cat)->create(['name' => 'Choy', 'price' => 500_000, 'prep_time_min' => 5, 'is_available' => true]);
     }
 
     protected function tearDown(): void
@@ -145,8 +145,8 @@ class OrderApiTest extends TestCase
             ->assertJsonPath('data.total', 6_900_000)
             ->assertJsonPath('data.address_snapshot', null);
 
-        // Pickup ETA = faqat pishirish (~20 -> 20 daq)
-        $this->assertSame(20, $res->json('data.eta_minutes'));
+        // Pickup ETA = pishirish(20) + navbat(0) + bufer(5) = 25; kuryer/yo'l = 0
+        $this->assertSame(25, $res->json('data.eta_minutes'));
     }
 
     public function test_delivery_requires_address_id(): void

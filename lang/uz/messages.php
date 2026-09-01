@@ -75,6 +75,16 @@ return [
 
     'mini_app_unavailable' => 'Mini App hozircha sozlanmagan. Iltimos, birozdan so‘ng urinib ko‘ring.',
 
+    // Buyurtma statusi o'zgarganda mijozga (oshxona paneli)
+    'order_notify' => [
+        'accepted' => '✅ Buyurtmangiz (:n) qabul qilindi. Tez orada tayyorlashga kirishamiz.',
+        'preparing' => '👨‍🍳 Buyurtmangiz (:n) tayyorlanmoqda.',
+        'on_the_way' => '🛵 Buyurtmangiz (:n) yo‘lga chiqdi.',
+        'delivered' => '🎉 Buyurtmangiz (:n) yetkazildi. Yoqimli ishtaha!',
+        'picked_up' => '🎉 Buyurtmangiz (:n) topshirildi. Yoqimli ishtaha!',
+        'cancelled' => '❌ Buyurtmangiz (:n) bekor qilindi.',
+    ],
+
     // Savat / restoran
     'cart_kept' => 'Savatingiz saqlanadi.',
     'min_order_not_met' => "Minimal buyurtma summasi: :amount so'm.",

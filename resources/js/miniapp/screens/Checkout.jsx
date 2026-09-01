@@ -5,7 +5,7 @@ import { useAsync } from '../hooks/useAsync';
 import { showBackButton, setMainButton, hideMainButton, notify, isInsideTelegram } from '../lib/telegram';
 import { useSession } from '../store/session';
 import { useCart, cartItems, cartTotal, cartCount } from '../store/cart';
-import { som, somLabel, etaLabel } from '../lib/format';
+import { som, somLabel } from '../lib/format';
 import { addressLines } from '../lib/address';
 import { Spinner, ErrorState } from '../components/States';
 
@@ -44,7 +44,17 @@ export default function Checkout() {
     }, [count, rid, navigate]);
 
     const data = useAsync(
-        () => Promise.all([api.restaurant(rid, mode === 'delivery' ? addressId : null), api.me()]),
+        () =>
+            Promise.all([
+                api.restaurant(rid, mode === 'delivery' ? addressId : null),
+                api.me(),
+                api.estimateOrder({
+                    restaurant_id: rid,
+                    delivery_type: mode,
+                    address_id: mode === 'delivery' ? addressId : null,
+                    items: cartItems(carts, rid),
+                }),
+            ]),
         [rid, mode, addressId],
     );
 
@@ -94,7 +104,8 @@ export default function Checkout() {
     if (data.loading) return <Spinner />;
     if (data.error) return <ErrorState error={data.error} onRetry={data.reload} />;
 
-    const eta = etaLabel(restaurant.distance_km, restaurant.avg_prep_time_min);
+    const estimate = data.data?.[2]?.data;
+    const eta = estimate ? `${estimate.eta_low}–${estimate.eta_high} daq` : '…';
     const hours = todayHours(restaurant.work_hours);
 
     return (

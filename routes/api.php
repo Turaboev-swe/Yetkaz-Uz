@@ -34,6 +34,7 @@ Route::middleware('telegram.initdata')->group(function () {
     Route::get('/restaurants/{restaurant}', [RestaurantController::class, 'show']);
     Route::get('/restaurants/{restaurant}/menu', [RestaurantController::class, 'menu']);
 
+    Route::post('/orders/estimate', [OrderController::class, 'estimate']);
     Route::post('/orders', [OrderController::class, 'store']);
     Route::get('/orders/{order}', [OrderController::class, 'show']);
 

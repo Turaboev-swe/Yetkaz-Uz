@@ -17,7 +17,9 @@
         "vite": "^7.0.7"
     },
     "dependencies": {
+        "laravel-echo": "^1.16.1",
         "leaflet": "^1.9.4",
+        "pusher-js": "^8.4.0",
         "react": "^18.3.1",
         "react-dom": "^18.3.1",
         "react-router-dom": "^6.28.0",
