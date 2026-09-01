@@ -36,3 +36,10 @@ Thumbs.db
 /print-agent/.venv
 /print-agent/__pycache__
 /print-agent/*.sqlite
+
+# Print agent (oshxona kompyuteri)
+/print-agent/.env
+/print-agent/queue.db
+/print-agent/output/*
+!/print-agent/output/.gitkeep
+/print-agent/.venv

@@ -40,6 +40,7 @@ class Order extends Model
         'distance_km',
         'dispatched_at',
         'printed_at',
+        'dispatch_failed_at',
         'delivered_at',
         'cancelled_at',
     ];
@@ -60,6 +61,7 @@ class Order extends Model
             'distance_km' => 'float',
             'dispatched_at' => 'datetime',
             'printed_at' => 'datetime',
+            'dispatch_failed_at' => 'datetime',
             'delivered_at' => 'datetime',
             'cancelled_at' => 'datetime',
         ];

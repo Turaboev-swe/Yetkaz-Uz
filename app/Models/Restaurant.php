@@ -39,12 +39,14 @@ class Restaurant extends Model
         'printer_host',
         'printer_port',
         'pos_credentials',
+        'print_agent_token',
     ];
 
     /** `location` — PostGIS tomonidan lat/lng dan hisoblanadi, qo'lda yozilmaydi. */
     protected $hidden = [
         'pos_credentials',
         'notify_chat_id',
+        'print_agent_token',
         'location',
     ];
 

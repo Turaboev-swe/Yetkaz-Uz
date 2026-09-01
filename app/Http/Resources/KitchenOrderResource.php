@@ -22,6 +22,8 @@ class KitchenOrderResource extends JsonResource
             'delivery_type' => $this->delivery_type->value,
             'created_at' => $this->created_at?->toIso8601String(),
             'eta_minutes' => $this->eta_minutes,
+            'printed' => $this->printed_at !== null,
+            'dispatch_failed' => $this->dispatch_failed_at !== null,
 
             'customer' => [
                 'name' => $this->user?->full_name,

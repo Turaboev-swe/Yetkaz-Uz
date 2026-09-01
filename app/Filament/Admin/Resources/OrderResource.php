@@ -44,6 +44,10 @@ class OrderResource extends Resource
                 Tables\Columns\TextColumn::make('total')->label('Summa')
                     ->formatStateUsing(fn (int $state): string => number_format(intdiv($state, 100), 0, '.', ' ')." so'm")
                     ->sortable(),
+                Tables\Columns\IconColumn::make('dispatch_failed_at')->label('Chek')
+                    ->tooltip('Chek chiqmadi — qo\'lda tekshiring')
+                    ->icon(fn ($state) => $state ? 'heroicon-s-exclamation-triangle' : 'heroicon-o-printer')
+                    ->color(fn ($state, $record) => $state ? 'danger' : ($record->printed_at ? 'success' : 'gray')),
                 Tables\Columns\TextColumn::make('created_at')->label('Vaqti')->dateTime('d.m.Y H:i')->sortable(),
             ])
             ->filters([

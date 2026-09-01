@@ -118,6 +118,29 @@ services:
     command: sh -c "npm install && npm run dev"
     restart: unless-stopped
 
+  # --- Print agent (oshxona kompyuteri) — FAQAT lokal sinov uchun ---
+  # Haqiqiy oshxonada kompyuterда to'g'ridан-to'g'ri `python agent.py` ishlaydi.
+  # `profiles: [agent]` — `docker compose --profile agent up print-agent`.
+  print-agent:
+    image: python:3.12-slim
+    profiles: ["agent"]
+    working_dir: /agent
+    volumes:
+      - ./print-agent:/agent
+    environment:
+      BACKEND_URL: http://app:8000
+      REVERB_HOST: reverb
+      REVERB_PORT: "8080"
+      REVERB_SCHEME: http
+      REVERB_APP_KEY: "${REVERB_APP_KEY:-local-key}"
+      RESTAURANT_ID: "${PRINT_AGENT_RESTAURANT_ID:-5}"
+      AGENT_TOKEN: "${PRINT_AGENT_TOKEN:-dev-burgergrill-print-token-123}"
+      PRINTER_MODE: "${PRINTER_MODE:-simulate}"
+    command: sh -c "pip install -q -r requirements.txt && python agent.py"
+    depends_on:
+      - reverb
+    restart: unless-stopped
+
 volumes:
   pgdata:
   redisdata:

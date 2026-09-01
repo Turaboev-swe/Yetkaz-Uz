@@ -54,6 +54,10 @@ export default function App() {
             );
         });
 
+        ch.listen('.order.dispatch_failed', (e) => {
+            setOrders((cur) => cur.map((o) => (o.id === e.id ? { ...o, dispatch_failed: true } : o)));
+        });
+
         const pusher = echo.connector.pusher;
         pusher.connection.bind('connected', () => setConnected(true));
         pusher.connection.bind('unavailable', () => setConnected(false));

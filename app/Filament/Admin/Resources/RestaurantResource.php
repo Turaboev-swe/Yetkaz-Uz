@@ -12,6 +12,7 @@ use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Support\Str;
 
 class RestaurantResource extends Resource
 {
@@ -70,6 +71,13 @@ class RestaurantResource extends Resource
                     ->visible(fn (Forms\Get $get) => $get('pos_type') === PosType::EscPos->value),
                 Forms\Components\TextInput::make('printer_port')->label('Printer port')->numeric()->default(9100)
                     ->visible(fn (Forms\Get $get) => $get('pos_type') === PosType::EscPos->value),
+                Forms\Components\TextInput::make('print_agent_token')->label('Print agent tokeni')
+                    ->helperText('Oshxona kompyuteridagi agent shu token bilan ulanadi. Bo\'sh qoldirilsa chek chiqmaydi.')
+                    ->visible(fn (Forms\Get $get) => $get('pos_type') === PosType::EscPos->value)
+                    ->suffixAction(
+                        Forms\Components\Actions\Action::make('gen')->icon('heroicon-m-arrow-path')
+                            ->action(fn (Forms\Set $set) => $set('print_agent_token', Str::random(40))),
+                    ),
             ])->columns(2),
 
             Forms\Components\Section::make('Ish vaqti')->schema([

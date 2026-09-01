@@ -34,6 +34,12 @@ export default function OrderCard({ order, onAdvance, busy }) {
                 </span>
             </div>
 
+            {order.dispatch_failed && (
+                <div className="mt-2 rounded-lg px-3 py-1.5 text-[13px] font-bold" style={{ background: '#7f1d1d', color: '#fecaca' }}>
+                    ⚠️ Chek chiqmadi — qo‘lda tekshiring
+                </div>
+            )}
+
             <div className="mt-3 text-[15px]">
                 <div className="font-semibold">{order.customer.name || 'Ism yo‘q'}</div>
                 {order.customer.phone && (

@@ -7,6 +7,7 @@ use App\Enums\OrderStatus;
 use App\Enums\PaymentMethod;
 use App\Enums\PaymentStatus;
 use App\Events\OrderPlaced;
+use App\Jobs\DispatchOrderJob;
 use App\Jobs\NotifyRestaurantOfNewOrder;
 use App\Models\Order;
 use App\Models\OrderStatusHistory;
@@ -106,8 +107,10 @@ class OrderService
             return $order;
         });
 
-        // Oshxona paneli (Reverb) + restoran egasiga Telegram DM (navbatga).
+        // Oshxona paneli (Reverb) + chek printeri + restoran egasiga Telegram DM.
+        // Hammasi navbatга — HTTP javobi kutilmaydi.
         OrderPlaced::dispatch($order->id, $order->restaurant_id);
+        DispatchOrderJob::dispatch($order->id);
         NotifyRestaurantOfNewOrder::dispatch($order->id);
 
         return $order;

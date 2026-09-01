@@ -53,7 +53,16 @@ class QorgontepaSeeder extends Seeder
 
         $fresh = Restaurant::create([...$common, 'name' => 'Fresh Food', 'lng' => 72.7629, 'phone' => '+998740010101']);
         $donix = Restaurant::create([...$common, 'name' => 'Donix', 'lng' => 72.7746, 'phone' => '+998740020202']);
-        $burger = Restaurant::create([...$common, 'name' => 'BurgerGrill', 'lng' => 72.7863, 'phone' => '+998740030303']);
+
+        // BurgerGrill — chek printeri (ESC/POS) bilan test qilish uchun.
+        $burger = Restaurant::create([
+            ...$common,
+            'name' => 'BurgerGrill',
+            'lng' => 72.7863,
+            'phone' => '+998740030303',
+            'pos_type' => PosType::EscPos,
+            'print_agent_token' => env('PRINT_AGENT_TOKEN') ?: 'test-agent-token-burgergrill',
+        ]);
 
         // [nom, rasm_slug, narx, tayyorlash_daq, eski_narx(ixtiyoriy)]
         $this->menu($fresh, [

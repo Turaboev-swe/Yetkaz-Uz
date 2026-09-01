@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\AddressController;
+use App\Http\Controllers\Api\AgentController;
 use App\Http\Controllers\Api\GeoController;
 use App\Http\Controllers\Api\MeController;
 use App\Http\Controllers\Api\OrderController;
@@ -39,4 +40,13 @@ Route::middleware('telegram.initdata')->group(function () {
     Route::get('/orders/{order}', [OrderController::class, 'show']);
 
     Route::get('/search', [SearchController::class, 'index']);
+});
+
+/*
+| Print agent (oshxona kompyuteri) — sessiyasiz, Bearer token bilan.
+*/
+Route::prefix('agent')->group(function () {
+    Route::post('/broadcasting/auth', [AgentController::class, 'broadcastAuth']);
+    Route::get('/orders/pending', [AgentController::class, 'pending']);
+    Route::post('/orders/{order}/printed', [AgentController::class, 'confirmPrinted']);
 });
