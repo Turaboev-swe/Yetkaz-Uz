@@ -5,6 +5,7 @@ namespace Tests\Feature\Api;
 use App\Models\Address;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
 use Tests\Concerns\InteractsWithTelegramInitData;
 use Tests\TestCase;
 
@@ -19,6 +20,7 @@ class AddressApiTest extends TestCase
     {
         parent::setUp();
         $this->bindInitDataValidator();
+        Http::fake(); // geokodlash — tashqi so'rovsiz (eng yaqin tuman markazi)
         $this->user = User::factory()->create(['telegram_id' => 333000]);
     }
 

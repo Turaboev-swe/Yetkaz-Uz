@@ -55,6 +55,9 @@ docker compose up -d
 # 6. Migratsiyalar
 docker compose exec app php artisan migrate
 docker compose exec app php artisan db:seed        # namuna ma'lumot (ixtiyoriy)
+
+# 7. Rasm yuklash uchun symlink (bir marta)
+docker compose exec app php artisan storage:link    # yoki: make storage-link
 ```
 
 `TELEGRAM_BOT_TOKEN` **hech qachon** git'ga tushmaydi — `.env` `.gitignore` da.
@@ -149,25 +152,26 @@ uchun Telegram testi uchun `npm run build` kerak.
 
 ### Telegram ichida sinash
 
-1. Public HTTPS tunnel (hisob shart emas, Docker orqali):
+1. `docker compose stop vite && npm run build` (statik build — telefon dev serverga ula olmaydi)
+2. Public HTTPS tunnel (hisob shart emas):
 
    ```bash
-   docker run -d --name yetkaz-tunnel --network host --restart unless-stopped \
-     cloudflare/cloudflared:latest tunnel --url http://localhost:8010 --no-autoupdate
-   docker logs yetkaz-tunnel 2>&1 | grep -o 'https://[a-z-]*\.trycloudflare\.com'
+   make tunnel      # yoki: ./bin/miniapp-tunnel.sh
    ```
 
-2. `docker compose stop vite && npm run build`
-3. `.env` ga: `TELEGRAM_MINI_APP_URL=https://<tunnel>.trycloudflare.com/app`,
-   `docker compose restart bot`.
-4. BotFather → menyu tugmasi URL'i: xuddi shu `https://<tunnel>.../app`
-   (yoki `/empty` — `/start` dagi inline tugmalar baribir ishlaydi).
-5. Telegram'da `/start` — restoranlar ro'yxati inline tugmalar bilan
-   ("Buyurtma berish" dan oldin). Tugma Mini App'ni o'sha restoran menyusida ochadi.
+   Bu cloudflared konteynerini ko'taradi, yangi manzilni oladi, `.env` dagi
+   `TELEGRAM_MINI_APP_URL` ni yangilaydi, config keshini tozalab bot'ni qayta
+   ishga tushiradi va manzilni chiqaradi.
 
-> ⚠️ Bepul `trycloudflare.com` manzili tunnel qayta ishga tushganda o'zgaradi —
-> `.env` va BotFather menyu tugmasini yangilash kerak. JS o'zgarsa: `npm run build`.
-> Tunnel loglari: `docker logs -f yetkaz-tunnel`.
+3. Chiqqan manzilni BotFather menyu tugmasiga ham qo'ying (ixtiyoriy):
+   `/mybots → bot → Bot Settings → Menu Button`. `/start` dagi "Buyurtma berish"
+   inline tugmasi menyu tugmasisiz ham ishlaydi.
+4. Telegram'da `/start` → 🍿 Buyurtma berish → Mini App ochiladi.
+
+> ⚠️ Bepul `trycloudflare.com` manzili tunnel **har qayta ishga tushganda**
+> (kompyuter reboot bo'lsa ham) o'zgaradi. Har safar **`make tunnel`** ni qayta
+> ishga tushiring — u `.env` va bot'ni yangilaydi. Keyin Telegram'da `/start`.
+> JS o'zgarsa: `npm run build`. Tunnel loglari: `docker logs -f yetkaz-tunnel`.
 
 ---
 

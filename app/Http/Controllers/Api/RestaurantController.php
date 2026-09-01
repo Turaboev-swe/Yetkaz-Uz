@@ -43,10 +43,22 @@ class RestaurantController extends Controller
         );
     }
 
-    /** GET /api/restaurants/{restaurant} — bitta restoran (menyu sarlavhasi uchun; masofasiz). */
-    public function show(Restaurant $restaurant): RestaurantResource
+    /**
+     * GET /api/restaurants/{restaurant}?address_id= — bitta restoran.
+     * `address_id` berilsa `distance_km` ham qaytadi (rasmiylashtirish ekrani uchun).
+     */
+    public function show(Request $request, Restaurant $restaurant): RestaurantResource
     {
-        return new RestaurantResource($restaurant->load('district.region'));
+        $restaurant->load('district.region');
+
+        if ($request->filled('address_id')) {
+            $address = $request->user()->addresses()->find($request->integer('address_id'));
+            if ($address !== null) {
+                $restaurant->distance_km = $this->finder->distanceKm($restaurant, $address);
+            }
+        }
+
+        return new RestaurantResource($restaurant);
     }
 
     /** GET /api/restaurants/{restaurant}/menu — faol kategoriyalar + mavjud taomlar. */

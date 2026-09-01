@@ -33,14 +33,19 @@ return [
         'home_label' => 'Uy',
     ],
 
-    // Asosiy menyu
+    // Asosiy menyu (Reply Keyboard)
     'main_menu' => [
         'title' => 'Asosiy menyu',
-        'search' => '🔍 Taom qidirish',
+        'order' => '🍿 Buyurtma berish',
+        'order_intro' => "Boshlaymiz 🍿\n\nAjoyib buyurtma berish uchun quyidagi tugmani bosing!",
+        'order_button' => 'Buyurtma berish',
+        'new_address' => '📍 Yangi manzil',
         'restaurants' => '🏪 Restoranlar',
-        'orders' => '📋 Buyurtmalarim',
+        'restaurants_intro' => 'Restoranlar ro‘yxati 🏪',
+        'restaurants_button' => 'Ochish',
+        'addresses' => '📌 Manzillarim',
+        'feedback' => '💬 Taklif va shikoyat',
         'settings' => '⚙️ Sozlamalar',
-        'coming_soon' => "Bu bo'lim keyingi bosqichda ishga tushadi.",
     ],
 
     // Sozlamalar
@@ -49,22 +54,39 @@ return [
         'language' => 'Til',
         'language_changed' => 'Til o‘zbekchaga o‘zgartirildi.',
         'choose_language' => 'Tilni tanlang:',
+        'lang_uz' => '🇺🇿 O‘zbekcha',
+        'lang_ru' => '🇷🇺 Русский',
     ],
 
-    // Restoranlar ro'yxati (inline, "Buyurtma berish" dan oldin)
-    'restaurants' => [
-        'pick' => 'Restoranni tanlang:',
-        'open_app' => '📋 Barcha restoranlar',
-        'none' => 'Hozircha manzilingizga yetkazadigan restoran yo‘q.',
+    // Manzillar
+    'addresses' => [
+        'title' => 'Sizning manzillaringiz:',
+        'empty' => "Sizda hali saqlangan manzil yo‘q.\n\n«📍 Yangi manzil» tugmasi orqali qo‘shing.",
+        'hint' => 'Yangi manzil qo‘shish uchun «📍 Yangi manzil» tugmasini bosing.',
+        'default_marker' => '  ✅ asosiy',
+        'label' => 'Manzil :n',
+        'added' => "✅ Yangi manzil qo‘shildi va asosiy qilib belgilandi:\n:address",
     ],
+
+    // Taklif va shikoyat — hali ishlamaydi
+    'feedback' => [
+        'not_ready' => 'Bu bo‘lim hali ishlamaydi. Taklif va shikoyatlar tez orada shu yerda qabul qilinadi.',
+    ],
+
+    'mini_app_unavailable' => 'Mini App hozircha sozlanmagan. Iltimos, birozdan so‘ng urinib ko‘ring.',
 
     // Savat / restoran
     'cart_kept' => 'Savatingiz saqlanadi.',
     'min_order_not_met' => "Minimal buyurtma summasi: :amount so'm.",
     'restaurant_closed' => 'Restoran hozir yopiq.',
     'out_of_radius' => 'Afsuski, bu manzilga yetkazib bera olmaymiz.',
+    'cart_item_unavailable' => "Savatdagi ba'zi taomlar endi mavjud emas. Savatni yangilang.",
 
     // Enum yorliqlari
+    'delivery_type' => [
+        'delivery' => 'Yetkazib berish',
+        'pickup' => 'Olib ketish',
+    ],
     'order_status' => [
         'new' => 'Qabul qilindi',
         'accepted' => 'Tasdiqlandi',

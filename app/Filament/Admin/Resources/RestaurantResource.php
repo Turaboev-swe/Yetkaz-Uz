@@ -33,7 +33,14 @@ class RestaurantResource extends Resource
             Forms\Components\Section::make('Asosiy')->schema([
                 Forms\Components\TextInput::make('name')->label('Nomi')->required()->maxLength(255),
                 Forms\Components\TextInput::make('phone')->label('Telefon')->tel()->maxLength(32),
-                Forms\Components\TextInput::make('logo_url')->label('Logo URL')->url()->maxLength(500),
+                Forms\Components\FileUpload::make('logo_url')->label('Logo')
+                    ->image()->imageEditor()->avatar()
+                    ->disk('public')->directory('logos')->visibility('public')
+                    ->imageResizeMode('cover')->imageResizeTargetWidth('400')->imageResizeTargetHeight('400')
+                    ->maxSize(2048),
+                Forms\Components\TextInput::make('notify_chat_id')->label('Bildirishnoma chat ID')
+                    ->helperText('Yangi buyurtmalar shu Telegram chatga keladi. Egasi botга /id yozib oladi.')
+                    ->maxLength(32),
                 Forms\Components\Toggle::make('is_open')->label('Ochiq')->default(true),
             ])->columns(2),
 
@@ -75,6 +82,7 @@ class RestaurantResource extends Resource
     {
         return $table
             ->columns([
+                Tables\Columns\ImageColumn::make('logo_url')->label('')->disk('public')->circular(),
                 Tables\Columns\TextColumn::make('name')->label('Nomi')->searchable()->sortable(),
                 Tables\Columns\TextColumn::make('district.name')->label('Tuman')->sortable(),
                 Tables\Columns\TextColumn::make('district.region.name')->label('Viloyat')->toggleable(isToggledHiddenByDefault: true),

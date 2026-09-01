@@ -7,6 +7,8 @@ use App\Http\Resources\DistrictResource;
 use App\Http\Resources\RegionResource;
 use App\Models\District;
 use App\Models\Region;
+use App\Services\Geo\AddressGeocoder;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
@@ -39,5 +41,21 @@ class GeoController extends Controller
                 ->orderBy('name')
                 ->get(),
         );
+    }
+
+    /**
+     * GET /api/geo/reverse?lat=&lng= — nuqta uchun tuman + manzil matni (o'zbekcha).
+     * "Yangi manzil" xaritasida nuqta tanlanganda ishlatiladi.
+     */
+    public function reverse(Request $request, AddressGeocoder $geocoder): JsonResponse
+    {
+        $validated = $request->validate([
+            'lat' => ['required', 'numeric', 'between:-90,90'],
+            'lng' => ['required', 'numeric', 'between:-180,180'],
+        ]);
+
+        return response()->json([
+            'data' => $geocoder->describe((float) $validated['lat'], (float) $validated['lng']),
+        ]);
     }
 }

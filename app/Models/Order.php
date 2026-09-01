@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\DeliveryType;
 use App\Enums\OrderStatus;
 use App\Enums\PaymentMethod;
 use App\Enums\PaymentStatus;
@@ -25,8 +26,10 @@ class Order extends Model
         'user_id',
         'restaurant_id',
         'address_id',
+        'delivery_type',
         'items',
         'address_snapshot',
+        'note',
         'subtotal',
         'delivery_fee',
         'total',
@@ -46,6 +49,7 @@ class Order extends Model
         return [
             'items' => 'array',
             'address_snapshot' => 'array',
+            'delivery_type' => DeliveryType::class,
             'subtotal' => 'integer',
             'delivery_fee' => 'integer',
             'total' => 'integer',

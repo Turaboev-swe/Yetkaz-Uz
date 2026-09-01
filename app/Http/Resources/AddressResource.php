@@ -18,6 +18,9 @@ class AddressResource extends JsonResource
             'lat' => $this->lat,
             'lng' => $this->lng,
             'address_text' => $this->address_text,
+            'district_id' => $this->district_id,
+            // Doim o'zbekcha (districts jadvalidan).
+            'district' => $this->whenLoaded('district', fn () => $this->district?->name),
             'entrance' => $this->entrance,
             'floor' => $this->floor,
             'apartment' => $this->apartment,

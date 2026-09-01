@@ -27,6 +27,7 @@ class Restaurant extends Model
         'lat',
         'lng',
         'phone',
+        'notify_chat_id',
         'logo_url',
         'avg_prep_time_min',
         'delivery_radius_km',
@@ -43,6 +44,7 @@ class Restaurant extends Model
     /** `location` — PostGIS tomonidan lat/lng dan hisoblanadi, qo'lda yozilmaydi. */
     protected $hidden = [
         'pos_credentials',
+        'notify_chat_id',
         'location',
     ];
 

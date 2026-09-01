@@ -32,6 +32,7 @@ class AdminPanelProvider extends PanelProvider
             ->login()
             ->authGuard('staff')
             ->brandName('Yetkaz — Admin')
+            ->darkMode(true) // yorug'/qorong'i/tizim — o'ng yuqoridagi foydalanuvchi menyusida
             ->colors([
                 'primary' => Color::Amber,
             ])

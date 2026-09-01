@@ -2,7 +2,7 @@
 DC := docker compose
 
 .PHONY: help build up down down-v restart restart-bot reload logs bot-logs shell psql redis \
-        migrate fresh seed test key install-deps horizon
+        migrate fresh seed test key install-deps horizon tunnel storage-link
 
 help: ## Buyruqlar ro'yxati
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -35,6 +35,9 @@ logs: ## Loglar (app)
 bot-logs: ## Bot loglari (long polling, getMe, kelgan updatelar)
 	$(DC) logs -f bot
 
+tunnel: ## Mini App tunnel (yangi trycloudflare manzili -> .env -> bot)
+	./bin/miniapp-tunnel.sh
+
 shell: ## app konteyneriga kirish
 	$(DC) exec app bash
 
@@ -49,6 +52,9 @@ install-deps: ## Bog'liqliklarni o'rnatish (vendor volume yangilash)
 
 key: ## APP_KEY generatsiya
 	$(DC) run --rm app php artisan key:generate
+
+storage-link: ## public/storage symlink (yuklangan rasmlar uchun; bir marta)
+	$(DC) exec app php artisan storage:link
 
 migrate: ## Migratsiyalar
 	$(DC) exec app php artisan migrate

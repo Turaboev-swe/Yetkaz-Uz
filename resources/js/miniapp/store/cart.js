@@ -7,7 +7,7 @@ import { persist } from 'zustand/middleware';
  *
  * carts: { [restaurantId]: { [productId]: { qty, price, name } } }
  *
- * Backend savati (Redis) va rasmiylashtirish — 5-ekranda.
+ * Buyurtma yaratilgach shu restoran savati tozalanadi (clear).
  */
 export const useCart = create(
     persist(
@@ -41,6 +41,13 @@ export const useCart = create(
                     else cart[productId] = { ...line, qty: line.qty - 1 };
                     return { carts: { ...state.carts, [rid]: cart } };
                 }),
+
+            clear: (rid) =>
+                set((state) => {
+                    const carts = { ...state.carts };
+                    delete carts[rid];
+                    return { carts };
+                }),
         }),
         { name: 'yetkaz-cart', version: 1 },
     ),
@@ -56,4 +63,22 @@ export function cartCount(carts, rid) {
 
 export function cartTotal(carts, rid) {
     return Object.values(carts?.[rid] || {}).reduce((n, line) => n + line.qty * line.price, 0);
+}
+
+/** @returns {{product_id:number, qty:number}[]} — API uchun */
+export function cartItems(carts, rid) {
+    return Object.entries(carts?.[rid] || {}).map(([productId, line]) => ({
+        product_id: Number(productId),
+        qty: line.qty,
+    }));
+}
+
+/** @returns {{product_id:number, name:string, price:number, qty:number}[]} — ko'rsatish uchun */
+export function cartLines(carts, rid) {
+    return Object.entries(carts?.[rid] || {}).map(([productId, line]) => ({
+        product_id: Number(productId),
+        name: line.name,
+        price: line.price,
+        qty: line.qty,
+    }));
 }

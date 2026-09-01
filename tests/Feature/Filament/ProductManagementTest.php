@@ -9,8 +9,11 @@ use App\Models\Category;
 use App\Models\Product;
 use App\Models\Restaurant;
 use App\Models\Staff;
+use App\Support\Media;
 use Filament\Facades\Filament;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
 use Tests\TestCase;
 
@@ -108,5 +111,29 @@ class ProductManagementTest extends TestCase
 
         $this->assertFalse($product->fresh()->is_available);
         $this->assertSame(0, $product->priceHistory()->count());
+    }
+
+    public function test_owner_can_upload_a_product_photo(): void
+    {
+        Storage::fake('public');
+
+        Livewire::test(CreateProduct::class)
+            ->fillForm([
+                'category_id' => $this->category->id,
+                'name' => 'Rasmli taom',
+                'price' => 30000,
+                'prep_time_min' => 15,
+                'photo_url' => UploadedFile::fake()->create('taom.jpg', 200, 'image/jpeg'),
+                'is_available' => true,
+            ])
+            ->call('create')
+            ->assertHasNoFormErrors();
+
+        $product = Product::where('name', 'Rasmli taom')->sole();
+        $this->assertStringStartsWith('products/', $product->photo_url);
+        Storage::disk('public')->assertExists($product->photo_url);
+
+        // API to'liq (nisbiy) URL qaytaradi.
+        $this->assertSame('/storage/'.$product->photo_url, Media::url($product->photo_url));
     }
 }

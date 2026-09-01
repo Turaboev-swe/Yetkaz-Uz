@@ -11,6 +11,7 @@ class DatabaseSeeder extends Seeder
         $this->call([
             AndijanGeoSeeder::class,
             DemoSeeder::class,
+            QorgontepaSeeder::class,
             StaffSeeder::class,
         ]);
     }

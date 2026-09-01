@@ -39,11 +39,14 @@ trait InteractsWithTelegramInitData
             'auth_date' => (string) ($authDate ?? time()),
             'query_id' => 'AAF'.substr(md5((string) mt_rand()), 0, 20),
             'user' => json_encode($user, JSON_UNESCAPED_UNICODE),
+            // Haqiqiy Telegram initData'da bo'ladi va HMAC data_check_string IGA KIRADI.
+            'signature' => 'test_'.substr(md5((string) mt_rand()), 0, 24),
         ], $extra);
 
-        // Telegram `hash` ni `hash` va `signature` dan tashqari maydonlar ustidan hisoblaydi.
+        // Telegram `hash` ni FAQAT `hash` dan tashqari maydonlar ustidan hisoblaydi
+        // (`signature` ham kiradi).
         $checkFields = $fields;
-        unset($checkFields['hash'], $checkFields['signature']);
+        unset($checkFields['hash']);
         ksort($checkFields);
 
         $dataCheckString = implode("\n", array_map(

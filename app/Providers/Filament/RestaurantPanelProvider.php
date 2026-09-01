@@ -31,6 +31,7 @@ class RestaurantPanelProvider extends PanelProvider
             ->login()
             ->authGuard('staff')
             ->brandName('Yetkaz — Restoran')
+            ->darkMode(true) // yorug'/qorong'i/tizim — o'ng yuqoridagi foydalanuvchi menyusida
             ->colors([
                 'primary' => Color::Emerald,
             ])

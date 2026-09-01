@@ -56,6 +56,17 @@ class ProductResource extends Resource
                 ->formatStateUsing(fn (?int $state): ?string => $state === null ? null : (string) intdiv($state, 100))
                 ->dehydrateStateUsing(fn ($state): int => (int) round((float) $state * 100)),
 
+            // Chegirma: to'ldirilsa va joriy narxdan katta bo'lsa — taom aksiyada.
+            Forms\Components\TextInput::make('old_price')
+                ->label("Eski narx (so'm) — chegirma uchun")
+                ->helperText('Bo\'sh qoldirilsa — chegirma yo\'q.')
+                ->numeric()
+                ->minValue(0)
+                ->step(100)
+                ->suffix("so'm")
+                ->formatStateUsing(fn (?int $state): ?string => $state === null ? null : (string) intdiv($state, 100))
+                ->dehydrateStateUsing(fn ($state): ?int => filled($state) ? (int) round((float) $state * 100) : null),
+
             Forms\Components\TextInput::make('prep_time_min')
                 ->label('Tayyorlash vaqti (daqiqa)')
                 ->required()
@@ -63,10 +74,18 @@ class ProductResource extends Resource
                 ->minValue(0)
                 ->default(15),
 
-            Forms\Components\TextInput::make('photo_url')
-                ->label('Rasm URL')
-                ->url()
-                ->maxLength(500),
+            Forms\Components\FileUpload::make('photo_url')
+                ->label('Taom rasmi')
+                ->image()
+                ->imageEditor()
+                ->disk('public')
+                ->directory('products')
+                ->visibility('public')
+                ->imageResizeMode('cover')
+                ->imageResizeTargetWidth('800')
+                ->imageResizeTargetHeight('800')
+                ->maxSize(4096)
+                ->helperText('Kvadrat rasm tavsiya etiladi. 4 MB gacha.'),
 
             Forms\Components\TextInput::make('sort_order')
                 ->label('Tartib')
@@ -89,6 +108,11 @@ class ProductResource extends Resource
                 Tables\Columns\ToggleColumn::make('is_available')
                     ->label('Mavjud')
                     ->sortable(),
+
+                Tables\Columns\ImageColumn::make('photo_url')
+                    ->label('')
+                    ->disk('public')
+                    ->circular(),
 
                 Tables\Columns\TextColumn::make('name')
                     ->label('Nomi')

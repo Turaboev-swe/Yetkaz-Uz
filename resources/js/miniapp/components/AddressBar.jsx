@@ -1,18 +1,23 @@
-/**
- * Joriy yetkazish manzili (hozircha faqat ko'rsatish).
- * Manzil almashtirish (bottom sheet) — 3-ekranda.
- */
-export default function AddressBar({ address }) {
-    if (!address) return null;
-    const text = address.address_text || `${address.label}`;
+import { addressLines } from '../lib/address';
+
+/** Joriy yetkazish manzili / "Olib ketaman". Bosilганда — manzil tanlash sheet'i. */
+export default function AddressBar({ address, pickup, onClick }) {
+    const { title, subtitle } = addressLines(address);
+    const label = pickup ? 'Olib ketaman' : title || 'Manzil tanlang';
 
     return (
-        <div className="flex items-center gap-1.5 py-1 text-[13px]" style={{ color: 'var(--tg-hint)' }}>
-            <span aria-hidden>📍</span>
-            <span className="truncate" style={{ color: 'var(--tg-text)' }}>
-                {address.label}
-                {address.address_text ? ` · ${text}` : ''}
+        <button
+            onClick={onClick}
+            className="-mx-1 flex w-full items-center gap-1.5 rounded-lg px-1 py-1.5 text-left"
+        >
+            <span aria-hidden>{pickup ? '🛍' : '📍'}</span>
+            <span className="min-w-0 flex-1 truncate">
+                <span className="text-[13px] font-semibold" style={{ color: 'var(--tg-text)' }}>{label}</span>
+                {!pickup && subtitle && (
+                    <span className="text-[13px]" style={{ color: 'var(--tg-hint)' }}> · {subtitle}</span>
+                )}
             </span>
-        </div>
+            <span aria-hidden style={{ color: 'var(--tg-hint)' }}>▾</span>
+        </button>
     );
 }

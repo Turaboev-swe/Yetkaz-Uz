@@ -13,7 +13,7 @@ class MeController extends Controller
     public function show(Request $request): JsonResponse
     {
         $user = $request->user()->load([
-            'addresses' => fn ($q) => $q->orderByDesc('is_default')->orderBy('id'),
+            'addresses' => fn ($q) => $q->with('district')->orderByDesc('is_default')->orderBy('id'),
         ]);
 
         // GET doim 200 — middleware foydalanuvchini yangi yaratgan bo'lsa ham

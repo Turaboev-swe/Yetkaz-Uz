@@ -1,12 +1,15 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 
-const TAB_OFFSET = 92; // address bar + sticky tab bar balandligi
+// Sticky kategoriya tab bar balandligi (px) + kichik oraliq.
+const TAB_OFFSET = 52;
 
 /**
  * Sahifa aylantirilganda faol kategoriyani aniqlaydi; tab bosilganda esa
- * bo'limga silliq siljiydi va spy'ni qisqa vaqt "qulflaydi".
+ * bo'limga siljiydi va spy'ni qisqa vaqt "qulflaydi".
  *
  * Bo'lim elementlari `id="cat-<categoryId>"` bo'lishi kerak.
+ * `window.scrollTo` ishlatiladi — mobil Telegram WebView'da `scrollIntoView`
+ * ba'zan ishlamaydi.
  */
 export function useScrollSpy(ids) {
     const [active, setActive] = useState(ids[0] ?? null);
@@ -37,12 +40,22 @@ export function useScrollSpy(ids) {
     const scrollTo = useCallback((id) => {
         const el = document.getElementById(`cat-${id}`);
         if (!el) return;
+
         locked.current = true;
         setActive(id);
-        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+        const top = Math.max(0, window.scrollY + el.getBoundingClientRect().top - TAB_OFFSET);
+        const smooth = 'scrollBehavior' in document.documentElement.style;
+        try {
+            if (smooth) window.scrollTo({ top, behavior: 'smooth' });
+            else window.scrollTo(0, top);
+        } catch {
+            window.scrollTo(0, top);
+        }
+
         window.setTimeout(() => {
             locked.current = false;
-        }, 650);
+        }, 700);
     }, []);
 
     return { active, scrollTo };

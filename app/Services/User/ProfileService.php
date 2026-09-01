@@ -19,15 +19,23 @@ class ProfileService
     public function findOrCreateFromTelegram(
         int $telegramId,
         ?string $languageCode = null,
+        ?string $username = null,
     ): User {
         $user = User::byTelegramId($telegramId)->first();
 
         if ($user === null) {
-            $user = User::create([
+            return User::create([
                 'telegram_id' => $telegramId,
+                'username' => $username,
                 'language' => $this->normalizeLanguage($languageCode),
                 'profile_completed' => false,
             ]);
+        }
+
+        // @username o'zgargan bo'lsa yangilaymiz (bildirishnomada ishlatiladi).
+        // null uzatilsa tegmaymiz — ichki chaqiruvlar mavjud qiymatni o'chirmasin.
+        if ($username !== null && $username !== $user->username) {
+            $user->update(['username' => $username]);
         }
 
         return $user;

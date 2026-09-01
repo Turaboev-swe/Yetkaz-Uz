@@ -11,7 +11,7 @@ export class ApiError extends Error {
     }
 }
 
-async function request(path, params) {
+async function request(path, { params, method = 'GET', body } = {}) {
     const url = new URL(`${BASE || window.location.origin}/api${path}`);
     if (params) {
         for (const [k, v] of Object.entries(params)) {
@@ -22,26 +22,35 @@ async function request(path, params) {
     let res;
     try {
         res = await fetch(url, {
+            method,
             headers: {
                 Authorization: `tma ${getInitData()}`,
                 Accept: 'application/json',
+                ...(body ? { 'Content-Type': 'application/json' } : {}),
             },
+            body: body ? JSON.stringify(body) : undefined,
         });
     } catch (e) {
         throw new ApiError('Tarmoq bilan aloqa yo‘q.', 0, null);
     }
 
-    const body = await res.json().catch(() => ({}));
+    const payload = await res.json().catch(() => ({}));
     if (!res.ok) {
-        throw new ApiError(body.message || `Xatolik (${res.status})`, res.status, body);
+        const detail = payload.reason ? ` (${payload.reason})` : '';
+        throw new ApiError((payload.message || `Xatolik ${res.status}`) + detail, res.status, payload);
     }
-    return body;
+    return payload;
 }
 
 export const api = {
     me: () => request('/me'),
     districts: () => request('/districts'),
-    restaurants: (params) => request('/restaurants', params),
-    restaurant: (id) => request(`/restaurants/${id}`),
+    restaurants: (params) => request('/restaurants', { params }),
+    restaurant: (id, addressId) => request(`/restaurants/${id}`, { params: addressId ? { address_id: addressId } : undefined }),
     menu: (id) => request(`/restaurants/${id}/menu`),
+    addresses: () => request('/addresses'),
+    createAddress: (body) => request('/addresses', { method: 'POST', body }),
+    reverse: (lat, lng) => request('/geo/reverse', { params: { lat, lng } }),
+    createOrder: (body) => request('/orders', { method: 'POST', body }),
+    order: (id) => request(`/orders/${id}`),
 };

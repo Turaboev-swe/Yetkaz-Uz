@@ -132,6 +132,7 @@ class RegistrationConversation extends Conversation
             ?? $this->profiles()->findOrCreateFromTelegram(
                 telegramId: $bot->userId(),
                 languageCode: $bot->user()?->language_code,
+                username: $bot->user()?->username,
             );
     }
 }

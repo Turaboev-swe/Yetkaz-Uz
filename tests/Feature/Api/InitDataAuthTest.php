@@ -20,14 +20,18 @@ class InitDataAuthTest extends TestCase
 
     public function test_valid_init_data_authenticates_and_creates_the_user(): void
     {
-        $initData = $this->signedInitData(['id' => 42424242, 'language_code' => 'ru']);
+        $initData = $this->signedInitData(['id' => 42424242, 'language_code' => 'ru', 'username' => 'ali_dev']);
 
         $this->getJson('/api/me', $this->initDataHeaders($initData))
             ->assertOk()
             ->assertJsonPath('data.telegram_id', 42424242);
 
-        // Standart til — o'zbekcha (Telegram tili ru bo'lsa ham).
-        $this->assertDatabaseHas('users', ['telegram_id' => 42424242, 'language' => 'uz']);
+        // Standart til — o'zbekcha (Telegram tili ru bo'lsa ham). @username saqlanadi.
+        $this->assertDatabaseHas('users', [
+            'telegram_id' => 42424242,
+            'language' => 'uz',
+            'username' => 'ali_dev',
+        ]);
     }
 
     public function test_missing_init_data_is_rejected(): void
@@ -76,12 +80,18 @@ class InitDataAuthTest extends TestCase
         $this->getJson('/api/me', ['X-Telegram-Init-Data' => $initData])->assertOk();
     }
 
-    public function test_signature_field_is_ignored_by_hmac_check(): void
+    public function test_signature_field_is_part_of_hmac_check(): void
     {
-        // Telegram yangi initData'ga `signature` (Ed25519) qo'shadi — u HMAC tekshiruviga kirmaydi.
-        $initData = $this->signedInitData(extra: ['signature' => 'abc_this_is_not_checked']);
+        // Telegram `signature` (Ed25519) ni HMAC `hash` data_check_string'iga KIRITADI.
+        // signedInitData() standart holda `signature` beradi — u bilan imzo to'g'ri.
+        $ok = $this->signedInitData(['id' => 55501], extra: ['signature' => 'sig_abc123']);
+        $this->getJson('/api/me', $this->initDataHeaders($ok))->assertOk();
 
-        $this->getJson('/api/me', $this->initDataHeaders($initData))->assertOk();
+        // Imzolangandan keyin `signature` ni buzsak — hash endi mos kelmaydi.
+        $tampered = preg_replace('/signature=[^&]+/', 'signature=sig_TAMPERED', $ok);
+        $this->getJson('/api/me', $this->initDataHeaders($tampered))
+            ->assertUnauthorized()
+            ->assertJsonPath('reason', fn ($r) => str_contains((string) $r, 'imzosi'));
     }
 
     public function test_authenticated_request_reuses_existing_user(): void

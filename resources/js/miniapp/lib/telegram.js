@@ -17,6 +17,8 @@ export function initTelegram() {
         tg.expand();
         tg.setHeaderColor?.('secondary_bg_color');
         tg.setBackgroundColor?.('bg_color');
+        // Menyuni aylantirganda ilova tasodifan yopilib ketmasin.
+        tg.disableVerticalSwipes?.();
     } catch {
         /* eski Telegram klientlari — jim o'tamiz */
     }
@@ -48,17 +50,45 @@ export function getInitData() {
     return '';
 }
 
-/** Bot inline tugmasi: `?r=ID`. Deep link: `start_param = restaurant_ID`. */
-export function getStartRestaurantId() {
+/** initData bormi (Telegram ichida ochilganmi yoki dev initData berilganmi). */
+export function hasInitData() {
+    return getInitData() !== '';
+}
+
+/** Telegram WebApp konteksti umuman mavjudmi (SDK yuklanganmi). */
+export function hasTelegramContext() {
+    return Boolean(tg);
+}
+
+/**
+ * Bot qaysi ekranni so'raganini aniqlaydi.
+ *
+ * WebApp tugmasi URL query beradi: `?screen=restaurants`, `?r=12`.
+ * Deep link (t.me/bot/app?startapp=...) `start_param` beradi:
+ * `screen_restaurants`, `restaurant_12`.
+ *
+ * @returns {{screen: string|null, restaurantId: number|null}}
+ */
+export function getStartTarget() {
+    let screen = null;
+    let restaurantId = null;
+
     try {
-        const r = new URL(window.location.href).searchParams.get('r');
-        if (r && /^\d+$/.test(r)) return Number(r);
+        const q = new URL(window.location.href).searchParams;
+        if (q.get('screen')) screen = q.get('screen');
+        const r = q.get('r');
+        if (r && /^\d+$/.test(r)) restaurantId = Number(r);
     } catch {
         /* ignore */
     }
+
     const sp = tg?.initDataUnsafe?.start_param || '';
-    const m = sp.match(/^restaurant_(\d+)$/);
-    return m ? Number(m[1]) : null;
+    const mr = sp.match(/^restaurant_(\d+)$/);
+    if (mr) restaurantId = Number(mr[1]);
+    const ms = sp.match(/^screen_([a-z]+)$/);
+    if (ms) screen = ms[1];
+
+    return { screen, restaurantId };
 }
 
 export function haptic(type = 'light') {
@@ -94,7 +124,7 @@ export function hideBackButton() {
 }
 
 /** Telegram MainButton (savat / rasmiylashtirish). Tozalash funksiyasini qaytaradi. */
-export function setMainButton({ text, onClick, visible = true, color, textColor }) {
+export function setMainButton({ text, onClick, visible = true, active = true, color, textColor }) {
     const mb = tg?.MainButton;
     if (!mb) return () => {};
     mb.setParams({
@@ -102,13 +132,17 @@ export function setMainButton({ text, onClick, visible = true, color, textColor 
         color: color || undefined,
         text_color: textColor || undefined,
         is_visible: visible,
-        is_active: true,
+        is_active: active,
     });
     if (onClick) mb.onClick(onClick);
     return () => {
         if (onClick) mb.offClick(onClick);
         mb.hide();
     };
+}
+
+export function hideMainButton() {
+    tg?.MainButton?.hide();
 }
 
 export function isInsideTelegram() {

@@ -36,7 +36,7 @@ class AndijanGeoSeeder extends Seeder
         ['name' => 'Izboskan tumani',     'center' => 'Poytug',       'lat' => 40.8986353, 'lng' => 72.2475029],
         ['name' => 'Jalaquduq tumani',    'center' => 'Jalaquduq',    'lat' => 40.7186364, 'lng' => 72.6423006],
         ['name' => "Xo'jaobod tumani",    'center' => "Xo'jaobod",    'lat' => 40.665998, 'lng' => 72.5681925],
-        ['name' => "Qo'rg'ontepa tumani", 'center' => "Qo'rg'ontepa", 'lat' => 40.733957, 'lng' => 72.7628617],
+        ['name' => "Qo'rg'ontepa tumani", 'center' => "Qo'rg'ontepa", 'lat' => 40.7278, 'lng' => 72.7629],
         ['name' => 'Marhamat tumani',     'center' => 'Marhamat',     'lat' => 40.5038893, 'lng' => 72.3326001],
         ['name' => "Oltinko'l tumani",    'center' => "Oltinko'l",    'lat' => 40.8011469, 'lng' => 72.1634159],
         ['name' => 'Paxtaobod tumani',    'center' => 'Paxtaobod',    'lat' => 40.9275291, 'lng' => 72.498114],

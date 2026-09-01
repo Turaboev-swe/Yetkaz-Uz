@@ -32,7 +32,7 @@ export default function QtyControl({ qty, onAdd, onRemove, addLabel = '+ Qo‘sh
             >
                 −
             </button>
-            <span className="min-w-6 text-center text-[14px] font-semibold tabular-nums">{qty}</span>
+            <span className="min-w-[1.5rem] text-center text-[14px] font-semibold tabular-nums">{qty}</span>
             <button
                 onClick={() => {
                     haptic('light');

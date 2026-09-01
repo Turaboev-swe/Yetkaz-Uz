@@ -18,7 +18,8 @@ class StoreAddressRequest extends FormRequest
             'label' => ['nullable', 'string', 'max:40'],
             'lat' => ['required', 'numeric', 'between:-90,90'],
             'lng' => ['required', 'numeric', 'between:-180,180'],
-            'address_text' => ['required', 'string', 'max:500'],
+            // Berilmasa — lat/lng dan geokodlanadi (AddressGeocoder).
+            'address_text' => ['nullable', 'string', 'max:500'],
             'entrance' => ['nullable', 'string', 'max:32'],
             'floor' => ['nullable', 'string', 'max:32'],
             'apartment' => ['nullable', 'string', 'max:32'],

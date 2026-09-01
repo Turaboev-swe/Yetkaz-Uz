@@ -5,6 +5,7 @@ namespace App\Filament\Restaurant\Pages;
 use App\Filament\Support\RestaurantLocationForm;
 use App\Filament\Support\WorkHoursForm;
 use App\Models\Restaurant;
+use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Section;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
@@ -55,7 +56,15 @@ class RestaurantSettings extends Page implements HasForms
                     ->schema([
                         TextInput::make('name')->label('Nomi')->required()->maxLength(255),
                         TextInput::make('phone')->label('Telefon')->tel()->maxLength(32),
-                        TextInput::make('logo_url')->label('Logo URL')->url()->maxLength(500),
+                        FileUpload::make('logo_url')->label('Logo')
+                            ->image()->imageEditor()->avatar()
+                            ->disk('public')->directory('logos')->visibility('public')
+                            ->imageResizeMode('cover')->imageResizeTargetWidth('400')->imageResizeTargetHeight('400')
+                            ->maxSize(2048)
+                            ->helperText('Kvadrat rasm. 2 MB gacha.'),
+                        TextInput::make('notify_chat_id')->label('Bildirishnoma chat ID')
+                            ->helperText('Yangi buyurtmalar shu Telegram chatga keladi. Botга /id yozib, chiqqan raqamni bu yerga kiriting.')
+                            ->maxLength(32),
                         Toggle::make('is_open')
                             ->label('Hozir ochiq')
                             ->helperText('O`chirilsa restoran mijozlarga umuman ko`rinmaydi.')

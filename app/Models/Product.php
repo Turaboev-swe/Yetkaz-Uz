@@ -25,6 +25,7 @@ class Product extends Model
         'name',
         'description',
         'price',
+        'old_price',
         'photo_url',
         'prep_time_min',
         'is_available',
@@ -35,10 +36,17 @@ class Product extends Model
     {
         return [
             'price' => 'integer',
+            'old_price' => 'integer',
             'prep_time_min' => 'integer',
             'is_available' => 'boolean',
             'sort_order' => 'integer',
         ];
+    }
+
+    /** Taom aksiyada — `old_price` bor va joriy narxdan yuqori. */
+    public function isOnSale(): bool
+    {
+        return $this->old_price !== null && $this->old_price > $this->price;
     }
 
     /** @return BelongsTo<Category, Product> */

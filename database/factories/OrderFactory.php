@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Enums\DeliveryType;
 use App\Enums\OrderStatus;
 use App\Enums\PaymentMethod;
 use App\Enums\PaymentStatus;
@@ -25,6 +26,7 @@ class OrderFactory extends Factory
             'user_id' => User::factory(),
             'restaurant_id' => Restaurant::factory(),
             'address_id' => Address::factory(),
+            'delivery_type' => DeliveryType::Delivery,
             'items' => [
                 ['product_id' => 1, 'name' => 'Lag\'mon', 'price' => 2_500_000, 'qty' => 2, 'note' => null],
             ],

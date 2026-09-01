@@ -2,68 +2,39 @@
 
 namespace App\Telegram\Handlers;
 
-use App\Services\User\ProfileService;
-use App\Telegram\Conversations\RegistrationConversation;
 use App\Telegram\Support\Keyboards;
-use App\Telegram\Support\RestaurantListMessage;
 use SergiX44\Nutgram\Nutgram;
 
 /**
- * Buyruq bo'lmagan xabarlar uchun zaxira handler.
+ * Asosiy menyu dispetcheri (fallback) — Reply Keyboard tugmalari matnini
+ * joriy tildagi lang qiymatlariga solishtirib, tegishli handlerga uzatadi.
  *
- * - profil to'lmagan bo'lsa: ro'yxatdan o'tishga qaytaradi
- * - to'lgan bo'lsa: asosiy menyu tugmalariga javob beradi (hozircha "tez orada")
- *
- * 3-bosqichdan boshlab bu handler taom qidiruvi va restoran ro'yxatiga ulanadi.
+ * Ro'yxatdan o'tish tekshiruvi — RequireRegistration middleware (routes/telegram.php).
+ * Lokatsiya (onLocation) va callback (onCallbackQueryData) alohida ro'yxatdan o'tgan.
  */
 class MenuHandler
 {
-    public function __invoke(Nutgram $bot, ProfileService $profiles): void
+    /** menyu kaliti => handler klass */
+    private const ACTIONS = [
+        'order' => OrderHandler::class,
+        'restaurants' => RestaurantsHandler::class,
+        'addresses' => AddressesHandler::class,
+        'feedback' => FeedbackHandler::class,
+        'settings' => SettingsHandler::class,
+    ];
+
+    public function __invoke(Nutgram $bot): void
     {
-        $from = $bot->user();
-
-        if ($from === null) {
-            return;
-        }
-
-        $user = $profiles->findOrCreateFromTelegram($from->id, $from->language_code);
-        $profiles->touch($user);
-        app()->setLocale($user->language ?: 'uz');
-
-        if (! $user->profile_completed) {
-            $bot->sendMessage(__('messages.welcome'));
-            RegistrationConversation::begin($bot);
-
-            return;
-        }
-
         $text = trim((string) $bot->message()?->text);
 
-        if ($text === __('messages.main_menu.restaurants')) {
-            if ($restaurants = RestaurantListMessage::keyboard($user)) {
-                $bot->sendMessage(__('messages.restaurants.pick'), reply_markup: $restaurants);
-            } else {
-                $bot->sendMessage(__('messages.main_menu.coming_soon'));
+        foreach (self::ACTIONS as $key => $handler) {
+            if ($text !== '' && $text === __("messages.main_menu.{$key}")) {
+                app($handler)($bot);
+
+                return;
             }
-
-            return;
         }
 
-        $known = [
-            __('messages.main_menu.search'),
-            __('messages.main_menu.orders'),
-            __('messages.main_menu.settings'),
-        ];
-
-        if (in_array($text, $known, true)) {
-            $bot->sendMessage(__('messages.main_menu.coming_soon'));
-
-            return;
-        }
-
-        $bot->sendMessage(
-            __('messages.main_menu.title'),
-            reply_markup: Keyboards::mainMenu(),
-        );
+        $bot->sendMessage(__('messages.main_menu.title'), reply_markup: Keyboards::mainMenu());
     }
 }

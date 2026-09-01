@@ -7,6 +7,7 @@ use App\Services\Telegram\InitDataValidator;
 use App\Services\User\ProfileService;
 use Closure;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
@@ -31,6 +32,15 @@ class ValidateTelegramInitData
         $initData = $this->extractInitData($request);
 
         if ($initData === null) {
+            Log::channel(config('telegram.initdata_log_channel', 'stack'))->warning('[initdata] header yo\'q yoki bo\'sh', [
+                'has_authorization' => $request->headers->has('Authorization'),
+                'authorization_scheme' => str($request->header('Authorization', ''))->before(' ')->value(),
+                'authorization_len' => strlen((string) $request->header('Authorization', '')),
+                'has_x_telegram_init_data' => $request->headers->has('X-Telegram-Init-Data'),
+                'origin' => $request->header('Origin'),
+                'path' => $request->path(),
+            ]);
+
             return $this->unauthorized('initData berilmagan.');
         }
 
@@ -45,6 +55,7 @@ class ValidateTelegramInitData
         $user = $this->profiles->findOrCreateFromTelegram(
             telegramId: (int) $tgUser['id'],
             languageCode: $tgUser['language_code'] ?? null,
+            username: $tgUser['username'] ?? null,
         );
         $this->profiles->touch($user);
 

@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\AddressController;
 use App\Http\Controllers\Api\GeoController;
 use App\Http\Controllers\Api\MeController;
+use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\RestaurantController;
 use App\Http\Controllers\Api\SearchController;
 use Illuminate\Support\Facades\Route;
@@ -27,10 +28,14 @@ Route::middleware('telegram.initdata')->group(function () {
 
     Route::get('/regions', [GeoController::class, 'regions']);
     Route::get('/districts', [GeoController::class, 'districts']);
+    Route::get('/geo/reverse', [GeoController::class, 'reverse']);
 
     Route::get('/restaurants', [RestaurantController::class, 'index']);
     Route::get('/restaurants/{restaurant}', [RestaurantController::class, 'show']);
     Route::get('/restaurants/{restaurant}/menu', [RestaurantController::class, 'menu']);
+
+    Route::post('/orders', [OrderController::class, 'store']);
+    Route::get('/orders/{order}', [OrderController::class, 'show']);
 
     Route::get('/search', [SearchController::class, 'index']);
 });

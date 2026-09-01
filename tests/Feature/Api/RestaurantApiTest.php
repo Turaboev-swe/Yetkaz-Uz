@@ -183,6 +183,25 @@ class RestaurantApiTest extends TestCase
             ->assertJsonPath('data.0.products.0.name', 'Osh');
     }
 
+    public function test_menu_exposes_old_price_only_for_discounted_items(): void
+    {
+        $restaurant = $this->restaurant(['lat' => 41.311, 'lng' => 69.280]);
+        $cat = Category::factory()->for($restaurant)->create(['is_active' => true]);
+
+        Product::factory()->for($cat)->create(['name' => 'Aksiya', 'price' => 2_500_000, 'old_price' => 3_000_000, 'sort_order' => 0]);
+        Product::factory()->for($cat)->create(['name' => 'Oddiy', 'price' => 2_000_000, 'old_price' => null, 'sort_order' => 1]);
+        Product::factory()->for($cat)->create(['name' => 'Teng', 'price' => 2_000_000, 'old_price' => 2_000_000, 'sort_order' => 2]);
+
+        $products = $this->getJson("/api/restaurants/{$restaurant->id}/menu", $this->headers())
+            ->assertOk()
+            ->json('data.0.products');
+
+        $this->assertSame('Aksiya', $products[0]['name']);
+        $this->assertSame(3_000_000, $products[0]['old_price']);
+        $this->assertArrayNotHasKey('old_price', $products[1]); // chegirmasiz
+        $this->assertArrayNotHasKey('old_price', $products[2]); // old_price <= price
+    }
+
     public function test_endpoints_require_authentication(): void
     {
         $this->getJson('/api/restaurants?address_id=1')->assertUnauthorized();
