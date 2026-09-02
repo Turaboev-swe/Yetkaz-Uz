@@ -24,6 +24,19 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->configureRateLimiting();
+        $this->configureTelegramClient();
+    }
+
+    /**
+     * Nutgram Guzzle mijoziga bot tokenini yashiradigan handler stack (PROD-4).
+     * Bot singletoni hali resolve qilinmagan — config'ni oldindan o'zgartiramiz.
+     */
+    private function configureTelegramClient(): void
+    {
+        config()->set(
+            'nutgram.config.client.handler',
+            \App\Telegram\RedactingBotClientHandler::stack(),
+        );
     }
 
     /**
