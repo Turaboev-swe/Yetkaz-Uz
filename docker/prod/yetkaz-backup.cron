@@ -10,4 +10,4 @@ CRON_TZ=Asia/Tashkent
 SHELL=/bin/bash
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
-0 3 * * * root /opt/yetkaz/docker/prod/backup.sh >> /var/log/yetkaz-backup.log 2>&1
+0 3 * * * root bash /opt/yetkaz/docker/prod/backup.sh >> /var/log/yetkaz-backup.log 2>&1
