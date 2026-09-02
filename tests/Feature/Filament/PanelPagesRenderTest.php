@@ -2,14 +2,21 @@
 
 namespace Tests\Feature\Filament;
 
+use App\Filament\Admin\Pages\Reports as AdminReports;
 use App\Filament\Admin\Resources\OrderResource\Pages\ListOrders as AdminListOrders;
 use App\Filament\Admin\Resources\RestaurantResource\Pages\CreateRestaurant;
 use App\Filament\Admin\Resources\RestaurantResource\Pages\ListRestaurants;
 use App\Filament\Admin\Resources\StaffResource\Pages\CreateStaff;
 use App\Filament\Admin\Resources\StaffResource\Pages\ListStaff;
+use App\Filament\Admin\Widgets\OrdersTrendChart;
+use App\Filament\Admin\Widgets\PlatformOrdersStats;
+use App\Filament\Admin\Widgets\TopRestaurantsChart;
+use App\Filament\Restaurant\Pages\Reports as RestaurantReports;
 use App\Filament\Restaurant\Pages\RestaurantSettings;
 use App\Filament\Restaurant\Resources\CategoryResource\Pages\ListCategories;
 use App\Filament\Restaurant\Resources\OrderResource\Pages\ListOrders;
+use App\Filament\Restaurant\Widgets\RestaurantOrdersStats;
+use App\Filament\Restaurant\Widgets\RestaurantOrdersTrendChart;
 use App\Models\Restaurant;
 use App\Models\Staff;
 use Filament\Facades\Filament;
@@ -31,6 +38,10 @@ class PanelPagesRenderTest extends TestCase
         Livewire::test(ListStaff::class)->assertOk();
         Livewire::test(CreateStaff::class)->assertOk();
         Livewire::test(AdminListOrders::class)->assertOk();
+        Livewire::test(AdminReports::class)->assertOk();
+        Livewire::test(PlatformOrdersStats::class)->assertOk();
+        Livewire::test(OrdersTrendChart::class)->assertOk();
+        Livewire::test(TopRestaurantsChart::class)->assertOk();
     }
 
     public function test_restaurant_pages_render(): void
@@ -42,6 +53,9 @@ class PanelPagesRenderTest extends TestCase
         Livewire::test(ListCategories::class)->assertOk();
         Livewire::test(ListOrders::class)->assertOk();
         Livewire::test(RestaurantSettings::class)->assertOk();
+        Livewire::test(RestaurantReports::class)->assertOk();
+        Livewire::test(RestaurantOrdersStats::class)->assertOk();
+        Livewire::test(RestaurantOrdersTrendChart::class)->assertOk();
     }
 
     public function test_restaurant_settings_saves_work_hours_and_is_open(): void
