@@ -113,26 +113,86 @@ Migratsiyalar `app` qayta ishga tushganda avtomat bajariladi.
 make prod-logs                 # yoki: docker compose -f docker-compose.prod.yml logs -f
 make prod-ps
 docker compose -f docker-compose.prod.yml exec app php artisan horizon:status
-docker compose -f docker-compose.prod.yml exec postgres pg_dump -U yetkaz yetkaz | gzip > backup-$(date +%F).sql.gz
 ```
 
 RAM/worker: `OCTANE_WORKERS` (default 3) `.env` yoki shell env orqali.
 
-## 6. Keyingi bosqichlar (bu deploydan tashqarida)
+Horizon dashboard (`/horizon`) prod'da 403 — `HorizonServiceProvider::gate()`
+faqat `local` da ochiq. Ko'rish uchun: gate'ga email qo'shing yoki SSH tunnel
+(`ssh -L 8088:localhost:80 root@189.74.98.7` + nginx orqali... aslida gate'ni
+sozlash osonroq).
 
-- **SSL / domen** (PROD-2 bilan bog'liq): domen → `docker/nginx/prod.conf` ga
-  `443 ssl` bloki + certbot yoki Caddy. Keyin `X-Forwarded-Proto=https` avtomat,
-  `OCTANE_HTTPS=true`, `SESSION_SECURE_COOKIE=true`, `TELEGRAM_MINI_APP_URL`,
-  `FILESYSTEM_PUBLIC_URL` to'liq domen bilan.
-- **Bot webhook** (PROD-2/PROD-6) — ⚠️ **muhim**: O'zbekiston serverida (eskiz.uz)
-  xalqaro tarmoq beqaror. `getUpdates` long-poll tez-tez `cURL error 28` bilan
-  uziladi → bot konteyneri qayta ishga tushadi (`restart: unless-stopped` bilan
-  o'ziga keladi). Vaqtinchalik yumshatish qo'llangan: `--pollingTimeout=5` +
-  Guzzle `ConnectException` retry (2×, `RedactingBotClientHandler`). **Doimiy
-  yechim** — SSL bo'lgach webhook: `bot` konteynerini olib tashlab,
-  `nutgram:hook:set` + `TELEGRAM_WEBHOOK_SECRET`. Webhook'da Telegram bizga
-  qisqa so'rov yuboradi (uzoq ushlanadigan ulanish yo'q) — beqaror tarmoqqa
-  ancha chidamli.
-- **Reverb frontend**: `resources/js/*/lib/echo.js` da `wsPath: '/reverb'` +
-  `VITE_REVERB_*` prod qiymatlari (nginx `/reverb/` locationи tayyor).
-- **Postgres backup** (PROD-7): cron + off-site.
+## 6. Backup va tiklash (PROD-7)
+
+Kunlik dump: `docker/prod/backup.sh` → `/opt/yetkaz/backups/yetkaz-YYYY-MM-DD.sql.gz`
+(`gzip -9`, `--no-owner --no-privileges`). Retention **14 kun**. `/opt` diski
+≥85% bo'lsa skript ogohlantiradi.
+
+**O'rnatish (bir marta):**
+
+```sh
+sudo cp /opt/yetkaz/docker/prod/yetkaz-backup.cron /etc/cron.d/yetkaz-backup
+sudo chmod 644 /etc/cron.d/yetkaz-backup
+bash /opt/yetkaz/docker/prod/backup.sh          # sinov — bitta dump yaratadi
+ls -la /opt/yetkaz/backups/
+```
+
+Cron har kuni **03:00 Asia/Tashkent** da ishlaydi (`CRON_TZ`), log
+`/var/log/yetkaz-backup.log`.
+
+> Off-site nusxa hozircha yo'q — disk nosozligida serverdagi backup ham yo'qoladi.
+> Keyingi qadam: `backups/` ni S3 / boshqa serverga `rclone` yoki `scp` bilan
+> ko'chirish (alohida cron).
+
+**Tiklash (disaster recovery):**
+
+```sh
+cd /opt/yetkaz
+FILE=backups/yetkaz-2026-09-03.sql.gz
+
+# 1. Faqat baza konteyneri
+docker compose -f docker-compose.prod.yml up -d postgres
+
+# 2. Toza tiklash uchun bazani qayta yaratish (ixtiyoriy, lekin tavsiya etiladi)
+docker compose -f docker-compose.prod.yml exec -T postgres \
+  psql -U yetkaz -d postgres -c "DROP DATABASE IF EXISTS yetkaz; CREATE DATABASE yetkaz OWNER yetkaz;"
+docker compose -f docker-compose.prod.yml exec -T postgres \
+  psql -U yetkaz -d yetkaz -c "CREATE EXTENSION IF NOT EXISTS postgis; CREATE EXTENSION IF NOT EXISTS pg_trgm; CREATE EXTENSION IF NOT EXISTS unaccent;"
+
+# 3. Dump'ni yuklash
+gunzip -c "$FILE" | docker compose -f docker-compose.prod.yml exec -T postgres psql -U yetkaz -d yetkaz
+
+# 4. Butun stack
+docker compose -f docker-compose.prod.yml up -d
+docker compose -f docker-compose.prod.yml exec app php artisan migrate --force   # ehtiyot uchun
+```
+
+## 7. DOMEN TASDIQLANGANDA (hali bajarilmagan — qadamlar ro'yxati)
+
+Kod PROD-2/PROD-6 uchun **tayyor**. Domen (`yetqaz.uz`) 189.74.98.7 ga
+yo'naltirilgach:
+
+1. **DNS** — `dig +short yetqaz.uz` → `189.74.98.7` ekanini tasdiqla.
+2. **SSL** — `docker/nginx/prod.conf` ga `listen 443 ssl` server bloki +
+   certbot (`certbot certonly --webroot` yoki alohida `certbot` konteyneri),
+   yoki nginx o'rniga Caddy (avtomat TLS). `80` → `443` redirect.
+3. **`.env`** yangilanadi:
+   - `APP_URL=https://yetqaz.uz`
+   - `OCTANE_HTTPS=true`
+   - `SESSION_SECURE_COOKIE=true`
+   - `TELEGRAM_MINI_APP_URL=https://yetqaz.uz/app`
+   - `TELEGRAM_WEBHOOK_SECRET=<32+ tasodifiy belgi>` (agar hali bo'sh bo'lsa)
+   - `FILESYSTEM_PUBLIC_URL=https://yetqaz.uz/storage`
+4. `docker compose -f docker-compose.prod.yml up -d --build` (config:cache
+   entrypoint'da qayta quriladi).
+5. **Webhook** — `docker compose -f docker-compose.prod.yml exec app php artisan telegram:webhook:set`
+6. **`bot` konteynerini o'chirish** (update lar endi webhook orqali):
+   `docker compose -f docker-compose.prod.yml stop bot && docker compose -f docker-compose.prod.yml rm -f bot`
+7. **Reverb frontend** — `resources/js/*/lib/echo.js` da `wsPath: '/reverb'` +
+   `VITE_REVERB_HOST=yetqaz.uz`, `VITE_REVERB_SCHEME=https`, `VITE_REVERB_PORT=443`;
+   `REVERB_SCALING_ENABLED` kerak bo'lsa. `npm run build` image ichida qayta.
+8. **Sinov** — Telegram'da botga `/start`, "Ochish" tugmasi Mini App'ni ochsin;
+   `php artisan telegram:webhook:set` chiqishida `last_error_message: —`.
+
+Qaytish (webhook ishlamay qolsa): `php artisan telegram:webhook:delete` +
+`bot` konteynerini polling bilan qayta ishga tushirish.
