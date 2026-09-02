@@ -3,12 +3,14 @@
 namespace App\Providers;
 
 use App\Services\Telegram\InitDataValidator;
+use App\Telegram\RedactingBotClientHandler;
 use Closure;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
+use SergiX44\Nutgram\Nutgram;
 use Symfony\Component\HttpFoundation\Response;
 
 class AppServiceProvider extends ServiceProvider
@@ -29,14 +31,17 @@ class AppServiceProvider extends ServiceProvider
 
     /**
      * Nutgram Guzzle mijoziga bot tokenini yashiradigan handler stack (PROD-4).
-     * Bot singletoni hali resolve qilinmagan — config'ni oldindan o'zgartiramiz.
+     *
+     * Handler `beforeResolving` da qo'shiladi — ya'ni FAQAT Nutgram haqiqatan
+     * resolve qilinganда. `config:cache` Nutgram'ni resolve qilmaydi, shuning
+     * uchun `nutgram.config.client.handler` (serializatsiya qilib bo'lmaydigan
+     * closure/obyekt) keshга tushmaydi.
      */
     private function configureTelegramClient(): void
     {
-        config()->set(
-            'nutgram.config.client.handler',
-            \App\Telegram\RedactingBotClientHandler::stack(),
-        );
+        $this->app->beforeResolving(Nutgram::class, function (): void {
+            config()->set('nutgram.config.client.handler', RedactingBotClientHandler::stack());
+        });
     }
 
     /**
