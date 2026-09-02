@@ -100,7 +100,15 @@ services:
   # --pollingTimeout=5: O'zbekiston serverida xalqaro tarmoq beqaror —
   # qisqaroq long-poll uzilish oynasini kamaytiradi. Guzzle klient darajasida
   # ConnectException 2 marta qayta uriladi (RedactingBotClientHandler).
-  # Doimiy yechim: domen + SSL -> webhook (docs/deploy.md, PROD-2).
+  #
+  # WEBHOOK REJIMIGA O'TISH (domen + SSL bo'lgach — kod TAYYOR, PROD-2/PROD-6):
+  #   1. .env: TELEGRAM_WEBHOOK_SECRET (32+ belgi), TELEGRAM_MINI_APP_URL=https://...
+  #   2. php artisan telegram:webhook:set
+  #   3. bu `bot` xizmatini o'chiring:
+  #        docker compose -f docker-compose.prod.yml stop bot
+  #        docker compose -f docker-compose.prod.yml rm -f bot
+  #      (update lar endi POST /api/telegram/webhook/<secret> -> nginx -> app orqali keladi)
+  #   4. qaytish: php artisan telegram:webhook:delete + `bot` ni qayta ishga tushiring
   bot:
     <<: *app
     command: php artisan nutgram:run --pollingTimeout=5

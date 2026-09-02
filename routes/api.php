@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\MeController;
 use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\RestaurantController;
 use App\Http\Controllers\Api\SearchController;
+use App\Http\Controllers\Api\TelegramWebhookController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -59,6 +60,18 @@ Route::middleware('telegram.initdata')->group(function () {
         Route::post('/orders', [OrderController::class, 'store']);
     });
 });
+
+/*
+| Telegram webhook (PROD-2 / PROD-6). initData EMAS — Telegram serveri POST qiladi.
+| Ikki qatlamli tekshiruv: URL path segmenti + X-Telegram-Bot-Api-Secret-Token
+| sarlavhasi, ikkalasi ham TELEGRAM_WEBHOOK_SECRET bilan. Mos kelmasa 404
+| (endpoint mavjudligini ham yashiradi). TELEGRAM_WEBHOOK_SECRET bo'sh bo'lsa
+| (hozirgi holat — domen yo'q, bot polling) — har doim 404.
+| Faollashtirish: php artisan telegram:webhook:set (faqat production + https).
+*/
+Route::post('/telegram/webhook/{token}', TelegramWebhookController::class)
+    ->middleware('throttle:120,1')
+    ->name('telegram.webhook');
 
 /*
 | Print agent (oshxona kompyuteri) — sessiyasiz, Bearer token bilan.
