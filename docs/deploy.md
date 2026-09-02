@@ -124,8 +124,15 @@ RAM/worker: `OCTANE_WORKERS` (default 3) `.env` yoki shell env orqali.
   `443 ssl` bloki + certbot yoki Caddy. Keyin `X-Forwarded-Proto=https` avtomat,
   `OCTANE_HTTPS=true`, `SESSION_SECURE_COOKIE=true`, `TELEGRAM_MINI_APP_URL`,
   `FILESYSTEM_PUBLIC_URL` to'liq domen bilan.
-- **Bot webhook** (PROD-2/PROD-6): SSL bo'lgach `bot` konteynerini olib tashlab,
-  `nutgram:hook:set` + `TELEGRAM_WEBHOOK_SECRET` ulanishi.
+- **Bot webhook** (PROD-2/PROD-6) — ⚠️ **muhim**: O'zbekiston serverida (eskiz.uz)
+  xalqaro tarmoq beqaror. `getUpdates` long-poll tez-tez `cURL error 28` bilan
+  uziladi → bot konteyneri qayta ishga tushadi (`restart: unless-stopped` bilan
+  o'ziga keladi). Vaqtinchalik yumshatish qo'llangan: `--pollingTimeout=5` +
+  Guzzle `ConnectException` retry (2×, `RedactingBotClientHandler`). **Doimiy
+  yechim** — SSL bo'lgach webhook: `bot` konteynerini olib tashlab,
+  `nutgram:hook:set` + `TELEGRAM_WEBHOOK_SECRET`. Webhook'da Telegram bizga
+  qisqa so'rov yuboradi (uzoq ushlanadigan ulanish yo'q) — beqaror tarmoqqa
+  ancha chidamli.
 - **Reverb frontend**: `resources/js/*/lib/echo.js` da `wsPath: '/reverb'` +
   `VITE_REVERB_*` prod qiymatlari (nginx `/reverb/` locationи tayyor).
 - **Postgres backup** (PROD-7): cron + off-site.
