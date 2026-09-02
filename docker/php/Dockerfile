@@ -47,3 +47,19 @@ EXPOSE 8080
 
 # Standart: Octane (RoadRunner) HTTP serveri
 CMD ["php", "artisan", "octane:start", "--server=roadrunner", "--host=0.0.0.0", "--port=8000"]
+
+# ==========================================================================
+# Frontend (Vite / React) — FAQAT `prod` target uchun quriladi.
+# Dev build (`docker compose build`, target: base) bu bosqichlarga tegmaydi.
+# ==========================================================================
+FROM node:22-bookworm-slim AS frontend
+WORKDIR /app
+COPY package.json package-lock.json ./
+RUN npm ci --no-audit --no-fund
+COPY vite.config.js tailwind.config.js postcss.config.js ./
+COPY resources ./resources
+RUN npm run build
+
+# --- Production image: base + qurilgan Mini App / kitchen assetlari ---
+FROM base AS prod
+COPY --from=frontend --chown=app:app /app/public/build ./public/build

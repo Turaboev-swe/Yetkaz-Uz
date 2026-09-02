@@ -1,0 +1,163 @@
+name: yetkaz-prod
+
+# Production stack. Dev docker-compose.yml dan farqlari:
+#   - bind mount YO'Q — kod image'ga qurilib kiritiladi (target: prod, frontend build)
+#   - .env faqat host'dan :ro mount (config:cache shuni o'qiydi)
+#   - har xizmatda restart: unless-stopped
+#   - postgres / redis / app da healthcheck
+#   - portlar host'ga ochilmaydi — faqat nginx :80
+#   - Octane worker soni cheklangan (4 GB RAM)
+#
+# Ishga tushirish: docs/deploy.md
+
+x-app: &app
+  build:
+    context: .
+    dockerfile: docker/php/Dockerfile
+    target: prod
+    args:
+      UID: "1000"
+      GID: "1000"
+  image: yetkaz-app:prod
+  restart: unless-stopped
+  stop_grace_period: 20s
+  entrypoint: ["sh", "docker/php/entrypoint.prod.sh"]
+  volumes:
+    - ./.env:/app/.env:ro
+    - storage-app:/app/storage/app
+    - storage-logs:/app/storage/logs
+  depends_on:
+    postgres:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+
+services:
+  # --- Octane (RoadRunner) — migratsiyalarni ham shu konteyner bajaradi ---
+  app:
+    <<: *app
+    environment:
+      HTTP_ROLE: "1"
+      RUN_MIGRATIONS: "1"
+    command: >
+      php artisan octane:start --server=roadrunner --host=0.0.0.0 --port=8000
+      --workers=${OCTANE_WORKERS:-3} --task-workers=${OCTANE_TASK_WORKERS:-3}
+      --max-requests=500
+    expose:
+      - "8000"
+    healthcheck:
+      test: ["CMD-SHELL", "php -r 'exit(@file_get_contents(\"http://127.0.0.1:8000/up\") !== false ? 0 : 1);'"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 45s
+
+  # --- Navbat ishchilari ---
+  horizon:
+    <<: *app
+    command: php artisan horizon
+    stop_signal: SIGTERM
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      app:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "php", "artisan", "horizon:status"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # --- WebSocket: Laravel Reverb ---
+  reverb:
+    <<: *app
+    command: php artisan reverb:start --host=0.0.0.0 --port=8080
+    expose:
+      - "8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      app:
+        condition: service_healthy
+
+  # --- Rejalashtiruvchi (cron) ---
+  scheduler:
+    <<: *app
+    command: php artisan schedule:work
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      app:
+        condition: service_healthy
+
+  # --- Telegram bot: HOZIRCHA long polling (webhook uchun domen kerak) ---
+  bot:
+    <<: *app
+    command: php artisan nutgram:run
+    stop_grace_period: 15s
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      app:
+        condition: service_healthy
+
+  # --- PostgreSQL 16 + PostGIS ---
+  postgres:
+    image: postgis/postgis:16-3.4
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_DATABASE:-yetkaz}
+      POSTGRES_USER: ${DB_USERNAME:-yetkaz}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD .env da to'ldirilishi shart}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-yetkaz} -d ${DB_DATABASE:-yetkaz}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # --- Redis (navbat / kesh / sessiya / savat) ---
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy noeviction
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # --- Reverse proxy (HTTP :80; SSL domen tasdiqlangach qo'shiladi) ---
+  nginx:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./docker/nginx/prod.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      app:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://127.0.0.1/up || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  pgdata:
+  redisdata:
+  storage-app:
+  storage-logs:

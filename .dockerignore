@@ -9,6 +9,12 @@ storage/framework/sessions/*
 storage/framework/views/*
 public/build
 public/hot
+# Generatsiya qilinadigan / symlink (entrypoint qayta yaratadi) — build context'ga kirmasin
+public/storage
+public/css/filament
+public/js/filament
+public/css/dotswan
+public/js/dotswan
 .env
 .env.*
 !.env.example

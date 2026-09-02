@@ -4,6 +4,9 @@ x-app: &app
   build:
     context: .
     dockerfile: docker/php/Dockerfile
+    # Dev — frontend/prod bosqichlarisiz base image (vite alohida servis).
+    # Production build: docker-compose.prod.yml (target: prod).
+    target: base
     args:
       UID: ${UID:-1000}
       GID: ${GID:-1000}

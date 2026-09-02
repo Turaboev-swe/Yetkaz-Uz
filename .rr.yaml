@@ -8,6 +8,13 @@ rpc:
 
 http:
   address: "0.0.0.0:8000"
+  # Statik fayllar (public/build, public/css|js/filament, public/storage/*) —
+  # PHP worker'ga tegmasдан RoadRunner o'zi bersin. Prod'da nginx hammasini
+  # Octane'ga proxy qiladi, shuning uchun bu shart.
+  static:
+    dir: "public"
+    forbid: [".php", ".htaccess", ".env"]
+    calculate_etag: true
 
 logs:
   mode: production

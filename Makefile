@@ -1,8 +1,11 @@
 .DEFAULT_GOAL := help
 DC := docker compose
 
+DC_PROD := docker compose -f docker-compose.prod.yml
+
 .PHONY: help build up down down-v restart restart-bot reload logs bot-logs shell psql redis \
-        migrate fresh seed test key install-deps horizon tunnel storage-link
+        migrate fresh seed test key install-deps horizon tunnel storage-link \
+        prod-build prod-up prod-down prod-logs prod-migrate prod-shell prod-ps
 
 help: ## Buyruqlar ro'yxati
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -70,3 +73,27 @@ test: ## Testlar (yetkaz_test bazasida)
 
 horizon: ## Horizon holati
 	$(DC) exec app php artisan horizon:status
+
+# ---------------------------------------------------------------------------
+# Production (docker-compose.prod.yml) — serverда ishlatiladi. Qarang docs/deploy.md
+# ---------------------------------------------------------------------------
+prod-build: ## [prod] image qurish (frontend + --no-dev)
+	$(DC_PROD) build
+
+prod-up: ## [prod] stack'ni ko'tarish (.env to'ldirilgan bo'lishi shart)
+	$(DC_PROD) up -d
+
+prod-down: ## [prod] stack'ni to'xtatish (volume'lar saqlanadi)
+	$(DC_PROD) down
+
+prod-ps: ## [prod] konteynerlar holati
+	$(DC_PROD) ps
+
+prod-logs: ## [prod] barcha loglar
+	$(DC_PROD) logs -f --tail=100
+
+prod-migrate: ## [prod] migratsiyalarni qo'lda ishga tushirish
+	$(DC_PROD) exec app php artisan migrate --force
+
+prod-shell: ## [prod] app konteyneriga kirish
+	$(DC_PROD) exec app bash
