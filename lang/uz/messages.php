@@ -92,6 +92,10 @@ return [
     'out_of_radius' => 'Afsuski, bu manzilga yetkazib bera olmaymiz.',
     'cart_item_unavailable' => "Savatdagi ba'zi taomlar endi mavjud emas. Savatni yangilang.",
 
+    // Rate limit (PROD-1)
+    'rate_limited' => "Juda ko'p so'rov yubordingiz. Bir daqiqadan so'ng qayta urinib ko'ring.",
+    'rate_limited_orders' => "Siz juda ko'p buyurtma yubordingiz. Bir daqiqadan so'ng qayta urinib ko'ring.",
+
     // Enum yorliqlari
     'delivery_type' => [
         'delivery' => 'Yetkazib berish',

@@ -18,6 +18,15 @@ return Application::configure(basePath: dirname(__DIR__))
             'telegram.initdata' => ValidateTelegramInitData::class,
         ]);
 
+        // initData tekshiruvi `throttle` dan OLDIN ishlashi shart — aks holda
+        // rate limiter `$request->user()` ni ko'rmay, limitni IP bo'yicha (barcha
+        // foydalanuvchilar uchun umumiy) hisoblaydi. `ThrottleRequests` priority
+        // ro'yxatida, `telegram.initdata` esa yo'q — shu sabab uni oldiga qo'yamiz.
+        $middleware->prependToPriorityList(
+            before: \Illuminate\Routing\Middleware\ThrottleRequests::class,
+            prepend: ValidateTelegramInitData::class,
+        );
+
         // Mini App reverse-proxy / tunnel (cloudflared, ngrok, production LB) ortida
         // ishlaydi — X-Forwarded-Proto ni hisobga olib https URL generatsiya qilsin
         // (aks holda https sahifada http asset = mixed-content bloklanadi).

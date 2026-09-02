@@ -17,29 +17,47 @@ use Illuminate\Support\Facades\Route;
 | Barcha endpointlar `telegram.initdata` middleware ostida — har so'rov
 | Telegram WebApp initData imzosi bilan autentifikatsiya qilinadi.
 |
+| Rate limit (PROD-1) — foydalanuvchi bo'yicha, Redis'da:
+|   - throttle:api-read   60/daqiqa  (o'qish: restoranlar, menyu, qidiruv, ETA)
+|   - throttle:addresses  20/daqiqa  (manzil yozish)
+|   - throttle:orders      5/daqiqa  (buyurtma yaratish)
+| Limiterlar AppServiceProvider::configureRateLimiting() da aniqlangan.
+|
 */
 
 Route::middleware('telegram.initdata')->group(function () {
-    Route::get('/me', [MeController::class, 'show']);
+    // --- O'qish (60/daqiqa) ---
+    Route::middleware('throttle:api-read')->group(function () {
+        Route::get('/me', [MeController::class, 'show']);
+        Route::get('/addresses', [AddressController::class, 'index']);
 
-    Route::get('/addresses', [AddressController::class, 'index']);
-    Route::post('/addresses', [AddressController::class, 'store']);
-    Route::patch('/addresses/{address}', [AddressController::class, 'update']);
-    Route::delete('/addresses/{address}', [AddressController::class, 'destroy']);
+        Route::get('/regions', [GeoController::class, 'regions']);
+        Route::get('/districts', [GeoController::class, 'districts']);
+        Route::get('/geo/reverse', [GeoController::class, 'reverse']);
 
-    Route::get('/regions', [GeoController::class, 'regions']);
-    Route::get('/districts', [GeoController::class, 'districts']);
-    Route::get('/geo/reverse', [GeoController::class, 'reverse']);
+        Route::get('/restaurants', [RestaurantController::class, 'index']);
+        Route::get('/restaurants/{restaurant}', [RestaurantController::class, 'show']);
+        Route::get('/restaurants/{restaurant}/menu', [RestaurantController::class, 'menu']);
 
-    Route::get('/restaurants', [RestaurantController::class, 'index']);
-    Route::get('/restaurants/{restaurant}', [RestaurantController::class, 'show']);
-    Route::get('/restaurants/{restaurant}/menu', [RestaurantController::class, 'menu']);
+        // ETA taxmini — buyurtma yaratmaydi, rasmiylashtirish ekranida bir necha
+        // marta chaqiriladi, shuning uchun o'qish tarifida.
+        Route::post('/orders/estimate', [OrderController::class, 'estimate']);
+        Route::get('/orders/{order}', [OrderController::class, 'show']);
 
-    Route::post('/orders/estimate', [OrderController::class, 'estimate']);
-    Route::post('/orders', [OrderController::class, 'store']);
-    Route::get('/orders/{order}', [OrderController::class, 'show']);
+        Route::get('/search', [SearchController::class, 'index']);
+    });
 
-    Route::get('/search', [SearchController::class, 'index']);
+    // --- Manzil yozish (20/daqiqa) ---
+    Route::middleware('throttle:addresses')->group(function () {
+        Route::post('/addresses', [AddressController::class, 'store']);
+        Route::patch('/addresses/{address}', [AddressController::class, 'update']);
+        Route::delete('/addresses/{address}', [AddressController::class, 'destroy']);
+    });
+
+    // --- Buyurtma yaratish (5/daqiqa) ---
+    Route::middleware('throttle:orders')->group(function () {
+        Route::post('/orders', [OrderController::class, 'store']);
+    });
 });
 
 /*
