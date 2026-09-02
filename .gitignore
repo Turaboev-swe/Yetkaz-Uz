@@ -32,6 +32,9 @@ Thumbs.db
 /rr
 .rr.pid
 
+# Lokal baza dump'lari (rol parol hash'i / staff bcrypt hash'lari bor — repo'ga tushmasin)
+/yetkaz-postgres*.sql
+
 # Print agent (Python)
 /print-agent/.venv
 /print-agent/__pycache__

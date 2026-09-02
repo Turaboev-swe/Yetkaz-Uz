@@ -1,5 +1,17 @@
 * text=auto eol=lf
 
+# Shell / konteyner skriptlari — Windows'da checkout qilinganda ham LF bo'lsin,
+# aks holda docker-entrypoint / init skriptlar konteyner ichida ishlamaydi.
+*.sh            text eol=lf
+*.bash          text eol=lf
+docker-entrypoint* text eol=lf
+docker/**/*.sh  text eol=lf
+bin/*           text eol=lf
+
+# Lock fayllar — matn sifatida normalizatsiya qilinmasin (diff shovqinini kamaytiradi).
+composer.lock      -text
+package-lock.json  -text
+
 *.blade.php diff=html
 *.css diff=css
 *.html diff=html
