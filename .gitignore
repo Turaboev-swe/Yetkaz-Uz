@@ -35,6 +35,9 @@ Thumbs.db
 # Lokal baza dump'lari (rol parol hash'i / staff bcrypt hash'lari bor — repo'ga tushmasin)
 /yetkaz-postgres*.sql
 
+# Production backup'lari (docker/prod/backup.sh -> serverda /opt/yetkaz/backups)
+/backups/
+
 # Print agent (Python)
 /print-agent/.venv
 /print-agent/__pycache__

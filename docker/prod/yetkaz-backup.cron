@@ -1,0 +1,13 @@
+# Yetkaz — kunlik Postgres backup (PROD-7).
+# O'rnatish:
+#   sudo cp /opt/yetkaz/docker/prod/yetkaz-backup.cron /etc/cron.d/yetkaz-backup
+#   sudo chmod 644 /etc/cron.d/yetkaz-backup
+#
+# Log: /var/log/yetkaz-backup.log
+# Vixie cron (Ubuntu) CRON_TZ ni qo'llab-quvvatlaydi.
+
+CRON_TZ=Asia/Tashkent
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+0 3 * * * root /opt/yetkaz/docker/prod/backup.sh >> /var/log/yetkaz-backup.log 2>&1
