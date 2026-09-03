@@ -4,7 +4,7 @@ import { api } from './lib/api';
 import { enableSound, soundReady, newOrderChime } from './lib/sound';
 import OrderCard from './components/OrderCard';
 
-const { restaurantId, restaurantName, staffName } = window.__KITCHEN__;
+const { restaurantId, restaurantName, staffName, csrf } = window.__KITCHEN__;
 const DONE = new Set(['delivered', 'cancelled']);
 
 export default function App() {
@@ -106,6 +106,12 @@ export default function App() {
                         {connected ? 'ulangan' : 'uzilgan'}
                     </span>
                     <span className="rounded-lg bg-gray-800 px-2.5 py-1 text-[14px] font-bold tabular-nums">{orders.length}</span>
+                    <form method="POST" action="/kitchen/logout">
+                        <input type="hidden" name="_token" value={csrf} />
+                        <button type="submit" className="rounded-lg bg-gray-800 px-3 py-2 text-[13px] text-gray-300 hover:bg-gray-700">
+                            Chiqish
+                        </button>
+                    </form>
                 </div>
             </header>
 

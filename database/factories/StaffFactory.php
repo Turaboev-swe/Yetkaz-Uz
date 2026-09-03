@@ -38,6 +38,14 @@ class StaffFactory extends Factory
         ]);
     }
 
+    public function kitchenStaff(Restaurant|int $restaurant): static
+    {
+        return $this->state(fn () => [
+            'role' => StaffRole::KitchenStaff,
+            'restaurant_id' => $restaurant instanceof Restaurant ? $restaurant->id : $restaurant,
+        ]);
+    }
+
     public function inactive(): static
     {
         return $this->state(fn () => ['is_active' => false]);

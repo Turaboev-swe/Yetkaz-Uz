@@ -48,8 +48,13 @@ return Application::configure(basePath: dirname(__DIR__))
         // (aks holda https sahifada http asset = mixed-content bloklanadi).
         $middleware->trustProxies(at: '*');
 
-        // Autentifikatsiyasiz mehmon: /kitchen -> restoran login, aks holda admin.
-        $middleware->redirectGuestsTo(fn ($request) => $request->is('kitchen*') ? '/restaurant/login' : '/admin/login');
+        // Autentifikatsiyasiz mehmon: /kitchen -> oshxona login, /restaurant -> uning
+        // login'i, aks holda admin.
+        $middleware->redirectGuestsTo(fn ($request) => match (true) {
+            $request->is('kitchen', 'kitchen/*') => '/kitchen/login',
+            $request->is('restaurant', 'restaurant/*') => '/restaurant/login',
+            default => '/admin/login',
+        });
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

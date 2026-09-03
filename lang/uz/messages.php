@@ -96,6 +96,17 @@ return [
     'rate_limited' => "Juda ko'p so'rov yubordingiz. Bir daqiqadan so'ng qayta urinib ko'ring.",
     'rate_limited_orders' => "Siz juda ko'p buyurtma yubordingiz. Bir daqiqadan so'ng qayta urinib ko'ring.",
 
+    // Oshxona paneli kirishi (/kitchen/login)
+    'kitchen' => [
+        'title' => 'Oshxona paneli',
+        'email' => 'Email',
+        'password' => 'Parol',
+        'remember' => 'Eslab qolish',
+        'submit' => 'Kirish',
+        'invalid' => 'Email yoki parol noto‘g‘ri.',
+        'no_access' => 'Bu hisob oshxona paneliga kira olmaydi.',
+    ],
+
     // Enum yorliqlari
     'delivery_type' => [
         'delivery' => 'Yetkazib berish',

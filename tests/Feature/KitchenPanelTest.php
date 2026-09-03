@@ -59,9 +59,9 @@ class KitchenPanelTest extends TestCase
         $this->assertNotContains($other->id, array_column($data, 'id'));
     }
 
-    public function test_guest_is_redirected_to_restaurant_login(): void
+    public function test_guest_is_redirected_to_kitchen_login(): void
     {
-        $this->get('/kitchen')->assertRedirect('/restaurant/login');
+        $this->get('/kitchen')->assertRedirect('/kitchen/login');
     }
 
     public function test_platform_admin_cannot_access_kitchen(): void
