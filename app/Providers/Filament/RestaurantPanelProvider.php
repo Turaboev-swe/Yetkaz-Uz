@@ -45,6 +45,7 @@ class RestaurantPanelProvider extends PanelProvider
                 Widgets\AccountWidget::class,
             ])
             ->middleware([
+                'panel.session:yetkaz_staff_session', // EncryptCookies/StartSession dan OLDIN
                 EncryptCookies::class,
                 AddQueuedCookiesToResponse::class,
                 StartSession::class,

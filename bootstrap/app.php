@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\UsePanelSession;
 use App\Http\Middleware\ValidateTelegramInitData;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -10,12 +11,19 @@ return Application::configure(basePath: dirname(__DIR__))
         web: __DIR__.'/../routes/web.php',
         api: __DIR__.'/../routes/api.php',
         commands: __DIR__.'/../routes/console.php',
-        channels: __DIR__.'/../routes/channels.php',
         health: '/up',
+    )
+    // Broadcasting auth (/broadcasting/auth) — oshxona (/kitchen) Echo shu yerdan
+    // autentifikatsiya qiladi, shuning uchun `yetkaz_staff_session` cookie'si bilan.
+    ->withBroadcasting(
+        __DIR__.'/../routes/channels.php',
+        attributes: ['middleware' => ['panel.session:yetkaz_staff_session', 'web']],
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
             'telegram.initdata' => ValidateTelegramInitData::class,
+            // Panel bo'yicha alohida sessiya cookie'si (EncryptCookies/StartSession dan oldin).
+            'panel.session' => UsePanelSession::class,
         ]);
 
         // initData tekshiruvi `throttle` dan OLDIN ishlashi shart — aks holda
@@ -25,6 +33,14 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->prependToPriorityList(
             before: \Illuminate\Routing\Middleware\ThrottleRequests::class,
             prepend: ValidateTelegramInitData::class,
+        );
+
+        // `panel.session` `EncryptCookies` / `StartSession` dan OLDIN ishlashi shart
+        // (u `config('session.cookie')` ni tanlaydi). Priority ro'yxatiga qo'yamiz —
+        // aks holda middleware saralash uni EncryptCookies ortiga suradi.
+        $middleware->prependToPriorityList(
+            before: \Illuminate\Cookie\Middleware\EncryptCookies::class,
+            prepend: UsePanelSession::class,
         );
 
         // Mini App reverse-proxy / tunnel (cloudflared, ngrok, production LB) ortida

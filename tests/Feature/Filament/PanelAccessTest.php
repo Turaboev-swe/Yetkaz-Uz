@@ -50,11 +50,38 @@ class PanelAccessTest extends TestCase
         $this->get('/restaurant')->assertRedirect('/restaurant/login');
     }
 
-    public function test_owner_cannot_open_the_admin_dashboard(): void
+    public function test_owner_session_does_not_authenticate_the_admin_panel(): void
     {
+        // Alohida guard: /restaurant ga kirgan egasi /admin uchun mehmon —
+        // login sahifasiga yo'naltiriladi (403 emas).
         $owner = Staff::factory()->owner(Restaurant::factory()->create())->create();
 
-        $this->actingAs($owner, 'staff')->get('/admin')->assertForbidden();
+        $this->actingAs($owner, 'staff')->get('/admin')->assertRedirect('/admin/login');
+    }
+
+    public function test_admin_session_does_not_authenticate_the_restaurant_panel(): void
+    {
+        $admin = Staff::factory()->platformAdmin()->create();
+
+        $this->actingAs($admin, 'admin')->get('/restaurant')->assertRedirect('/restaurant/login');
+    }
+
+    public function test_admin_and_owner_can_be_logged_in_at_the_same_time(): void
+    {
+        // Bitta "brauzer" (test klienti) — ikkala guard bir vaqtda faol.
+        $admin = Staff::factory()->platformAdmin()->create();
+        $owner = Staff::factory()->owner(Restaurant::factory()->create())->create();
+
+        $this->actingAs($admin, 'admin');
+        $this->actingAs($owner, 'staff');
+
+        $this->assertTrue(auth('admin')->check());
+        $this->assertTrue(auth('staff')->check());
+        $this->assertSame($admin->id, auth('admin')->id());
+        $this->assertSame($owner->id, auth('staff')->id());
+
+        $this->get('/admin')->assertOk();
+        $this->get('/restaurant')->assertOk();
     }
 
     public function test_telegram_user_model_is_not_a_staff(): void

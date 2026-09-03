@@ -35,7 +35,7 @@ class RestaurantLocationTest extends TestCase
     public function test_admin_creates_restaurant_via_map_without_typing_coordinates(): void
     {
         Filament::setCurrentPanel(Filament::getPanel('admin'));
-        Livewire::actingAs(Staff::factory()->platformAdmin()->create(), 'staff');
+        Livewire::actingAs(Staff::factory()->platformAdmin()->create(), 'admin');
 
         Livewire::test(CreateRestaurant::class)
             ->fillForm([
@@ -62,7 +62,7 @@ class RestaurantLocationTest extends TestCase
     public function test_choosing_a_district_recenters_the_map_on_its_center(): void
     {
         Filament::setCurrentPanel(Filament::getPanel('admin'));
-        Livewire::actingAs(Staff::factory()->platformAdmin()->create(), 'staff');
+        Livewire::actingAs(Staff::factory()->platformAdmin()->create(), 'admin');
 
         Livewire::test(CreateRestaurant::class)
             ->fillForm(['region_id' => $this->region->id])
@@ -76,7 +76,7 @@ class RestaurantLocationTest extends TestCase
     public function test_edit_form_prefills_region_from_the_saved_district(): void
     {
         Filament::setCurrentPanel(Filament::getPanel('admin'));
-        Livewire::actingAs(Staff::factory()->platformAdmin()->create(), 'staff');
+        Livewire::actingAs(Staff::factory()->platformAdmin()->create(), 'admin');
 
         $restaurant = Restaurant::factory()->for($this->district)->create(['lat' => 40.64, 'lng' => 72.24]);
 

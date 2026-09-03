@@ -30,7 +30,7 @@ class AdminPanelProvider extends PanelProvider
             ->id('admin')
             ->path('admin')
             ->login()
-            ->authGuard('staff')
+            ->authGuard('admin')
             ->brandName('Yetkaz — Admin')
             ->darkMode(true) // yorug'/qorong'i/tizim — o'ng yuqoridagi foydalanuvchi menyusida
             ->colors([
@@ -46,6 +46,7 @@ class AdminPanelProvider extends PanelProvider
                 Widgets\AccountWidget::class,
             ])
             ->middleware([
+                'panel.session:yetkaz_admin_session', // EncryptCookies/StartSession dan OLDIN
                 EncryptCookies::class,
                 AddQueuedCookiesToResponse::class,
                 StartSession::class,

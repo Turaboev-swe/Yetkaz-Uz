@@ -44,7 +44,17 @@ return [
             'provider' => 'users',
         ],
 
-        // Filament panellari (/admin, /restaurant) shu guard bilan.
+        // Platforma admini — /admin paneli. Alohida guard + alohida sessiya
+        // cookie (yetkaz_admin_session) => bitta brauzerda admin va restoran
+        // egasi bir vaqtda kira oladi.
+        'admin' => [
+            'driver' => 'session',
+            'provider' => 'staff',
+        ],
+
+        // Restoran egasi (/restaurant) va oshxona (/kitchen). Cookie:
+        // yetkaz_staff_session. Ikkalasi ham staff jadvalidan, bir xil guard —
+        // egasi ikkala sahifani bir sessiyada ochadi.
         'staff' => [
             'driver' => 'session',
             'provider' => 'staff',

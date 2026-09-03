@@ -31,7 +31,7 @@ class PanelPagesRenderTest extends TestCase
     public function test_admin_pages_render(): void
     {
         Filament::setCurrentPanel(Filament::getPanel('admin'));
-        Livewire::actingAs(Staff::factory()->platformAdmin()->create(), 'staff');
+        Livewire::actingAs(Staff::factory()->platformAdmin()->create(), 'admin');
 
         Livewire::test(ListRestaurants::class)->assertOk();
         Livewire::test(CreateRestaurant::class)->assertOk();
