@@ -272,12 +272,40 @@ docker image prune -f
 1. Brauzer: `https://yetqaz.uz/kitchen` → DevTools Console'da Echo/pusher xatosi
    yo'q. Network → WS: `wss://yetqaz.uz/reverb/app/...` `101 Switching Protocols`.
 2. `/kitchen` sarlavhasidagi indikator **yashil** ("ulangan").
-3. Build'ga kalit kirganini tasdiqlash:
+3. Build'ga to'g'ri qiymatlar kirganini tasdiqlash:
    ```sh
-   docker compose -f docker-compose.prod.yml exec app \
-     sh -c 'grep -rl "yetqaz.uz" public/build/assets | head -1'
+   docker compose -f docker-compose.prod.yml exec app sh -c \
+     'grep -hoE "localhost|8080|local-key|yetqaz\.uz|/reverb|wss" public/build/assets/*.js | sort -u'
    ```
+   `yetqaz.uz`, `/reverb`, `wss` ko'rinishi kerak. `localhost` / `8080` /
+   `local-key` chiqsa — `.env` da dev qiymatlar qolgan (pastda §"Nosozlik").
+   Umuman hech narsa chiqmasa — `VITE_REVERB_*` build paytida bo'sh edi.
 4. Real buyurtma (pastda) — kartochka **darhol** (15s polling emas) + ovozli signal.
+
+**Nosozlik — assets'da hali `localhost`/`8080` yoki hech narsa:**
+
+```sh
+cd /opt/yetkaz
+
+# 1. .env da qiymatlar bormi va to'g'rimi:
+grep -E '^(VITE_)?REVERB' .env
+#   VITE_REVERB_HOST=yetqaz.uz / PORT=443 / SCHEME=https / PATH=/reverb bo'lishi shart.
+#   localhost / 8080 / http ko'rinsa — dev qiymatlar; tuzating:
+#     VITE_REVERB_APP_KEY="${REVERB_APP_KEY}"
+#     VITE_REVERB_HOST=yetqaz.uz
+#     VITE_REVERB_PORT=443
+#     VITE_REVERB_SCHEME=https
+#     VITE_REVERB_PATH=/reverb
+
+# 2. compose ARG'larni .env dan qanday o'qiyapti (buyruq /opt/yetkaz ichidan!):
+docker compose -f docker-compose.prod.yml config | grep -i vite_reverb
+#   Bo'sh chiqsa — .env noto'g'ri joyda yoki buyruq boshqa papkadan ishga tushgan.
+#   Yechim: `cd /opt/yetkaz` yoki `--env-file /opt/yetkaz/.env` qo'shing.
+
+# 3. .env to'g'ri, ARG to'g'ri, lekin assets eski — build keshi:
+docker compose -f docker-compose.prod.yml build --no-cache app
+docker compose -f docker-compose.prod.yml up -d
+```
 
 **Real buyurtma bilan sinash:**
 
