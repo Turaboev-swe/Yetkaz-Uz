@@ -167,32 +167,74 @@ docker compose -f docker-compose.prod.yml up -d
 docker compose -f docker-compose.prod.yml exec app php artisan migrate --force   # ehtiyot uchun
 ```
 
-## 7. DOMEN TASDIQLANGANDA (hali bajarilmagan — qadamlar ro'yxati)
+## 7. Domen + SSL + webhook
 
-Kod PROD-2/PROD-6 uchun **tayyor**. Domen (`yetqaz.uz`) 189.74.98.7 ga
-yo'naltirilgach:
+`yetqaz.uz` (+ `www`) 189.74.98.7 ga yo'naltirilgan bo'lishi shart.
 
-1. **DNS** — `dig +short yetqaz.uz` → `189.74.98.7` ekanini tasdiqla.
-2. **SSL** — `docker/nginx/prod.conf` ga `listen 443 ssl` server bloki +
-   certbot (`certbot certonly --webroot` yoki alohida `certbot` konteyneri),
-   yoki nginx o'rniga Caddy (avtomat TLS). `80` → `443` redirect.
-3. **`.env`** yangilanadi:
-   - `APP_URL=https://yetqaz.uz`
-   - `OCTANE_HTTPS=true`
-   - `SESSION_SECURE_COOKIE=true`
-   - `TELEGRAM_MINI_APP_URL=https://yetqaz.uz/app`
-   - `TELEGRAM_WEBHOOK_SECRET=<32+ tasodifiy belgi>` (agar hali bo'sh bo'lsa)
-   - `FILESYSTEM_PUBLIC_URL=https://yetqaz.uz/storage`
-4. `docker compose -f docker-compose.prod.yml up -d --build` (config:cache
-   entrypoint'da qayta quriladi).
-5. **Webhook** — `docker compose -f docker-compose.prod.yml exec app php artisan telegram:webhook:set`
-6. **`bot` konteynerini o'chirish** (update lar endi webhook orqali):
-   `docker compose -f docker-compose.prod.yml stop bot && docker compose -f docker-compose.prod.yml rm -f bot`
-7. **Reverb frontend** — `resources/js/*/lib/echo.js` da `wsPath: '/reverb'` +
-   `VITE_REVERB_HOST=yetqaz.uz`, `VITE_REVERB_SCHEME=https`, `VITE_REVERB_PORT=443`;
-   `REVERB_SCALING_ENABLED` kerak bo'lsa. `npm run build` image ichida qayta.
-8. **Sinov** — Telegram'da botga `/start`, "Ochish" tugmasi Mini App'ni ochsin;
-   `php artisan telegram:webhook:set` chiqishida `last_error_message: —`.
+```sh
+cd /opt/yetkaz
 
-Qaytish (webhook ishlamay qolsa): `php artisan telegram:webhook:delete` +
-`bot` konteynerini polling bilan qayta ishga tushirish.
+# 1. DNS
+dig +short yetqaz.uz        # 189.74.98.7 bo'lishi kerak
+
+# 2. Yangi kod (certbot / prod-ssl.conf)
+git pull
+docker compose -f docker-compose.prod.yml up -d           # nginx prod.conf (HTTP+ACME) bilan
+
+# 3. Sertifikat (Let's Encrypt, webroot)
+bash docker/prod/init-cert.sh
+#   expiry ogohlantirish uchun:  CERT_EMAIL=you@example.com bash docker/prod/init-cert.sh
+
+# 4. .env — nano bilan (qiymatlarni terminalga chiqarmang):
+#     APP_URL=https://yetqaz.uz
+#     OCTANE_HTTPS=true
+#     SESSION_SECURE_COOKIE=true
+#     NGINX_CONF=prod-ssl.conf
+#     TELEGRAM_MINI_APP_URL=https://yetqaz.uz/app
+#     TELEGRAM_WEBHOOK_SECRET=$(openssl rand -hex 32)     # agar bo'sh bo'lsa
+#     FILESYSTEM_PUBLIC_URL=https://yetqaz.uz/storage
+
+# 5. SSL konfiguratsiya bilan qayta ishga tushirish
+docker compose -f docker-compose.prod.yml up -d --build
+curl -I https://yetqaz.uz/up                              # HTTP/2 200
+
+# 6. Webhook o'rnatish
+docker compose -f docker-compose.prod.yml exec app php artisan telegram:webhook:set
+
+# 7. Bot polling konteynerini o'chirish (update lar endi webhook -> nginx -> app)
+docker compose -f docker-compose.prod.yml stop bot
+docker compose -f docker-compose.prod.yml rm -f bot
+
+# 8. Sertifikat renewal cron
+sudo cp docker/prod/yetkaz-cert-renew.cron /etc/cron.d/yetkaz-cert-renew
+sudo chmod 644 /etc/cron.d/yetkaz-cert-renew
+```
+
+**Tekshiruv:**
+
+```sh
+curl -sI https://yetqaz.uz/up | head -1
+openssl s_client -connect yetqaz.uz:443 -servername yetqaz.uz </dev/null 2>/dev/null | openssl x509 -noout -dates -issuer
+docker compose -f docker-compose.prod.yml exec app php artisan tinker --execute \
+  '$i = app(\SergiX44\Nutgram\Nutgram::class)->getWebhookInfo(); \
+   echo $i->url, " pending=", $i->pending_update_count, " err=", ($i->last_error_message ?: "-");'
+```
+
+Telegram'da botga `/start` → "Ochish" tugmasi `https://yetqaz.uz/app` ni ochsin.
+
+**Qaytish (webhook ishlamay qolsa):**
+
+```sh
+docker compose -f docker-compose.prod.yml exec app php artisan telegram:webhook:delete
+# .env: NGINX_CONF=prod.conf (ixtiyoriy — SSL qolsa ham bo'ladi), bot xizmatini qayta:
+docker compose -f docker-compose.prod.yml up -d bot
+```
+
+## 8. Keyingi qadamlar
+
+- **Reverb frontend** (Mini App real-time buyurtma statusi) —
+  `resources/js/*/lib/echo.js` da `wsPath: '/reverb'` +
+  `VITE_REVERB_HOST=yetqaz.uz`, `VITE_REVERB_SCHEME=https`, `VITE_REVERB_PORT=443`.
+  `npm run build` image ichida qayta (`up -d --build`). nginx `/reverb/` locationи
+  `prod-ssl.conf` da tayyor.
+- **Off-site backup** — `backups/` ni S3 / boshqa serverga `rclone`/`scp` (alohida cron).

@@ -1,0 +1,13 @@
+# Yetkaz — Let's Encrypt sertifikat yangilash (PROD-2 / SSL).
+# O'rnatish:
+#   sudo cp /opt/yetkaz/docker/prod/yetkaz-cert-renew.cron /etc/cron.d/yetkaz-cert-renew
+#   sudo chmod 644 /etc/cron.d/yetkaz-cert-renew
+#
+# Log: /var/log/yetkaz-cert.log
+
+CRON_TZ=Asia/Tashkent
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+# Har kuni 03:30 — certbot faqat muddati yaqinlashganda yangilaydi.
+30 3 * * * root bash /opt/yetkaz/docker/prod/renew-cert.sh >> /var/log/yetkaz-cert.log 2>&1

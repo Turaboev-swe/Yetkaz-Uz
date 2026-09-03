@@ -157,8 +157,12 @@ services:
     restart: unless-stopped
     ports:
       - "80:80"
+      - "443:443"
     volumes:
-      - ./docker/nginx/prod.conf:/etc/nginx/conf.d/default.conf:ro
+      # NGINX_CONF: prod.conf (HTTP bootstrap) yoki prod-ssl.conf (SSL o'rnatilgach)
+      - ./docker/nginx/${NGINX_CONF:-prod.conf}:/etc/nginx/conf.d/default.conf:ro
+      - letsencrypt:/etc/letsencrypt:ro
+      - certbot-www:/var/www/certbot
     depends_on:
       app:
         condition: service_healthy
@@ -168,8 +172,20 @@ services:
       timeout: 5s
       retries: 3
 
+  # --- certbot (Let's Encrypt) — `up` da ishga tushmaydi, faqat `run --rm certbot ...` ---
+  #   Sertifikat olish: docker/prod/init-cert.sh
+  #   Yangilash: docker/prod/renew-cert.sh (cron: docker/prod/yetkaz-cert-renew.cron)
+  certbot:
+    image: certbot/certbot:latest
+    profiles: ["tools"]
+    volumes:
+      - letsencrypt:/etc/letsencrypt
+      - certbot-www:/var/www/certbot
+
 volumes:
   pgdata:
   redisdata:
   storage-app:
   storage-logs:
+  letsencrypt:
+  certbot-www:
