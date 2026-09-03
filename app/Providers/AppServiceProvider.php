@@ -2,11 +2,14 @@
 
 namespace App\Providers;
 
+use App\Events\OrderPlaced;
+use App\Listeners\NotifyKitchenStaffOfNewOrder;
 use App\Services\Telegram\InitDataValidator;
 use App\Telegram\RedactingBotClientHandler;
 use Closure;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
@@ -27,6 +30,10 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->configureRateLimiting();
         $this->configureTelegramClient();
+
+        // Yangi buyurtma -> restoran xodimlariga bot orqali (status tugmasi bilan).
+        // Aniq ro'yxatdan o'tkazamiz — `event:cache` (entrypoint) ga bog'liq emas.
+        Event::listen(OrderPlaced::class, NotifyKitchenStaffOfNewOrder::class);
     }
 
     /**

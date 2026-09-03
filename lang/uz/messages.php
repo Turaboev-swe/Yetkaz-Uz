@@ -103,6 +103,27 @@ return [
         'footer' => 'Buyurtmangiz qabul qilindi, tayyorlanish holatidan xabardor qilamiz.',
     ],
 
+    // Oshxona xodimiga bot orqali buyurtma + status tugmasi (NotifyKitchenStaffOfNewOrder)
+    'kitchen_bot' => [
+        'new_order' => '🔔 Yangi buyurtma',
+        'delivery' => '🛵 Yetkazib berish',
+        'pickup' => '🏃 Olib ketish',
+        'address' => 'Manzil',
+        'note' => 'Izoh',
+        'total' => 'Jami',
+        'som' => "so'm",
+        'status' => 'Holat',
+        'done' => '✅ Yakunlandi',
+        'btn_accept' => '▶️ Qabul qilish',
+        'btn_prepare' => '▶️ Tayyorlanmoqda',
+        'btn_on_the_way' => "▶️ Yo'lga chiqdi",
+        'btn_delivered' => '✅ Yetkazildi',
+        'btn_picked_up' => '✅ Mijoz oldi',
+        'cb_no_access' => "Ruxsat yo'q",
+        'cb_stale' => 'Buyurtma allaqachon yangilangan',
+        'cb_final' => 'Buyurtma allaqachon yakunlangan',
+    ],
+
     // Savat / restoran
     'cart_kept' => 'Savatingiz saqlanadi.',
     'min_order_not_met' => "Minimal buyurtma summasi: :amount so'm.",

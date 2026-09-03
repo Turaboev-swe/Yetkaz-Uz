@@ -3,6 +3,7 @@
 /** @var Nutgram $bot */
 
 use App\Telegram\Handlers\IdHandler;
+use App\Telegram\Handlers\KitchenCallbackHandler;
 use App\Telegram\Handlers\LanguageCallbackHandler;
 use App\Telegram\Handlers\MenuHandler;
 use App\Telegram\Handlers\NewAddressHandler;
@@ -31,6 +32,12 @@ $bot->onCommand('start', StartHandler::class)
 // Restoran egasi uchun: chat ID ni ko'rsatadi (bildirishnoma sozlash).
 $bot->onCommand('id', IdHandler::class)
     ->description('Chat ID ni ko\'rsatish');
+
+// Oshxona xodimi: buyurtma statusini bir bosqich oldinga (bot xabaridagi tugma).
+// RequireRegistration'дан TASHQARIDA — xodim `users` jadvalidа bo'lmasligi mumkin.
+$bot->onCallbackQueryData('kadv:{orderId}:{expected}', KitchenCallbackHandler::class)
+    ->where('orderId', '\d+')
+    ->where('expected', '[a-z_]+');
 
 // Ro'yxatdan o'tgan foydalanuvchi uchun menyu amallari.
 $bot->group(function (Nutgram $bot) {

@@ -22,15 +22,25 @@ class OrderStatusService
 {
     public function advance(Order $order, string $changedBy): Order
     {
-        $next = $order->delivery_type->isPickup() && $order->status === OrderStatus::Preparing
-            ? OrderStatus::Delivered
-            : $order->status->next();
+        $next = $this->nextStatus($order);
 
         if ($next === null) {
             throw ValidationException::withMessages(['status' => 'Bu buyurtma allaqachon yakunlangan.']);
         }
 
         return $this->transition($order, $next, $changedBy);
+    }
+
+    /**
+     * `advance()` buyurtmani qaysi statusга o'tkazadi — yakunланган bo'lsa null.
+     * Tekshiruv EMAS, faqat oldinга bitta qadam (olib ketishда on_the_way tashlanadi).
+     * Bot tugmasi matni shu asosда tanlanadi (/kitchen bilan bir xil xatti-harakat).
+     */
+    public function nextStatus(Order $order): ?OrderStatus
+    {
+        return $order->delivery_type->isPickup() && $order->status === OrderStatus::Preparing
+            ? OrderStatus::Delivered
+            : $order->status->next();
     }
 
     public function transition(Order $order, OrderStatus $to, string $changedBy): Order
