@@ -19,6 +19,12 @@ export default defineConfig({
         }),
         react(),
     ],
+    // Har build'da public/build ni tozalab qayta yozadi — eski hash'li fayllar
+    // qolib ketmasin (Docker `frontend` bosqichi toza fs bo'lsa ham, server/lokal
+    // to'g'ridan-to'g'ri `npm run build` uchun kafolat).
+    build: {
+        emptyOutDir: true,
+    },
     server: {
         host: '0.0.0.0',
         port: 5173,
