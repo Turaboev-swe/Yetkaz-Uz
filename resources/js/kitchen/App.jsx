@@ -33,8 +33,14 @@ export default function App() {
 
     useEffect(load, [load]);
 
-    // Reverb
+    // Reverb — mavjud bo'lmasa (VITE_REVERB_* yo'q) 15s polling bilan ishlaymiz.
     useEffect(() => {
+        if (!echo) {
+            setConnected(false);
+            const t = setInterval(load, 15000);
+            return () => clearInterval(t);
+        }
+
         const ch = echo.private(`kitchen.${restaurantId}`);
 
         ch.listen('.order.placed', (o) => {
@@ -65,7 +71,7 @@ export default function App() {
         setConnected(pusher.connection.state === 'connected');
 
         return () => echo.leave(`kitchen.${restaurantId}`);
-    }, [sortInsert]);
+    }, [sortInsert, load]);
 
     const advance = async (id) => {
         setBusyId(id);
