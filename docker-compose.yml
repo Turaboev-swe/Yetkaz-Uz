@@ -137,9 +137,10 @@ services:
       REVERB_HOST: reverb
       REVERB_PORT: "8080"
       REVERB_SCHEME: http
+      REVERB_PATH: ""
       REVERB_APP_KEY: "${REVERB_APP_KEY:-local-key}"
       RESTAURANT_ID: "${PRINT_AGENT_RESTAURANT_ID:-5}"
-      AGENT_TOKEN: "${PRINT_AGENT_TOKEN:-dev-burgergrill-print-token-123}"
+      PRINT_AGENT_TOKEN: "${PRINT_AGENT_TOKEN:-dev-burgergrill-print-token-123}"
       PRINTER_MODE: "${PRINTER_MODE:-simulate}"
     command: sh -c "pip install -q -r requirements.txt && python agent.py"
     depends_on:

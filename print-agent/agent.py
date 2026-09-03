@@ -27,18 +27,25 @@ load_dotenv(BASE / ".env")
 
 BACKEND_URL = os.environ.get("BACKEND_URL", "http://localhost:8010").rstrip("/")
 RESTAURANT_ID = int(os.environ.get("RESTAURANT_ID", "0"))
-AGENT_TOKEN = os.environ.get("AGENT_TOKEN", "")
+# Server .env dagi kalit nomi PRINT_AGENT_TOKEN — eski AGENT_TOKEN ham qo'llanadi.
+AGENT_TOKEN = os.environ.get("PRINT_AGENT_TOKEN") or os.environ.get("AGENT_TOKEN", "")
 REVERB_HOST = os.environ.get("REVERB_HOST", "localhost")
 REVERB_PORT = int(os.environ.get("REVERB_PORT", "8080"))
 REVERB_SCHEME = os.environ.get("REVERB_SCHEME", "http")
 REVERB_APP_KEY = os.environ.get("REVERB_APP_KEY", "local-key")
+# Production'da Reverb domen portida ochilmaydi — nginx `/reverb/` ni WebSocket'ga
+# proxy qiladi. REVERB_PATH=/reverb shu holat uchun. Lokalda bo'sh (to'g'ridan-to'g'ri :8080).
+REVERB_PATH = os.environ.get("REVERB_PATH", "").rstrip("/")
 PRINTER_MODE = os.environ.get("PRINTER_MODE", "simulate")
 PRINTER_HOST = os.environ.get("PRINTER_HOST", "")
 PRINTER_PORT = int(os.environ.get("PRINTER_PORT", "9100"))
 
 CHANNEL = f"private-restaurant.{RESTAURANT_ID}.print"
 WS_SCHEME = "wss" if REVERB_SCHEME == "https" else "ws"
-WS_URL = f"{WS_SCHEME}://{REVERB_HOST}:{REVERB_PORT}/app/{REVERB_APP_KEY}?protocol=7&client=yetkaz-agent&version=1.0"
+WS_URL = (
+    f"{WS_SCHEME}://{REVERB_HOST}:{REVERB_PORT}{REVERB_PATH}"
+    f"/app/{REVERB_APP_KEY}?protocol=7&client=yetkaz-agent&version=1.0"
+)
 OUTPUT_DIR = BASE / "output"
 DB_PATH = BASE / "queue.db"
 
@@ -227,6 +234,8 @@ def main():
         raise SystemExit("AGENT_TOKEN va RESTAURANT_ID .env da to'ldirilishi shart")
 
     log(f"Yetkaz print agent — restoran {RESTAURANT_ID}, rejim: {PRINTER_MODE}")
+    log(f"backend: {BACKEND_URL}")
+    log(f"reverb:  {WS_SCHEME}://{REVERB_HOST}:{REVERB_PORT}{REVERB_PATH}/app/*  kanal: {CHANNEL}")
     fetch_pending()  # oxirgi ishlaganдан beri kelgan buyurtmalar
     process_queue()  # lokal navbatда qolgan
 
