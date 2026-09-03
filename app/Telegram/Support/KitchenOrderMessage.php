@@ -5,6 +5,7 @@ namespace App\Telegram\Support;
 use App\Enums\OrderStatus;
 use App\Models\Order;
 use App\Services\Ordering\OrderStatusService;
+use App\Support\OrderAddress;
 use SergiX44\Nutgram\Telegram\Types\Keyboard\InlineKeyboardButton;
 use SergiX44\Nutgram\Telegram\Types\Keyboard\InlineKeyboardMarkup;
 
@@ -49,10 +50,16 @@ class KitchenOrderMessage
             $lines[] = '📞 '.$esc($order->user->phone);
         }
 
-        $snap = $order->address_snapshot ?? [];
-        if (! $order->delivery_type->isPickup() && filled($snap['address_text'] ?? null)) {
-            $addr = trim(($snap['address_text'] ?? '').(filled($snap['district'] ?? null) ? ', '.$snap['district'] : ''), ', ');
-            $lines[] = '📍 '.$t('address').': '.$esc($addr);
+        if (! $order->delivery_type->isPickup()) {
+            $addr = OrderAddress::line($order->address_snapshot);
+            if ($addr !== null) {
+                $extra = OrderAddress::extra($order->address_snapshot);
+                $lines[] = '📍 '.$t('address').': '.$esc($extra !== null ? "$addr ($extra)" : $addr);
+            }
+            $map = OrderAddress::mapUrl($order->address_snapshot);
+            if ($map !== null) {
+                $lines[] = '🗺 <a href="'.$esc($map).'">'.$t('map').'</a>';
+            }
         }
 
         $lines[] = '';

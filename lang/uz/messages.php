@@ -109,6 +109,7 @@ return [
         'delivery' => '🛵 Yetkazib berish',
         'pickup' => '🏃 Olib ketish',
         'address' => 'Manzil',
+        'map' => 'Xaritada ko‘rish',
         'note' => 'Izoh',
         'total' => 'Jami',
         'som' => "so'm",

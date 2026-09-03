@@ -163,4 +163,40 @@ class KitchenBotCallbackTest extends TestCase
         // self::staff (kitchen, chat 700700) + owner (chat 500500) = 2 ta
         app(Nutgram::class)->assertCalled('sendMessage', 2);
     }
+
+    public function test_order_placed_has_exactly_one_kitchen_notify_listener(): void
+    {
+        // Ikki marta ro'yxatga olinsa (auto-discovery + Event::listen) — bitta
+        // buyurtma uchun ikkita xabar ketardi.
+        $listeners = app('events')->getListeners(OrderPlaced::class);
+
+        $this->assertCount(1, $listeners);
+    }
+
+    public function test_message_shows_readable_address_not_raw_coordinates(): void
+    {
+        $order = $this->order([
+            'address_snapshot' => [
+                'address_text' => '40.716863, 72.768369',
+                'district' => 'Qo‘rg‘ontepa tumani',
+                'label' => 'Uy',
+                'lat' => 40.716863,
+                'lng' => 72.768369,
+            ],
+        ]);
+
+        (new NotifyKitchenStaffOfNewOrder)->handle(new OrderPlaced($order->id, $order->restaurant_id));
+
+        $bot = app(Nutgram::class);
+        $body = '';
+        $bot->assertRaw(function ($request) use (&$body) {
+            $body = (string) $request->getBody();
+
+            return true;
+        });
+
+        $this->assertStringContainsString('Qo‘rg‘ontepa tumani', $body);
+        $this->assertStringNotContainsString('40.716863, 72.768369', $body);
+        $this->assertStringContainsString('maps.google.com', $body); // xarita havolasi
+    }
 }

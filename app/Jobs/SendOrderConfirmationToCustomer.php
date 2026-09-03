@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Models\Order;
 use App\Services\Eta\EtaEstimate;
+use App\Support\OrderAddress;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -135,9 +136,7 @@ class SendOrderConfirmationToCustomer implements ShouldQueue
                 $out[] = '   ⏱ '.$esc($t('work_hours')).': '.$esc($hours);
             }
         } else {
-            $snap = $order->address_snapshot ?? [];
-            $text = trim(($snap['address_text'] ?? '').(filled($snap['district'] ?? null) ? ', '.$snap['district'] : ''), ', ');
-            $out[] = '📍 '.$esc($t('address')).': '.$esc($text !== '' ? $text : ($snap['label'] ?? '—'));
+            $out[] = '📍 '.$esc($t('address')).': '.$esc(OrderAddress::line($order->address_snapshot) ?? '—');
         }
 
         // --- Izoh (mijoz checkout paytida yozgan bo'lsa) ---

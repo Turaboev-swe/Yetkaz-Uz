@@ -166,6 +166,21 @@ class OrderConfirmationTest extends TestCase
         $this->assertStringNotContainsString('Jami', $body);
     }
 
+    public function test_raw_coordinate_address_falls_back_to_district(): void
+    {
+        $order = $this->order();
+        $order->update(['address_snapshot' => [
+            'address_text' => '40.716863, 72.768369',
+            'district' => 'Chilonzor tumani',
+            'label' => 'Uy',
+        ]]);
+
+        $body = $this->send($order);
+
+        $this->assertStringContainsString('Chilonzor tumani', $body);
+        $this->assertStringNotContainsString('40.716863, 72.768369', $body);
+    }
+
     public function test_customer_note_is_included_when_present(): void
     {
         $order = $this->order(note: 'qo‘ng‘iroqsiz, eshik oldiga qo‘ying');
