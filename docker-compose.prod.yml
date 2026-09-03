@@ -167,7 +167,8 @@ services:
       app:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget -q -O - http://127.0.0.1/up || exit 1"]
+      # /healthz — :80 da redirectsiz 200 (prod-ssl.conf da `location /` https ga yo'naltiradi)
+      test: ["CMD-SHELL", "wget -q -O - http://127.0.0.1/healthz || exit 1"]
       interval: 30s
       timeout: 5s
       retries: 3
