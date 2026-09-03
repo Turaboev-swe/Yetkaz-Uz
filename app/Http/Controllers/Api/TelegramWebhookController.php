@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Nutgram\Laravel\RunningMode\LaravelWebhook;
 use SergiX44\Nutgram\Nutgram;
+use Throwable;
 
 /**
  * Telegram webhook kirish nuqtasi (PROD-2 / PROD-6).
@@ -18,6 +19,10 @@ use SergiX44\Nutgram\Nutgram;
  *
  * Mos kelmasa — 404 (403 emas: endpoint mavjudligini ham oshkor qilmaymiz).
  * Secret bo'sh bo'lsa (webhook o'rnatilmagan) — har doim 404.
+ *
+ * Handler ichidagi xatolar HECH QACHON 5xx ga aylanmasligi kerak: Telegram 5xx
+ * da update'ni qayta-qayta yuboradi va oxir-oqibat webhook'ni o'chirib qo'yadi.
+ * Xato loglanadi (Nutgram + report), Telegram'ga esa 204 qaytadi.
  */
 class TelegramWebhookController extends Controller
 {
@@ -34,9 +39,15 @@ class TelegramWebhookController extends Controller
 
         // Secret allaqachon tekshirildi — Nutgram'ning o'z safeMode tekshiruvi shart emas.
         $bot->setRunningMode(new LaravelWebhook);
-        $bot->run();
 
-        // Telegram javob tanasiga qaramaydi — 204 kifoya.
+        try {
+            $bot->run();
+        } catch (Throwable $e) {
+            // Nutgram "Update failed" ni loglagan; to'liq izini ham yozamiz.
+            report($e);
+        }
+
+        // Telegram javob tanasiga qaramaydi — 204 kifoya (5xx EMAS).
         return response()->noContent();
     }
 }

@@ -77,4 +77,20 @@ class WebhookEndpointTest extends TestCase
         // /start handler foydalanuvchi yaratadi (ro'yxatdan o'tish oqimi).
         $this->assertDatabaseHas('users', ['telegram_id' => 770042]);
     }
+
+    public function test_handler_exception_does_not_return_5xx(): void
+    {
+        // Handler ichidagi xato Telegram'ga 5xx bo'lib qaytmasligi kerak
+        // (aks holda Telegram update'ni qayta yuboradi va webhook'ni o'chiradi).
+        app(Nutgram::class)->onCommand('boom', function (): void {
+            throw new \RuntimeException('boom');
+        });
+
+        $update = $this->startUpdate(770099);
+        $update['message']['text'] = '/boom';
+
+        $this->withHeader('X-Telegram-Bot-Api-Secret-Token', self::SECRET)
+            ->postJson(self::URL, $update)
+            ->assertNoContent();
+    }
 }
