@@ -33,6 +33,12 @@ class StaffResource extends Resource
             Forms\Components\TextInput::make('email')->label('Email')
                 ->email()->required()->unique(ignoreRecord: true)->maxLength(255),
 
+            Forms\Components\TextInput::make('telegram_chat_id')
+                ->label('Bildirishnoma uchun Telegram chat ID')
+                ->helperText("Botga /id buyrug'ini yuborib olingan raqamni kiriting.")
+                ->numeric()
+                ->rule('integer'),
+
             Forms\Components\Select::make('role')->label('Rol')
                 ->options(collect(StaffRole::cases())->mapWithKeys(fn ($c) => [$c->value => $c->label()]))
                 ->required()->native(false)->live(),
@@ -65,6 +71,9 @@ class StaffResource extends Resource
                 Tables\Columns\TextColumn::make('role')->label('Rol')
                     ->badge()->formatStateUsing(fn (StaffRole $state) => $state->label()),
                 Tables\Columns\TextColumn::make('restaurant.name')->label('Restoran')->placeholder('—'),
+                Tables\Columns\IconColumn::make('telegram_chat_id')->label('Telegram')
+                    ->boolean()->tooltip('Bildirishnoma chat ID kiritilganmi')
+                    ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\ToggleColumn::make('is_active')->label('Faol'),
                 Tables\Columns\TextColumn::make('last_login_at')->label('Oxirgi kirish')->since()->placeholder('—'),
             ])

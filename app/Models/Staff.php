@@ -22,6 +22,7 @@ class Staff extends Authenticatable implements FilamentUser
         'restaurant_id',
         'name',
         'email',
+        'telegram_chat_id',
         'password',
         'role',
         'is_active',
@@ -37,6 +38,7 @@ class Staff extends Authenticatable implements FilamentUser
     {
         return [
             'role' => StaffRole::class,
+            'telegram_chat_id' => 'integer',
             'is_active' => 'boolean',
             'last_login_at' => 'datetime',
             'password' => 'hashed',

@@ -15,11 +15,18 @@ class StaffFactory extends Factory
         return [
             'name' => fake()->name(),
             'email' => fake()->unique()->safeEmail(),
+            'telegram_chat_id' => null,
             'password' => 'password',
             'role' => StaffRole::RestaurantOwner,
             'restaurant_id' => Restaurant::factory(),
             'is_active' => true,
         ];
+    }
+
+    /** Bildirishnoma chat ID bilan (keyingi bosqich — xabar yuborish). */
+    public function withTelegramChatId(int $chatId = 424299): static
+    {
+        return $this->state(fn () => ['telegram_chat_id' => $chatId]);
     }
 
     public function platformAdmin(): static
