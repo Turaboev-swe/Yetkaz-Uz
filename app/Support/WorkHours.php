@@ -53,4 +53,24 @@ final class WorkHours
     {
         return $this->schedule === [];
     }
+
+    /**
+     * Berilgan sana kuni uchun ish vaqti oralig'i(lari) — "09:00–23:00" yoki
+     * bir necha bo'lsa "09:00–14:00, 17:00–23:00". Kun yopiq / jadval bo'sh bo'lsa null.
+     */
+    public function formatFor(DateTimeInterface $at): ?string
+    {
+        $day = self::DAYS[(int) $at->format('N') - 1];
+
+        $parts = [];
+        foreach ($this->schedule[$day] ?? [] as $interval) {
+            if (! is_array($interval) || count($interval) !== 2) {
+                continue;
+            }
+            [$start, $end] = $interval;
+            $parts[] = "{$start}–{$end}";
+        }
+
+        return $parts === [] ? null : implode(', ', $parts);
+    }
 }

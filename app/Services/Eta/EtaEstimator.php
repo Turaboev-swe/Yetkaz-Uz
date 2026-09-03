@@ -58,11 +58,7 @@ class EtaEstimator
 
         $minutes = max(10, $prep + $queue + $courier + $travel + self::BUFFER);
 
-        return new EtaEstimate(
-            minutes: $minutes,
-            low: max(5, $this->round5($minutes - 5)),
-            high: $this->round5($minutes + 10),
-        );
+        return EtaEstimate::fromMinutes($minutes);
     }
 
     private function activeOrders(Restaurant $restaurant): int
@@ -81,10 +77,5 @@ class EtaEstimator
 
         return ($minuteOfDay >= 450 && $minuteOfDay < 600)
             || ($minuteOfDay >= 1020 && $minuteOfDay < 1200);
-    }
-
-    private function round5(int $n): int
-    {
-        return (int) (round($n / 5) * 5);
     }
 }

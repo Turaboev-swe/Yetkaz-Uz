@@ -85,6 +85,24 @@ return [
         'cancelled' => '❌ Buyurtmangiz (:n) bekor qilindi.',
     ],
 
+    // Buyurtma yaratilishi bilan mijozga chek ko'rinishidagi tasdiq (SendOrderConfirmationToCustomer)
+    'order_confirmation' => [
+        'title' => 'Buyurtma #:n',
+        'subtotal' => 'Taomlar',
+        'delivery' => 'Yetkazish',
+        'free' => 'bepul',
+        'total' => 'Jami',
+        'som' => "so'm",
+        'address' => 'Manzil',
+        'pickup' => 'Olib ketish',
+        'work_hours' => 'Ish vaqti',
+        'note' => 'Izoh',
+        'payment' => "To'lov",
+        'eta' => 'Taxminan',
+        'eta_value' => ':range daqiqa',
+        'footer' => 'Buyurtmangiz qabul qilindi, tayyorlanish holatidan xabardor qilamiz.',
+    ],
+
     // Savat / restoran
     'cart_kept' => 'Savatingiz saqlanadi.',
     'min_order_not_met' => "Minimal buyurtma summasi: :amount so'm.",
