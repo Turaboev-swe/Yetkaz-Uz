@@ -16,7 +16,6 @@ use App\Services\Dispatch\ReceiptFormatter;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Str;
 use Tests\Concerns\InteractsWithTelegramInitData;
 use Tests\TestCase;
 
@@ -43,7 +42,6 @@ class OrderDispatchTest extends TestCase
         $restaurant ??= $this->restaurant($pos);
 
         return Order::factory()->for($restaurant)->for(User::factory(['phone' => '+998900000000']))->create([
-            'order_number' => 'YK-'.strtoupper(Str::random(6)),
             'delivery_type' => DeliveryType::from($type),
             'items' => [['product_id' => 1, 'name' => "Lag'mon", 'price' => 2_500_000, 'qty' => 2, 'prep' => 20, 'note' => null]],
             'note' => 'eshik oldiga',

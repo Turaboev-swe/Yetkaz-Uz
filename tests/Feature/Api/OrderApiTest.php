@@ -89,7 +89,7 @@ class OrderApiTest extends TestCase
             ->assertJsonPath('data.note', 'Qo‘ng‘iroqsiz')
             ->assertJsonPath('data.address_snapshot.label', $this->address->label);
 
-        $this->assertMatchesRegularExpression('/^YK-[A-Z0-9]{6}$/', $res->json('data.order_number'));
+        $this->assertMatchesRegularExpression('/^YT-\d{6}$/', $res->json('data.order_number'));
         $this->assertGreaterThan(0, $res->json('data.eta_minutes'));
 
         $this->assertDatabaseHas('orders', ['user_id' => $this->user->id, 'total' => 7_900_000]);

@@ -19,7 +19,6 @@ use App\Services\Delivery\RestaurantFinder;
 use App\Services\Eta\EtaEstimate;
 use App\Services\Eta\EtaEstimator;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -33,6 +32,7 @@ class OrderService
     public function __construct(
         private readonly RestaurantFinder $finder,
         private readonly EtaEstimator $eta,
+        private readonly OrderNumberGenerator $orderNumbers,
     ) {}
 
     /**
@@ -80,7 +80,7 @@ class OrderService
 
         $order = DB::transaction(function () use ($user, $restaurant, $address, $type, $lines, $subtotal, $deliveryFee, $eta, $distanceKm, $data) {
             $order = Order::create([
-                'order_number' => $this->orderNumber(),
+                'order_number' => $this->orderNumbers->generate(),
                 'user_id' => $user->id,
                 'restaurant_id' => $restaurant->id,
                 'address_id' => $address?->id,
@@ -188,14 +188,5 @@ class OrderService
             'floor' => $address->floor,
             'apartment' => $address->apartment,
         ];
-    }
-
-    private function orderNumber(): string
-    {
-        do {
-            $number = 'YK-'.strtoupper(Str::random(6));
-        } while (Order::query()->where('order_number', $number)->exists());
-
-        return $number;
     }
 }

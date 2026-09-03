@@ -12,7 +12,6 @@ use App\Models\Restaurant;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Str;
 
 /** @extends Factory<Order> */
 class OrderFactory extends Factory
@@ -23,7 +22,7 @@ class OrderFactory extends Factory
         $deliveryFee = fake()->randomElement([0, 1_000_000, 1_500_000]);
 
         return [
-            'order_number' => strtoupper(Str::random(8)),
+            'order_number' => 'YT-'.fake()->unique()->numerify('######'),
             'user_id' => User::factory(),
             'restaurant_id' => Restaurant::factory(),
             'address_id' => Address::factory(),
