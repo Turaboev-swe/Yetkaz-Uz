@@ -18,6 +18,15 @@ x-app: &app
     args:
       UID: "1000"
       GID: "1000"
+      # Vite build-vaqti o'zgaruvchilari — host .env dan (RUNTIME emas, build ARG).
+      # Vite `import.meta.env.VITE_*` ni build paytida bog'laydi; bularsiz frontend
+      # real-time (Reverb) butunlay o'chadi. O'zgargach: build --no-cache kerak
+      # (`npm run build` qatlami ARG hash'iga bog'liq — odatda avtomat qayta quriladi).
+      VITE_REVERB_APP_KEY: "${VITE_REVERB_APP_KEY:-}"
+      VITE_REVERB_HOST: "${VITE_REVERB_HOST:-}"
+      VITE_REVERB_PORT: "${VITE_REVERB_PORT:-}"
+      VITE_REVERB_SCHEME: "${VITE_REVERB_SCHEME:-}"
+      VITE_REVERB_PATH: "${VITE_REVERB_PATH:-}"
   image: yetkaz-app:prod
   restart: unless-stopped
   stop_grace_period: 20s

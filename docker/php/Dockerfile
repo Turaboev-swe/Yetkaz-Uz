@@ -54,6 +54,23 @@ CMD ["php", "artisan", "octane:start", "--server=roadrunner", "--host=0.0.0.0", 
 # ==========================================================================
 FROM node:22-bookworm-slim AS frontend
 WORKDIR /app
+
+# --- Vite build-vaqti o'zgaruvchilari ---
+# Bular RUNTIME .env dan EMAS, Docker build ARG orqali keladi: Vite `import.meta.env`
+# ni kompilyatsiya paytida qattiq bog'laydi. docker-compose.prod.yml build.args
+# orqali host .env dan uzatiladi. Bo'sh bo'lsa echo.js real-time'ni o'chiradi
+# (ilova polling bilan ishlayveradi).
+ARG VITE_REVERB_APP_KEY=""
+ARG VITE_REVERB_HOST=""
+ARG VITE_REVERB_PORT=""
+ARG VITE_REVERB_SCHEME=""
+ARG VITE_REVERB_PATH=""
+ENV VITE_REVERB_APP_KEY=${VITE_REVERB_APP_KEY} \
+    VITE_REVERB_HOST=${VITE_REVERB_HOST} \
+    VITE_REVERB_PORT=${VITE_REVERB_PORT} \
+    VITE_REVERB_SCHEME=${VITE_REVERB_SCHEME} \
+    VITE_REVERB_PATH=${VITE_REVERB_PATH}
+
 COPY package.json package-lock.json ./
 RUN npm ci --no-audit --no-fund
 COPY vite.config.js tailwind.config.js postcss.config.js ./

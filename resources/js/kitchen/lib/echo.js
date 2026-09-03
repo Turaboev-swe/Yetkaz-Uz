@@ -14,6 +14,10 @@ if (key) {
 
     const scheme = import.meta.env.VITE_REVERB_SCHEME || 'http';
     const port = Number(import.meta.env.VITE_REVERB_PORT || 8080);
+    // Production'da Reverb domen portida (443) ochilmaydi — nginx `/reverb/`
+    // yo'lini WebSocket'ga proxy qiladi. VITE_REVERB_PATH=/reverb shu holat uchun.
+    // Lokalda bo'sh: to'g'ridan-to'g'ri reverb:8080 ga ulanadi.
+    const wsPath = import.meta.env.VITE_REVERB_PATH || '';
 
     echo = new Echo({
         broadcaster: 'reverb',
@@ -21,6 +25,7 @@ if (key) {
         wsHost: import.meta.env.VITE_REVERB_HOST || window.location.hostname,
         wsPort: port,
         wssPort: port,
+        wsPath,
         forceTLS: scheme === 'https',
         enabledTransports: ['ws', 'wss'],
         disableStats: true,

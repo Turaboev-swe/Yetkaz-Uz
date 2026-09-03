@@ -230,11 +230,65 @@ docker compose -f docker-compose.prod.yml exec app php artisan telegram:webhook:
 docker compose -f docker-compose.prod.yml up -d bot
 ```
 
-## 8. Keyingi qadamlar
+## 8. Reverb frontend (real-time — /kitchen, Mini App)
 
-- **Reverb frontend** (Mini App real-time buyurtma statusi) —
-  `resources/js/*/lib/echo.js` da `wsPath: '/reverb'` +
-  `VITE_REVERB_HOST=yetqaz.uz`, `VITE_REVERB_SCHEME=https`, `VITE_REVERB_PORT=443`.
-  `npm run build` image ichida qayta (`up -d --build`). nginx `/reverb/` locationи
-  `prod-ssl.conf` da tayyor.
+`VITE_REVERB_*` **build vaqtida** kerak: Vite `import.meta.env.VITE_*` ni
+`npm run build` paytida kodga qattiq bog'laydi. Runtime `.env` ni frontend
+ko'rmaydi. `docker-compose.prod.yml` bularni `build.args` orqali host `.env` dan
+uzatadi, Dockerfile `frontend` bosqichi `ARG` + `ENV` bilan qabul qiladi.
+
+**`.env` ga qo'shing** (nano bilan):
+
+```ini
+VITE_REVERB_APP_KEY=<REVERB_APP_KEY bilan AYNAN bir xil>
+VITE_REVERB_HOST=yetqaz.uz
+VITE_REVERB_PORT=443
+VITE_REVERB_SCHEME=https
+VITE_REVERB_PATH=/reverb
+```
+
+`echo.js` `wsPath=/reverb` bilan `wss://yetqaz.uz:443/reverb/app/<key>` ga ulanadi;
+nginx (`prod-ssl.conf` **va** `prod.conf`) `location /reverb/` ni `reverb:8080` ga
+`Upgrade`/`Connection` sarlavhalari bilan proxy qiladi — tayyor.
+
+**Qayta build + deploy:**
+
+```sh
+cd /opt/yetkaz
+git pull
+docker compose -f docker-compose.prod.yml build app
+docker compose -f docker-compose.prod.yml up -d
+docker image prune -f
+```
+
+> `ARG` (→ `ENV`) qiymati o'zgarsa Docker `frontend` bosqichini o'sha nuqtadan
+> avtomat qayta quradi (`npm run build` ham) — odatda `--no-cache` shart emas.
+> Agar assetlar eski qolsa: `docker compose -f docker-compose.prod.yml build
+> --no-cache app`. `x-app` anchor'i `horizon/reverb/...` bilan bir xil
+> `yetkaz-app:prod` image'ni bo'lishadi — bitta `app` build yetarli.
+
+**Tekshiruv:**
+
+1. Brauzer: `https://yetqaz.uz/kitchen` → DevTools Console'da Echo/pusher xatosi
+   yo'q. Network → WS: `wss://yetqaz.uz/reverb/app/...` `101 Switching Protocols`.
+2. `/kitchen` sarlavhasidagi indikator **yashil** ("ulangan").
+3. Build'ga kalit kirganini tasdiqlash:
+   ```sh
+   docker compose -f docker-compose.prod.yml exec app \
+     sh -c 'grep -rl "yetqaz.uz" public/build/assets | head -1'
+   ```
+4. Real buyurtma (pastda) — kartochka **darhol** (15s polling emas) + ovozli signal.
+
+**Real buyurtma bilan sinash:**
+
+- Telegram bot orqali `/kitchen` restorani menyusidan buyurtma ber (Mini App →
+  savat → buyurtma tasdiqlash), yoki:
+- `docker compose -f docker-compose.prod.yml exec app php artisan tinker` ichida
+  o'sha restoran uchun test buyurtma yaratib `OrderPlaced` event'ini broadcast qil.
+- `/kitchen` sahifasi ochiq turganda kartochka WebSocket orqali < 1s ichida
+  paydo bo'lishi va chime chalinishi kerak. 15s kutilsa — polling ishlayapti,
+  ya'ni WebSocket ulanmagan (indikator qizil), build ARG yoki nginx'ni tekshir.
+
+## 9. Keyingi qadamlar
+
 - **Off-site backup** — `backups/` ni S3 / boshqa serverga `rclone`/`scp` (alohida cron).
