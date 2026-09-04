@@ -32,6 +32,7 @@ class Order extends Model
         'note',
         'courier_name',
         'courier_phone',
+        'courier_staff_id',
         'subtotal',
         'delivery_fee',
         'total',
@@ -85,6 +86,12 @@ class Order extends Model
     public function address(): BelongsTo
     {
         return $this->belongsTo(Address::class);
+    }
+
+    /** @return BelongsTo<Staff, Order> */
+    public function courierStaff(): BelongsTo
+    {
+        return $this->belongsTo(Staff::class, 'courier_staff_id');
     }
 
     /** @return HasMany<OrderStatusHistory> */

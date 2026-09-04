@@ -10,6 +10,7 @@ use App\Services\Ordering\OrderStatusService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Validation\Rule;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
@@ -40,6 +41,18 @@ class KitchenController extends Controller
         return KitchenOrderResource::collection($orders);
     }
 
+    /** GET /kitchen/couriers — "Yo'lga chiqdi" dropdown'i uchun o'z restorani xodimlari. */
+    public function couriers(): JsonResponse
+    {
+        $list = Staff::query()
+            ->where('restaurant_id', $this->staff()->restaurant_id)
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get(['id', 'name', 'phone']);
+
+        return response()->json(['data' => $list]);
+    }
+
     /** PATCH /kitchen/orders/{order}/advance — statusni keyingi bosqichga. */
     public function advance(Request $request, Order $order): JsonResponse
     {
@@ -47,15 +60,25 @@ class KitchenController extends Controller
 
         abort_unless($order->restaurant_id === $staff->restaurant_id, Response::HTTP_FORBIDDEN);
 
-        // "Yo'lga chiqdi" bosilganда oshxona kuryer ismi/telefonini kiritishi mumkin (ixtiyoriy).
+        // "Yo'lga chiqdi" da kuryer sifatida o'sha restoran xodimi tanlanishi mumkin (ixtiyoriy).
         $data = $request->validate([
-            'courier_name' => ['nullable', 'string', 'max:100'],
-            'courier_phone' => ['nullable', 'string', 'max:32'],
+            'courier_staff_id' => [
+                'nullable', 'integer',
+                Rule::exists('staff', 'id')->where(fn ($q) => $q
+                    ->where('restaurant_id', $order->restaurant_id)
+                    ->where('is_active', true)),
+            ],
         ]);
-        $fill = array_filter([
-            'courier_name' => filled($data['courier_name'] ?? null) ? trim($data['courier_name']) : null,
-            'courier_phone' => filled($data['courier_phone'] ?? null) ? trim($data['courier_phone']) : null,
-        ], fn ($v) => $v !== null);
+
+        $fill = [];
+        if (! empty($data['courier_staff_id'])) {
+            $courier = Staff::findOrFail($data['courier_staff_id']);
+            $fill = [
+                'courier_staff_id' => $courier->id,
+                'courier_name' => $courier->name,
+                'courier_phone' => $courier->phone,   // tanlangan paytdagi snapshot
+            ];
+        }
 
         $this->status->advance($order, "kitchen:{$staff->id}", $fill);
 

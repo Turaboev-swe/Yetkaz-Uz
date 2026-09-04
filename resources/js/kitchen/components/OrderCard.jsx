@@ -8,7 +8,7 @@ const STATUS_COLOR = {
     on_the_way: '#06b6d4',
 };
 
-export default function OrderCard({ order, onAdvance, busy }) {
+export default function OrderCard({ order, onAdvance, busy, couriers = [] }) {
     const [, tick] = useState(0);
     useEffect(() => {
         const t = setInterval(() => tick((n) => n + 1), 15000);
@@ -19,26 +19,28 @@ export default function OrderCard({ order, onAdvance, busy }) {
     const actionLabel = nextActionLabel(order.status, order.delivery_type);
     const addr = order.address;
 
-    // "Yo‘lga chiqdi" (yetkazish) — statusdan oldin kuryer ma'lumotini so‘raymiz.
+    // "Yo‘lga chiqdi" (yetkazish) — statusdan oldin kuryerni tanlaymiz.
     const asksCourier = order.status === 'preparing' && order.delivery_type === 'delivery';
     const [askOpen, setAskOpen] = useState(false);
-    const [courierName, setCourierName] = useState('');
-    const [courierPhone, setCourierPhone] = useState('');
+    const [courierId, setCourierId] = useState('');
 
     const handleAction = () => {
         if (asksCourier) {
+            setCourierId('');
             setAskOpen(true);
             return;
         }
         onAdvance(order.id);
     };
 
-    const confirmCourier = () => {
-        const fields = {};
-        if (courierName.trim()) fields.courier_name = courierName.trim();
-        if (courierPhone.trim()) fields.courier_phone = courierPhone.trim();
+    const withCourier = () => {
         setAskOpen(false);
-        onAdvance(order.id, Object.keys(fields).length ? fields : null);
+        onAdvance(order.id, courierId ? { courier_staff_id: Number(courierId) } : null);
+    };
+
+    const withoutCourier = () => {
+        setAskOpen(false);
+        onAdvance(order.id);
     };
 
     return (
@@ -141,39 +143,41 @@ export default function OrderCard({ order, onAdvance, busy }) {
                         className="w-full max-w-sm rounded-2xl border border-gray-700 bg-[#1b1f27] p-5"
                         onClick={(e) => e.stopPropagation()}
                     >
-                        <div className="text-[17px] font-bold">Kuryer ma'lumoti</div>
-                        <div className="mt-1 text-[13px] text-gray-400">Ixtiyoriy — bo‘sh qoldirsangiz ham davom etadi.</div>
+                        <div className="text-[17px] font-bold">Kuryerni tanlang</div>
+                        <div className="mt-1 text-[13px] text-gray-400">Mijozga kuryer ismi va telefoni yuboriladi.</div>
 
-                        <label className="mt-4 block text-[13px] text-gray-400">Kuryer ismi</label>
-                        <input
-                            value={courierName}
-                            onChange={(e) => setCourierName(e.target.value)}
-                            className="mt-1 h-11 w-full rounded-lg border border-gray-700 bg-[#0f1115] px-3 text-[15px] text-gray-100"
-                            placeholder="Ism"
-                        />
+                        <select
+                            value={courierId}
+                            onChange={(e) => setCourierId(e.target.value)}
+                            className="mt-4 h-12 w-full rounded-lg border border-gray-700 bg-[#0f1115] px-3 text-[15px] text-gray-100"
+                        >
+                            <option value="">— tanlanmagan —</option>
+                            {couriers.map((c) => (
+                                <option key={c.id} value={c.id}>
+                                    {c.name}{c.phone ? ` (${c.phone})` : ''}
+                                </option>
+                            ))}
+                        </select>
+                        {couriers.length === 0 && (
+                            <div className="mt-2 text-[13px] text-amber-400">
+                                Xodimlar ro‘yxati bo‘sh — admin panelda qo‘shing.
+                            </div>
+                        )}
 
-                        <label className="mt-3 block text-[13px] text-gray-400">Telefon raqami</label>
-                        <input
-                            value={courierPhone}
-                            onChange={(e) => setCourierPhone(e.target.value)}
-                            inputMode="tel"
-                            className="mt-1 h-11 w-full rounded-lg border border-gray-700 bg-[#0f1115] px-3 text-[15px] text-gray-100"
-                            placeholder="+998 __ ___ __ __"
-                        />
-
-                        <div className="mt-5 flex gap-2">
+                        <div className="mt-5 flex flex-col gap-2">
                             <button
-                                onClick={() => setAskOpen(false)}
-                                className="h-12 flex-1 rounded-xl bg-gray-800 text-[15px] font-bold text-gray-300"
-                            >
-                                Bekor qilish
-                            </button>
-                            <button
-                                onClick={confirmCourier}
-                                className="h-12 flex-[2] rounded-xl text-[15px] font-bold text-white"
+                                onClick={withCourier}
+                                disabled={!courierId}
+                                className="h-12 w-full rounded-xl text-[15px] font-bold text-white disabled:opacity-40"
                                 style={{ background: STATUS_COLOR.preparing }}
                             >
                                 Davom etish
+                            </button>
+                            <button
+                                onClick={withoutCourier}
+                                className="h-12 w-full rounded-xl bg-gray-800 text-[15px] font-bold text-gray-300"
+                            >
+                                Kuryersiz davom etish
                             </button>
                         </div>
                     </div>

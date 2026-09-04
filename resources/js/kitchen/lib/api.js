@@ -25,5 +25,6 @@ async function request(path, method = 'GET', body = null) {
 
 export const api = {
     orders: () => request('/orders'),
+    couriers: () => request('/couriers'),
     advance: (id, fields = null) => request(`/orders/${id}/advance`, 'PATCH', fields),
 };

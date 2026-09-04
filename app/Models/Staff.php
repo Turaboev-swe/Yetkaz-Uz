@@ -22,6 +22,7 @@ class Staff extends Authenticatable implements FilamentUser
         'restaurant_id',
         'name',
         'email',
+        'phone',
         'telegram_chat_id',
         'password',
         'role',

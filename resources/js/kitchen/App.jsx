@@ -14,7 +14,12 @@ export default function App() {
     const [connected, setConnected] = useState(false);
     const [soundOn, setSoundOn] = useState(soundReady());
     const [busyId, setBusyId] = useState(null);
+    const [couriers, setCouriers] = useState([]);
     const seen = useRef(new Set());
+
+    useEffect(() => {
+        api.couriers().then((r) => setCouriers(r.data || [])).catch(() => {});
+    }, []);
 
     const sortInsert = useCallback((list) => [...list].sort((a, b) => a.created_at.localeCompare(b.created_at)), []);
 
@@ -134,7 +139,7 @@ export default function App() {
 
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                     {orders.map((o) => (
-                        <OrderCard key={o.id} order={o} onAdvance={advance} busy={busyId === o.id} />
+                        <OrderCard key={o.id} order={o} onAdvance={advance} busy={busyId === o.id} couriers={couriers} />
                     ))}
                 </div>
             </main>

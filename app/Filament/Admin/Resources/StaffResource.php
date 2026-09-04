@@ -33,6 +33,10 @@ class StaffResource extends Resource
             Forms\Components\TextInput::make('email')->label('Email')
                 ->email()->required()->unique(ignoreRecord: true)->maxLength(255),
 
+            Forms\Components\TextInput::make('phone')->label('Telefon raqami')
+                ->tel()->maxLength(32)
+                ->helperText('Kuryer sifatida tanlanganда mijozga shu raqam yuboriladi.'),
+
             Forms\Components\TextInput::make('telegram_chat_id')
                 ->label('Bildirishnoma uchun Telegram chat ID')
                 ->helperText("Botga /id buyrug'ini yuborib olingan raqamni kiriting.")
@@ -68,6 +72,8 @@ class StaffResource extends Resource
             ->columns([
                 Tables\Columns\TextColumn::make('name')->label('Ism')->searchable()->sortable(),
                 Tables\Columns\TextColumn::make('email')->label('Email')->searchable(),
+                Tables\Columns\TextColumn::make('phone')->label('Telefon')->placeholder('—')
+                    ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('role')->label('Rol')
                     ->badge()->formatStateUsing(fn (StaffRole $state) => $state->label()),
                 Tables\Columns\TextColumn::make('restaurant.name')->label('Restoran')->placeholder('—'),

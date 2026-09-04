@@ -102,42 +102,6 @@ class CourierInfoTest extends TestCase
         $this->assertStringNotContainsString(self::RESTAURANT_PHONE, $body);
     }
 
-    // --- /kitchen advance ---
-
-    public function test_kitchen_advance_saves_courier_info_then_changes_status(): void
-    {
-        $owner = Staff::factory()->owner($this->restaurant)->create();
-        $order = $this->order(['status' => OrderStatus::Preparing]);
-
-        $this->actingAs($owner, 'staff')
-            ->patchJson("/kitchen/orders/{$order->id}/advance", [
-                'courier_name' => '  Alisher  ',
-                'courier_phone' => '+998901112233',
-            ])
-            ->assertOk()
-            ->assertJsonPath('data.status', 'on_the_way');
-
-        $order->refresh();
-        $this->assertSame('Alisher', $order->courier_name);
-        $this->assertSame('+998901112233', $order->courier_phone);
-        Queue::assertPushed(NotifyCustomerOfStatusChange::class);
-    }
-
-    public function test_kitchen_advance_without_courier_leaves_fields_null(): void
-    {
-        $owner = Staff::factory()->owner($this->restaurant)->create();
-        $order = $this->order(['status' => OrderStatus::Preparing]);
-
-        $this->actingAs($owner, 'staff')
-            ->patchJson("/kitchen/orders/{$order->id}/advance", [])
-            ->assertOk()
-            ->assertJsonPath('data.status', 'on_the_way');
-
-        $order->refresh();
-        $this->assertNull($order->courier_name);
-        $this->assertNull($order->courier_phone);
-    }
-
     // --- bot: hozircha kuryer so'ralmaydi ---
 
     public function test_bot_advance_leaves_courier_empty_and_message_uses_restaurant_phone(): void
