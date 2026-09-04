@@ -42,6 +42,8 @@ class KitchenOrderResource extends JsonResource
 
             'items' => $this->items, // [{product_id, name, price, qty, prep, note}]
             'note' => $this->note,
+            'courier_name' => $this->courier_name,
+            'courier_phone' => $this->courier_phone,
 
             'subtotal' => $this->subtotal,
             'delivery_fee' => $this->delivery_fee,

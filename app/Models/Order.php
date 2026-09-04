@@ -30,6 +30,8 @@ class Order extends Model
         'items',
         'address_snapshot',
         'note',
+        'courier_name',
+        'courier_phone',
         'subtotal',
         'delivery_fee',
         'total',

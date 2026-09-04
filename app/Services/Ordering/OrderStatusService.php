@@ -20,12 +20,21 @@ use Illuminate\Validation\ValidationException;
  */
 class OrderStatusService
 {
-    public function advance(Order $order, string $changedBy): Order
+    /**
+     * @param  array<string, mixed>  $fill  Status o'zgarishidan OLDIN buyurtmaга
+     *                                      yoziladigan maydonlar (hozircha kuryer ma'lumoti).
+     */
+    public function advance(Order $order, string $changedBy, array $fill = []): Order
     {
         $next = $this->nextStatus($order);
 
         if ($next === null) {
             throw ValidationException::withMessages(['status' => 'Bu buyurtma allaqachon yakunlangan.']);
+        }
+
+        $fill = array_intersect_key($fill, array_flip(['courier_name', 'courier_phone']));
+        if ($fill !== []) {
+            $order->fill($fill);
         }
 
         return $this->transition($order, $next, $changedBy);

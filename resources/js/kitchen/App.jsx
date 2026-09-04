@@ -73,10 +73,10 @@ export default function App() {
         return () => echo.leave(`kitchen.${restaurantId}`);
     }, [sortInsert, load]);
 
-    const advance = async (id) => {
+    const advance = async (id, fields = null) => {
         setBusyId(id);
         try {
-            const r = await api.advance(id);
+            const r = await api.advance(id, fields);
             const updated = r.data;
             setOrders((cur) =>
                 DONE.has(updated.status) ? cur.filter((o) => o.id !== id) : cur.map((o) => (o.id === id ? updated : o)),

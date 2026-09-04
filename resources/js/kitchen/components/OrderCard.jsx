@@ -19,6 +19,28 @@ export default function OrderCard({ order, onAdvance, busy }) {
     const actionLabel = nextActionLabel(order.status, order.delivery_type);
     const addr = order.address;
 
+    // "Yo‘lga chiqdi" (yetkazish) — statusdan oldin kuryer ma'lumotini so‘raymiz.
+    const asksCourier = order.status === 'preparing' && order.delivery_type === 'delivery';
+    const [askOpen, setAskOpen] = useState(false);
+    const [courierName, setCourierName] = useState('');
+    const [courierPhone, setCourierPhone] = useState('');
+
+    const handleAction = () => {
+        if (asksCourier) {
+            setAskOpen(true);
+            return;
+        }
+        onAdvance(order.id);
+    };
+
+    const confirmCourier = () => {
+        const fields = {};
+        if (courierName.trim()) fields.courier_name = courierName.trim();
+        if (courierPhone.trim()) fields.courier_phone = courierPhone.trim();
+        setAskOpen(false);
+        onAdvance(order.id, Object.keys(fields).length ? fields : null);
+    };
+
     return (
         <div className="flex flex-col rounded-2xl border p-4" style={{ borderColor: STATUS_COLOR[order.status] || '#374151', background: '#171a21' }}>
             <div className="flex items-start justify-between">
@@ -93,15 +115,69 @@ export default function OrderCard({ order, onAdvance, busy }) {
                 {order.eta_minutes ? <span>≈ {order.eta_minutes} daq</span> : null}
             </div>
 
+            {(order.courier_name || order.courier_phone) && (
+                <div className="mt-2 text-[13px] text-gray-400">
+                    🚴 {[order.courier_name, order.courier_phone].filter(Boolean).join(' · ')}
+                </div>
+            )}
+
             {actionLabel && (
                 <button
-                    onClick={() => onAdvance(order.id)}
+                    onClick={handleAction}
                     disabled={busy}
                     className="mt-4 h-14 w-full rounded-xl text-[17px] font-bold disabled:opacity-50"
                     style={{ background: STATUS_COLOR[order.status] || '#2563eb', color: '#fff' }}
                 >
                     {busy ? '…' : actionLabel}
                 </button>
+            )}
+
+            {askOpen && (
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+                    onClick={() => setAskOpen(false)}
+                >
+                    <div
+                        className="w-full max-w-sm rounded-2xl border border-gray-700 bg-[#1b1f27] p-5"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="text-[17px] font-bold">Kuryer ma'lumoti</div>
+                        <div className="mt-1 text-[13px] text-gray-400">Ixtiyoriy — bo‘sh qoldirsangiz ham davom etadi.</div>
+
+                        <label className="mt-4 block text-[13px] text-gray-400">Kuryer ismi</label>
+                        <input
+                            value={courierName}
+                            onChange={(e) => setCourierName(e.target.value)}
+                            className="mt-1 h-11 w-full rounded-lg border border-gray-700 bg-[#0f1115] px-3 text-[15px] text-gray-100"
+                            placeholder="Ism"
+                        />
+
+                        <label className="mt-3 block text-[13px] text-gray-400">Telefon raqami</label>
+                        <input
+                            value={courierPhone}
+                            onChange={(e) => setCourierPhone(e.target.value)}
+                            inputMode="tel"
+                            className="mt-1 h-11 w-full rounded-lg border border-gray-700 bg-[#0f1115] px-3 text-[15px] text-gray-100"
+                            placeholder="+998 __ ___ __ __"
+                        />
+
+                        <div className="mt-5 flex gap-2">
+                            <button
+                                onClick={() => setAskOpen(false)}
+                                className="h-12 flex-1 rounded-xl bg-gray-800 text-[15px] font-bold text-gray-300"
+                            >
+                                Bekor qilish
+                            </button>
+                            <button
+                                onClick={confirmCourier}
+                                className="h-12 flex-[2] rounded-xl text-[15px] font-bold text-white"
+                                style={{ background: STATUS_COLOR.preparing }}
+                            >
+                                Davom etish
+                            </button>
+                        </div>
+                    </div>
+                </div>
             )}
         </div>
     );

@@ -80,6 +80,8 @@ return [
         'accepted' => '✅ Buyurtmangiz (:n) qabul qilindi. Tez orada tayyorlashga kirishamiz.',
         'preparing' => '👨‍🍳 Buyurtmangiz (:n) tayyorlanmoqda.',
         'on_the_way' => '🛵 Buyurtmangiz (:n) yo‘lga chiqdi.',
+        'courier' => 'Kuryer',
+        'restaurant' => 'Restoran',
         'delivered' => '🎉 Buyurtmangiz (:n) yetkazildi. Yoqimli ishtaha!',
         'picked_up' => '🎉 Buyurtmangiz (:n) topshirildi. Yoqimli ishtaha!',
         'cancelled' => '❌ Buyurtmangiz (:n) bekor qilindi.',

@@ -8,6 +8,7 @@ use App\Models\Order;
 use App\Models\Staff;
 use App\Services\Ordering\OrderStatusService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -40,13 +41,23 @@ class KitchenController extends Controller
     }
 
     /** PATCH /kitchen/orders/{order}/advance — statusni keyingi bosqichga. */
-    public function advance(Order $order): JsonResponse
+    public function advance(Request $request, Order $order): JsonResponse
     {
         $staff = $this->staff();
 
         abort_unless($order->restaurant_id === $staff->restaurant_id, Response::HTTP_FORBIDDEN);
 
-        $this->status->advance($order, "kitchen:{$staff->id}");
+        // "Yo'lga chiqdi" bosilganда oshxona kuryer ismi/telefonini kiritishi mumkin (ixtiyoriy).
+        $data = $request->validate([
+            'courier_name' => ['nullable', 'string', 'max:100'],
+            'courier_phone' => ['nullable', 'string', 'max:32'],
+        ]);
+        $fill = array_filter([
+            'courier_name' => filled($data['courier_name'] ?? null) ? trim($data['courier_name']) : null,
+            'courier_phone' => filled($data['courier_phone'] ?? null) ? trim($data['courier_phone']) : null,
+        ], fn ($v) => $v !== null);
+
+        $this->status->advance($order, "kitchen:{$staff->id}", $fill);
 
         return (new KitchenOrderResource($order->fresh('user')))->response();
     }

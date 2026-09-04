@@ -31,7 +31,7 @@ class NotifyCustomerOfStatusChange implements ShouldQueue
 
     public function handle(Nutgram $bot): void
     {
-        $order = Order::withoutGlobalScopes()->with('user')->find($this->orderId);
+        $order = Order::withoutGlobalScopes()->with(['user', 'restaurant'])->find($this->orderId);
 
         if ($order === null || blank($order->user?->telegram_id)) {
             return;
@@ -66,12 +66,38 @@ class NotifyCustomerOfStatusChange implements ShouldQueue
         return match ($order->status) {
             OrderStatus::Accepted => __('messages.order_notify.accepted', ['n' => $num]),
             OrderStatus::Preparing => __('messages.order_notify.preparing', ['n' => $num]),
-            OrderStatus::OnTheWay => __('messages.order_notify.on_the_way', ['n' => $num]),
+            OrderStatus::OnTheWay => $this->onTheWayText($order, $num),
             OrderStatus::Delivered => $pickup
                 ? __('messages.order_notify.picked_up', ['n' => $num])
                 : __('messages.order_notify.delivered', ['n' => $num]),
             OrderStatus::Cancelled => __('messages.order_notify.cancelled', ['n' => $num]),
             default => null,
         };
+    }
+
+    /**
+     * "Yo'lga chiqdi" + aloqa: kuryer ismi/telefoni (kiritilgan bo'lsa),
+     * aks holда restoran telefoni.
+     */
+    private function onTheWayText(Order $order, string $num): string
+    {
+        $base = __('messages.order_notify.on_the_way', ['n' => $num]);
+
+        $name = trim((string) $order->courier_name);
+        $phone = trim((string) $order->courier_phone);
+
+        $contact = [];
+        if ($name !== '') {
+            $contact[] = '🚴 '.__('messages.order_notify.courier').': '.$name;
+        }
+        if ($phone !== '') {
+            $contact[] = '📞 '.$phone;
+        }
+
+        if ($contact === [] && filled($order->restaurant?->phone)) {
+            $contact[] = '📞 '.__('messages.order_notify.restaurant').': '.$order->restaurant->phone;
+        }
+
+        return $contact === [] ? $base : $base."\n\n".implode("\n", $contact);
     }
 }
