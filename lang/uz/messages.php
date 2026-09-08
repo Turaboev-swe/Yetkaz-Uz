@@ -75,6 +75,17 @@ return [
 
     'mini_app_unavailable' => 'Mini App hozircha sozlanmagan. Iltimos, birozdan so‘ng urinib ko‘ring.',
 
+    // Buyurtma berish uchun telefon raqami kerak (mehmon / QR orqali kirgan foydalanuvchi)
+    'phone_required' => 'Buyurtmani rasmiylashtirish uchun telefon raqamingiz kerak. Botga qaytib, raqamingizni ulashing.',
+
+    // Bot: mehmon telefon ulashgandan keyin
+    'guest_phone' => [
+        'ask' => "Buyurtmani rasmiylashtirish uchun bitta narsa qoldi — telefon raqamingiz.\n\nPastdagi «📱 Raqamni yuborish» tugmasini bosing.",
+        'done' => "Rahmat! Endi buyurtma berishingiz mumkin ✅",
+        'open_restaurant' => '🍽 :name menyusi',
+        'open_generic' => '🍿 Buyurtma berish',
+    ],
+
     // Buyurtma statusi o'zgarganda mijozga (oshxona paneli)
     'order_notify' => [
         'accepted' => '✅ Buyurtmangiz (:n) qabul qilindi. Tez orada tayyorlashga kirishamiz.',

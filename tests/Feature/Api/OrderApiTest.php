@@ -182,4 +182,19 @@ class OrderApiTest extends TestCase
     {
         $this->postJson('/api/orders', $this->payload())->assertUnauthorized();
     }
+
+    public function test_rejects_order_when_user_has_no_phone(): void
+    {
+        // Mehmon (QR / deep-link) — telefon ulashmagan.
+        $this->user->update(['phone' => null, 'full_name' => null, 'profile_completed' => false]);
+
+        $this->postJson('/api/orders', $this->payload([
+            'delivery_type' => 'pickup',
+            'address_id' => null,
+        ]), $this->headers())
+            ->assertStatus(422)
+            ->assertJsonPath('code', 'phone_required');
+
+        $this->assertDatabaseCount('orders', 0);
+    }
 }

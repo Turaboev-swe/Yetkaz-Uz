@@ -14,6 +14,13 @@ return [
     'mini_app_url' => env('TELEGRAM_MINI_APP_URL'),
 
     /*
+    | Bot username (@ belgisisiz) — Mini App'dan botga chuqur havola qurish uchun
+    | (`https://t.me/<username>?start=...`). Masalan: telefon so'ralganda mehmon
+    | Mini App'dan botga qaytariladi. Lokal test: RasmUstasiBot; prod: Yetkaz_uzbot.
+    */
+    'bot_username' => env('TELEGRAM_BOT_USERNAME'),
+
+    /*
     | Webhook secret (PROD-2 / PROD-6). `telegram:webhook:set` uni `setWebhook`
     | ning `secret_token` iga beradi; Telegram har update so'rovida
     | `X-Telegram-Bot-Api-Secret-Token` sarlavhasida qaytaradi. Bir xil qiymat

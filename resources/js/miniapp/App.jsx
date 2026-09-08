@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { getStartTarget, hasInitData } from './lib/telegram';
+import { useSession } from './store/session';
 import RestaurantList from './screens/RestaurantList';
 import Menu from './screens/Menu';
 import NewAddress from './screens/NewAddress';
@@ -26,14 +27,17 @@ function NoTelegram() {
 /**
  * Bot WebApp tugmasi / deep link bilan ochilganda mos ekranni ochadi:
  * `?r=ID` -> menyu, `?screen=restaurants` -> ro'yxat (default).
+ * `guest=1` -> mehmon rejimi: "olib ketish" oldindan tanlanadi (manzil so'ralmaydi).
  */
 function StartRedirect() {
     const navigate = useNavigate();
     const { pathname } = useLocation();
+    const startGuest = useSession((s) => s.startGuest);
 
     useEffect(() => {
         if (pathname !== '/') return;
-        const { restaurantId } = getStartTarget();
+        const { restaurantId, guest } = getStartTarget();
+        if (guest) startGuest();
         if (restaurantId) navigate(`/r/${restaurantId}`, { replace: true });
         // screen === 'restaurants' -> ro'yxat allaqachon "/" da
         // eslint-disable-next-line react-hooks/exhaustive-deps

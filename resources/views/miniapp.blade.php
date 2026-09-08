@@ -9,6 +9,11 @@
     {{-- Telegram WebApp SDK — Mini App API (themeParams, BackButton, MainButton, HapticFeedback) --}}
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
 
+    {{-- Bot username — Mini App'dan botga chuqur havola (?start=...) qurish uchun --}}
+    @if (config('telegram.bot_username'))
+        <script>window.__BOT_USERNAME__ = @json(config('telegram.bot_username'));</script>
+    @endif
+
     @if (app()->environment('local') && config('telegram.dev_init_data'))
         {{-- Faqat lokal: brauzerda Telegramsiz sinash uchun imzolangan initData --}}
         <script>window.__DEV_INIT_DATA__ = @json(config('telegram.dev_init_data'));</script>

@@ -81,6 +81,15 @@ class ProfileService
         return $address;
     }
 
+    /**
+     * Mehmon oqimi (QR / deep-link): faqat telefon ulashildi, lokatsiya so'ralmadi.
+     * Profilni tugatadi — manzil keyin (yetkazib berishga o'tsa) so'raladi.
+     */
+    public function completeWithoutAddress(User $user): void
+    {
+        $user->update(['profile_completed' => true]);
+    }
+
     public function isRegistered(User $user): bool
     {
         return $user->profile_completed

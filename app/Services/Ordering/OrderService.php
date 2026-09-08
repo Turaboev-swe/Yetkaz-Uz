@@ -7,6 +7,7 @@ use App\Enums\OrderStatus;
 use App\Enums\PaymentMethod;
 use App\Enums\PaymentStatus;
 use App\Events\OrderPlaced;
+use App\Exceptions\PhoneRequiredException;
 use App\Jobs\DispatchOrderJob;
 use App\Jobs\NotifyRestaurantOfNewOrder;
 use App\Jobs\SendOrderConfirmationToCustomer;
@@ -42,6 +43,12 @@ class OrderService
      */
     public function place(User $user, array $data): Order
     {
+        // Mehmon (QR / deep-link) buyurtma bermoqchi, lekin telefon raqami yo'q.
+        // Mini App bu signalni tanib, foydalanuvchini botga (raqam ulashish) yuboradi.
+        if (blank($user->phone)) {
+            throw new PhoneRequiredException;
+        }
+
         $restaurant = Restaurant::query()->findOrFail($data['restaurant_id']);
 
         if (! $restaurant->isOpenNow()) {

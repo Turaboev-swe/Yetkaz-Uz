@@ -67,28 +67,58 @@ export function hasTelegramContext() {
  * Deep link (t.me/bot/app?startapp=...) `start_param` beradi:
  * `screen_restaurants`, `restaurant_12`.
  *
- * @returns {{screen: string|null, restaurantId: number|null}}
+ * `guest=1` (query) yoki `restaurant_12_guest` (start_param) — mehmon rejimi:
+ * menyu ochiladi, lekin yetkazish o'rniga "olib ketish" oldindan tanlangan.
+ *
+ * @returns {{screen: string|null, restaurantId: number|null, guest: boolean}}
  */
 export function getStartTarget() {
     let screen = null;
     let restaurantId = null;
+    let guest = false;
 
     try {
         const q = new URL(window.location.href).searchParams;
         if (q.get('screen')) screen = q.get('screen');
         const r = q.get('r');
         if (r && /^\d+$/.test(r)) restaurantId = Number(r);
+        if (q.get('guest') === '1') guest = true;
     } catch {
         /* ignore */
     }
 
     const sp = tg?.initDataUnsafe?.start_param || '';
-    const mr = sp.match(/^restaurant_(\d+)$/);
-    if (mr) restaurantId = Number(mr[1]);
+    const mr = sp.match(/^restaurant_(\d+)(_guest)?$/);
+    if (mr) {
+        restaurantId = Number(mr[1]);
+        if (mr[2]) guest = true;
+    }
     const ms = sp.match(/^screen_([a-z]+)$/);
     if (ms) screen = ms[1];
 
-    return { screen, restaurantId };
+    return { screen, restaurantId, guest };
+}
+
+/** Bot username (@ siz) — botga chuqur havola qurish uchun. Blade'dan keladi. */
+export function botUsername() {
+    if (typeof window !== 'undefined' && window.__BOT_USERNAME__) return window.__BOT_USERNAME__;
+    return '';
+}
+
+/**
+ * Telegram ichidagi havolani ochadi (bot chatiga qaytish uchun). Telegramdan
+ * tashqarida — oddiy yangi oyna.
+ */
+export function openTelegramLink(url) {
+    try {
+        if (tg?.openTelegramLink) {
+            tg.openTelegramLink(url);
+            return;
+        }
+    } catch {
+        /* ignore */
+    }
+    if (typeof window !== 'undefined') window.open(url, '_blank');
 }
 
 export function haptic(type = 'light') {

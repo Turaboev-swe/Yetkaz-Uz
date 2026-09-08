@@ -32,6 +32,11 @@ $bot->middleware(ResolveUser::class);
 $bot->onCommand('start', StartHandler::class)
     ->description('Botni ishga tushirish');
 
+// Chuqur havola: /start r_12 (QR / restoran), /start phone, /start phone_r_12
+// (Mini App'dan telefon uchun qaytish). Nutgram bo'sh va parametrli variantni
+// alohida handler sifatida ko'radi — ikkalasi ham StartHandler'ga boradi.
+$bot->onCommand('start {ref}', StartHandler::class);
+
 // Restoran egasi uchun: chat ID ni ko'rsatadi (bildirishnoma sozlash).
 $bot->onCommand('id', IdHandler::class)
     ->description('Chat ID ni ko\'rsatish');

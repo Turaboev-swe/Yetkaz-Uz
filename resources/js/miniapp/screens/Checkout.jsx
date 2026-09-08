@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../lib/api';
 import { useAsync } from '../hooks/useAsync';
-import { showBackButton, setMainButton, hideMainButton, notify, isInsideTelegram } from '../lib/telegram';
+import { showBackButton, setMainButton, hideMainButton, notify, isInsideTelegram, botUsername, openTelegramLink } from '../lib/telegram';
 import { useSession } from '../store/session';
 import { useCart, cartItems, cartTotal, cartCount } from '../store/cart';
 import { som, somLabel } from '../lib/format';
@@ -35,6 +35,8 @@ export default function Checkout() {
     noteRef.current = note;
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState(null);
+    // Buyurtma berish uchun telefon kerak (mehmon / QR orqali kirgan) — botga qaytariladi.
+    const [phoneRequired, setPhoneRequired] = useState(false);
 
     useEffect(() => showBackButton(() => navigate(`/cart/${rid}`)), [navigate, rid]);
 
@@ -75,9 +77,18 @@ export default function Checkout() {
             clear(rid);
             navigate(`/order/${res.data.id}`, { replace: true });
         } catch (e) {
-            setError(e.message);
+            if (e.body?.code === 'phone_required') {
+                setPhoneRequired(true);
+            } else {
+                setError(e.message);
+            }
             setSubmitting(false);
         }
+    };
+
+    const goSharePhone = () => {
+        const bot = botUsername();
+        if (bot) openTelegramLink(`https://t.me/${bot}?start=phone_r_${rid}`);
     };
 
     const restaurant = data.data?.[0]?.data;
@@ -89,7 +100,7 @@ export default function Checkout() {
 
     // Tasdiqlash — MainButton (min yetmasa — nofaol + "yana X qo'shing").
     useEffect(() => {
-        if (data.loading || submitting) {
+        if (data.loading || submitting || phoneRequired) {
             hideMainButton();
             return;
         }
@@ -99,7 +110,7 @@ export default function Checkout() {
             onClick: submit,
         });
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [data.loading, submitting, belowMin, shortfall, total, deliveryFee]);
+    }, [data.loading, submitting, belowMin, shortfall, total, deliveryFee, phoneRequired]);
 
     if (data.loading) return <Spinner />;
     if (data.error) return <ErrorState error={data.error} onRetry={data.reload} />;
@@ -172,7 +183,31 @@ export default function Checkout() {
             )}
             {error && <p className="mb-2 text-[13px]" style={{ color: 'var(--tg-destructive)' }}>{error}</p>}
 
-            {!isInsideTelegram() && (
+            {phoneRequired && (
+                <div className="mb-3 rounded-2xl p-4" style={{ background: 'var(--tg-secondary-bg)' }}>
+                    <p className="mb-1 text-[14px] font-semibold" style={{ color: 'var(--tg-text)' }}>
+                        Telefon raqami kerak
+                    </p>
+                    <p className="mb-3 text-[13px]" style={{ color: 'var(--tg-hint)' }}>
+                        Buyurtmani rasmiylashtirish uchun botga qaytib, «📱 Raqamni yuborish» tugmasini bosing. Keyin shu menyuga qaytasiz.
+                    </p>
+                    {botUsername() ? (
+                        <button
+                            onClick={goSharePhone}
+                            className="h-11 w-full rounded-xl text-[15px] font-semibold"
+                            style={{ background: 'var(--tg-button)', color: 'var(--tg-button-text)' }}
+                        >
+                            Botga qaytish
+                        </button>
+                    ) : (
+                        <p className="text-[13px]" style={{ color: 'var(--tg-hint)' }}>
+                            Botni oching va raqamingizni ulashing.
+                        </p>
+                    )}
+                </div>
+            )}
+
+            {!isInsideTelegram() && !phoneRequired && (
                 <button
                     onClick={submit}
                     disabled={belowMin || submitting}
