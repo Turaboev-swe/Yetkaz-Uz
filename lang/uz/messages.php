@@ -105,13 +105,14 @@ return [
         'footer' => 'Buyurtmangiz qabul qilindi, tayyorlanish holatidan xabardor qilamiz.',
     ],
 
-    // Mijoz baholovi — buyurtma yakunlangach 15 daqiqadan keyin (RequestOrderRating)
+    // Mijoz baholovi — buyurtma yakunlangach (RequestOrderRating)
     'rating' => [
         'ask' => "Buyurtmangiz :n qanday o'tdi?\nYulduzcha bilan baholang, yoki izohingizni yozib yuboring 👇",
         'saved_toast' => 'Bahoyingiz qabul qilindi',
         'already' => 'Siz bu buyurtmani allaqachon baholagansiz.',
-        'thanks' => 'Rahmat! Bahoyingiz: :stars',
-        'comment_saved' => 'Rahmat, izohingiz qabul qilindi!',
+        'thanks_stars' => ":stars\nBahoyingiz uchun rahmat!",
+        'thanks_comment' => 'Izohingiz uchun rahmat! Xohlasangiz yulduzcha bilan ham baholang 👆',
+        'thanks_both' => ":stars\n«:comment»\nBahoyingiz va izohingiz uchun rahmat!",
     ],
 
     // Oshxona xodimiga bot orqali buyurtma + status tugmasi (NotifyKitchenStaffOfNewOrder)

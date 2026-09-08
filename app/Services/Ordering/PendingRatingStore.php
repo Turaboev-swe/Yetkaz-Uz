@@ -7,31 +7,41 @@ use Illuminate\Support\Facades\Cache;
 
 /**
  * "Kutilayotgan reyting" holati — foydalanuvchi buyurtmasi bo'yicha baho so'rovi
- * yuborilgan, lekin javob (yulduzcha yoki izoh) hali kelmagan.
+ * yuborilgan, lekin javob (yulduzcha yoki izoh) hali to'liq emas.
  *
  * Holat foydalanuvchi bo'yicha (telegram_id) saqlanadi va faqat ENG OXIRGI
- * so'ralgan buyurtmani ko'rsatadi. 24 soatdan keyin eskiradi — undan keyin oddiy
- * matnli xabar izoh sifatida qabul qilinmaydi. Foydalanuvchi asosiy menyu
- * buyrug'ini bosса ham holat tugaydi (`forget`).
- *
- * Yulduzcha bosishдан keyin ham holat qoladi — foydalanuvchi keyin izoh yozishi
- * mumkin (aniq "yakunlash" tugmasi yo'q).
+ * so'ralgan buyurtmani ko'rsatadi. Saqlanadi: buyurtma id + so'rov xabari id
+ * (uni joriy holatga yangilash uchun). 24 soatdan keyin eskiradi — undan keyin
+ * oddiy matn izoh sifatida qabul qilinmaydi. Asosiy menyu buyrug'i bosilса ham
+ * tugaydi (`forget`). Yulduzcha bosishдан keyin ham qoladi — foydalanuvchi
+ * keyin izoh yozishi mumkin.
  */
 class PendingRatingStore
 {
     /** 24 soat. */
     private const TTL = 60 * 60 * 24;
 
-    public function remember(int $telegramUserId, int $orderId): void
+    public function remember(int $telegramUserId, int $orderId, ?int $promptMessageId = null): void
     {
-        Cache::put($this->key($telegramUserId), $orderId, self::TTL);
+        Cache::put($this->key($telegramUserId), [
+            'order_id' => $orderId,
+            'message_id' => $promptMessageId,
+        ], self::TTL);
     }
 
-    public function pendingOrderId(int $telegramUserId): ?int
+    /** @return array{order_id:int, message_id:?int}|null */
+    public function pending(int $telegramUserId): ?array
     {
         $value = Cache::get($this->key($telegramUserId));
 
-        return $value === null ? null : (int) $value;
+        if (! is_array($value) || ! isset($value['order_id'])) {
+            return null;
+        }
+
+        return [
+            'order_id' => (int) $value['order_id'],
+            'message_id' => isset($value['message_id']) ? (int) $value['message_id'] : null,
+        ];
     }
 
     public function forget(int $telegramUserId): void
@@ -50,12 +60,12 @@ class PendingRatingStore
             return null;
         }
 
-        $orderId = $this->pendingOrderId($telegramUserId);
-        if ($orderId === null) {
+        $pending = $this->pending($telegramUserId);
+        if ($pending === null) {
             return null;
         }
 
-        $order = Order::withoutGlobalScopes()->with('user')->find($orderId);
+        $order = Order::withoutGlobalScopes()->with('user')->find($pending['order_id']);
         if ($order === null || $order->user?->telegram_id !== $telegramUserId) {
             return null;
         }

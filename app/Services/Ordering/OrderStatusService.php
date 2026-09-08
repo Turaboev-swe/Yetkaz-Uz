@@ -78,9 +78,10 @@ class OrderStatusService
         OrderStatusChanged::dispatch($order->id, $order->restaurant_id, $to);
         NotifyCustomerOfStatusChange::dispatch($order->id);
 
-        // Yetkazilgach (yoki mijoz olib ketgach) — 15 daqiqadan keyin baho so'rovi.
+        // Yetkazilgach (yoki mijoz olib ketgach) — "yetkazildi" xabari bilan bir
+        // vaqtda, kechikishsiz baho so'rovi.
         if ($to === OrderStatus::Delivered) {
-            RequestOrderRating::dispatch($order->id)->delay(now()->addMinutes(15));
+            RequestOrderRating::dispatch($order->id);
         }
 
         return $order;

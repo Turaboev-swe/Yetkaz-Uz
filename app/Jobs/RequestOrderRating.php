@@ -16,12 +16,13 @@ use SergiX44\Nutgram\Nutgram;
 use SergiX44\Nutgram\Telegram\Exceptions\TelegramException;
 
 /**
- * Buyurtma yakunlangach (delivered / mijoz oldi) 15 daqiqadan keyin mijozdan
- * baho so'raydi — 1–5 yulduzcha inline tugmalar bilan. Foydalanuvchi yulduzcha
- * bosishi YOKI shunchaki izoh matnini yozib yuborishi mumkin (PendingRatingStore).
+ * Buyurtma yakunlangач (delivered / mijoz oldi) mijozdan baho so'raydi — 1–5
+ * yulduzchali inline tugmalar bilan. "Yetkazildi" xabari bilan bir vaqtda,
+ * kechikishsiz (OrderStatusService::transition).
  *
- * Foydalanuvchi allaqachon javob bergan (`rated_at`) yoki buyurtma yakunlanmagan
- * bo'lsa — jimgina o'tadi.
+ * Foydalanuvchi yulduzcha bosishi YOKI shunchaki izoh matnini yozib yuborishi
+ * mumkin (PendingRatingStore). Allaqachon javob berilган (`rated_at`) yoki
+ * buyurtma yakunlanmagан bo'lsa — jimgina o'tadi.
  */
 class RequestOrderRating implements ShouldQueue
 {
@@ -51,7 +52,7 @@ class RequestOrderRating implements ShouldQueue
         app()->setLocale($order->user->language ?: 'uz');
 
         try {
-            $bot->sendMessage(
+            $message = $bot->sendMessage(
                 text: RatingMessage::askText($order),
                 chat_id: $order->user->telegram_id,
                 reply_markup: RatingMessage::askKeyboard($order->id),
@@ -68,6 +69,6 @@ class RequestOrderRating implements ShouldQueue
 
         // Endi shu foydalanuvchidan kelgan matn (menyu tugmasi bo'lmasa) shu
         // buyurtmaning izohi sifatida qabul qilinadi — 24 soat ichida.
-        $pending->remember($order->user->telegram_id, $order->id);
+        $pending->remember($order->user->telegram_id, $order->id, $message?->message_id);
     }
 }
