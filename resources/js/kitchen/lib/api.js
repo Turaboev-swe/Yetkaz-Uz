@@ -27,4 +27,5 @@ export const api = {
     orders: () => request('/orders'),
     couriers: () => request('/couriers'),
     advance: (id, fields = null) => request(`/orders/${id}/advance`, 'PATCH', fields),
+    cancel: (id, reason) => request(`/orders/${id}/cancel`, 'PATCH', { reason }),
 };

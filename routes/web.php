@@ -32,5 +32,6 @@ Route::middleware(['panel.session:yetkaz_staff_session', 'web'])->prefix('kitche
         Route::get('/orders', [KitchenController::class, 'orders']);
         Route::get('/couriers', [KitchenController::class, 'couriers']);
         Route::patch('/orders/{order}/advance', [KitchenController::class, 'advance']);
+        Route::patch('/orders/{order}/cancel', [KitchenController::class, 'cancel']);
     });
 });

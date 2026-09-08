@@ -24,6 +24,7 @@ class KitchenOrderResource extends JsonResource
             'eta_minutes' => $this->eta_minutes,
             'printed' => $this->printed_at !== null,
             'dispatch_failed' => $this->dispatch_failed_at !== null,
+            'can_cancel' => in_array($this->status->value, ['accepted', 'preparing'], true),
 
             'customer' => [
                 'name' => $this->user?->full_name,

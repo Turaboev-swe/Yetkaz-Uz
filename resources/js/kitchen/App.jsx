@@ -93,6 +93,18 @@ export default function App() {
         }
     };
 
+    const cancel = async (id, reason) => {
+        setBusyId(id);
+        try {
+            await api.cancel(id, reason);
+            setOrders((cur) => cur.filter((o) => o.id !== id));
+        } catch (e) {
+            setError(e.message);
+        } finally {
+            setBusyId(null);
+        }
+    };
+
     return (
         <div className="min-h-screen">
             <header className="sticky top-0 z-10 flex items-center justify-between border-b border-gray-800 bg-[#0f1115] px-5 py-3">
@@ -139,7 +151,7 @@ export default function App() {
 
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                     {orders.map((o) => (
-                        <OrderCard key={o.id} order={o} onAdvance={advance} busy={busyId === o.id} couriers={couriers} />
+                        <OrderCard key={o.id} order={o} onAdvance={advance} onCancel={cancel} busy={busyId === o.id} couriers={couriers} />
                     ))}
                 </div>
             </main>

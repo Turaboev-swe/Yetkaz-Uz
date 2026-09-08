@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { som, agoLabel, nextActionLabel } from '../lib/format';
 
+const CANCEL_PRESETS = ['Taom tugab qoldi', 'Restoran hozir band'];
+
 const STATUS_COLOR = {
     new: '#f59e0b',
     accepted: '#3b82f6',
@@ -8,7 +10,7 @@ const STATUS_COLOR = {
     on_the_way: '#06b6d4',
 };
 
-export default function OrderCard({ order, onAdvance, busy, couriers = [] }) {
+export default function OrderCard({ order, onAdvance, onCancel, busy, couriers = [] }) {
     const [, tick] = useState(0);
     useEffect(() => {
         const t = setInterval(() => tick((n) => n + 1), 15000);
@@ -23,6 +25,18 @@ export default function OrderCard({ order, onAdvance, busy, couriers = [] }) {
     const asksCourier = order.status === 'preparing' && order.delivery_type === 'delivery';
     const [askOpen, setAskOpen] = useState(false);
     const [courierId, setCourierId] = useState('');
+
+    // Bekor qilish modali
+    const [cancelOpen, setCancelOpen] = useState(false);
+    const [reason, setReason] = useState(CANCEL_PRESETS[0]);
+    const [otherText, setOtherText] = useState('');
+    const finalReason = reason === '__other__' ? otherText.trim() : reason;
+
+    const confirmCancel = () => {
+        if (!finalReason) return;
+        setCancelOpen(false);
+        onCancel(order.id, finalReason);
+    };
 
     const handleAction = () => {
         if (asksCourier) {
@@ -123,15 +137,84 @@ export default function OrderCard({ order, onAdvance, busy, couriers = [] }) {
                 </div>
             )}
 
-            {actionLabel && (
-                <button
-                    onClick={handleAction}
-                    disabled={busy}
-                    className="mt-4 h-14 w-full rounded-xl text-[17px] font-bold disabled:opacity-50"
-                    style={{ background: STATUS_COLOR[order.status] || '#2563eb', color: '#fff' }}
+            {(actionLabel || order.can_cancel) && (
+                <div className="mt-4 flex gap-2">
+                    {actionLabel && (
+                        <button
+                            onClick={handleAction}
+                            disabled={busy}
+                            className="h-14 flex-1 rounded-xl text-[17px] font-bold disabled:opacity-50"
+                            style={{ background: STATUS_COLOR[order.status] || '#2563eb', color: '#fff' }}
+                        >
+                            {busy ? '…' : actionLabel}
+                        </button>
+                    )}
+                    {order.can_cancel && (
+                        <button
+                            onClick={() => { setReason(CANCEL_PRESETS[0]); setOtherText(''); setCancelOpen(true); }}
+                            disabled={busy}
+                            className="h-14 shrink-0 rounded-xl px-4 text-[14px] font-bold disabled:opacity-50"
+                            style={{ background: '#3f1d1d', color: '#fca5a5' }}
+                        >
+                            ❌ Bekor
+                        </button>
+                    )}
+                </div>
+            )}
+
+            {cancelOpen && (
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+                    onClick={() => setCancelOpen(false)}
                 >
-                    {busy ? '…' : actionLabel}
-                </button>
+                    <div
+                        className="w-full max-w-sm rounded-2xl border border-gray-700 bg-[#1b1f27] p-5"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="text-[17px] font-bold">Buyurtmani bekor qilish</div>
+                        <div className="mt-1 text-[13px] text-gray-400">{order.order_number} · sababni tanlang</div>
+
+                        <div className="mt-4 flex flex-col gap-2">
+                            {CANCEL_PRESETS.map((p) => (
+                                <label key={p} className="flex items-center gap-2 rounded-lg border border-gray-700 px-3 py-2.5 text-[15px]">
+                                    <input type="radio" name={`c-${order.id}`} checked={reason === p} onChange={() => setReason(p)} />
+                                    {p}
+                                </label>
+                            ))}
+                            <label className="flex items-center gap-2 rounded-lg border border-gray-700 px-3 py-2.5 text-[15px]">
+                                <input type="radio" name={`c-${order.id}`} checked={reason === '__other__'} onChange={() => setReason('__other__')} />
+                                Boshqa sabab
+                            </label>
+                            {reason === '__other__' && (
+                                <textarea
+                                    value={otherText}
+                                    onChange={(e) => setOtherText(e.target.value)}
+                                    rows={2}
+                                    maxLength={500}
+                                    placeholder="Sababni yozing…"
+                                    className="rounded-lg border border-gray-700 bg-[#0f1115] px-3 py-2 text-[15px] text-gray-100"
+                                />
+                            )}
+                        </div>
+
+                        <div className="mt-5 flex flex-col gap-2">
+                            <button
+                                onClick={confirmCancel}
+                                disabled={!finalReason}
+                                className="h-12 w-full rounded-xl text-[15px] font-bold text-white disabled:opacity-40"
+                                style={{ background: '#b91c1c' }}
+                            >
+                                Bekor qilishni tasdiqlash
+                            </button>
+                            <button
+                                onClick={() => setCancelOpen(false)}
+                                className="h-12 w-full rounded-xl bg-gray-800 text-[15px] font-bold text-gray-300"
+                            >
+                                Yopish
+                            </button>
+                        </div>
+                    </div>
+                </div>
             )}
 
             {askOpen && (

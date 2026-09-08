@@ -4,6 +4,8 @@
 
 use App\Telegram\Handlers\IdHandler;
 use App\Telegram\Handlers\KitchenCallbackHandler;
+use App\Telegram\Handlers\KitchenCancelHandler;
+use App\Telegram\Handlers\KitchenCancelReasonHandler;
 use App\Telegram\Handlers\LanguageCallbackHandler;
 use App\Telegram\Handlers\MenuHandler;
 use App\Telegram\Handlers\NewAddressHandler;
@@ -39,6 +41,15 @@ $bot->onCommand('id', IdHandler::class)
 $bot->onCallbackQueryData('kadv:{orderId}:{expected}', KitchenCallbackHandler::class)
     ->where('orderId', '\d+')
     ->where('expected', '[a-z_]+');
+
+// Oshxona xodimi: buyurtmani bekor qilish (accepted/preparing holatida).
+$bot->onCallbackQueryData('kcancel:{orderId}:{expected}', KitchenCancelHandler::class)
+    ->where('orderId', '\d+')
+    ->where('expected', '[a-z_]+');
+
+$bot->onCallbackQueryData('kcreason:{orderId}:{code}', KitchenCancelReasonHandler::class)
+    ->where('orderId', '\d+')
+    ->where('code', '[a-z]+');
 
 // Mijoz baholovi — yulduzcha (RequireRegistration'dan TASHQARIDA, egalik
 // `order.user` bo'yicha tekshiriladi). Izoh esa oddiy matn bilan yoziladi va

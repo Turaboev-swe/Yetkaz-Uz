@@ -85,6 +85,24 @@ class KitchenController extends Controller
         return (new KitchenOrderResource($order->fresh('user')))->response();
     }
 
+    /**
+     * PATCH /kitchen/orders/{order}/cancel — buyurtmani bekor qiladi.
+     * Bot bilan bir xil OrderStatusService::cancel() ni chaqiradi.
+     */
+    public function cancel(Request $request, Order $order): JsonResponse
+    {
+        $staff = $this->staff();
+
+        abort_unless($order->restaurant_id === $staff->restaurant_id, Response::HTTP_FORBIDDEN);
+
+        $data = $request->validate(['reason' => ['required', 'string', 'max:500']]);
+
+        // ValidationException (noto'g'ri holat) -> 422, xabar bilan.
+        $this->status->cancel($order, $data['reason'], "kitchen:{$staff->id}");
+
+        return (new KitchenOrderResource($order->fresh('user')))->response();
+    }
+
     private function staff(): Staff
     {
         $staff = auth('staff')->user();

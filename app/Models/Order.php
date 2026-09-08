@@ -49,6 +49,7 @@ class Order extends Model
         'dispatch_failed_at',
         'delivered_at',
         'cancelled_at',
+        'cancellation_reason',
     ];
 
     protected function casts(): array

@@ -85,6 +85,7 @@ return [
         'delivered' => '🎉 Buyurtmangiz (:n) yetkazildi. Yoqimli ishtaha!',
         'picked_up' => '🎉 Buyurtmangiz (:n) topshirildi. Yoqimli ishtaha!',
         'cancelled' => '❌ Buyurtmangiz (:n) bekor qilindi.',
+        'cancelled_full' => "😔 Buyurtmangiz :n bekor qilindi\n\nSabab: :reason\n\nUzr so'raymiz. Boshqa restorandan buyurtma berishni xohlaysizmi?",
     ],
 
     // Buyurtma yaratilishi bilan mijozga chek ko'rinishidagi tasdiq (SendOrderConfirmationToCustomer)
@@ -132,9 +133,18 @@ return [
         'btn_on_the_way' => "▶️ Yo'lga chiqdi",
         'btn_delivered' => '✅ Yetkazildi',
         'btn_picked_up' => '✅ Mijoz oldi',
+        'btn_cancel' => '❌ Bekor qilish',
         'cb_no_access' => "Ruxsat yo'q",
         'cb_stale' => 'Buyurtma allaqachon yangilangan',
         'cb_final' => 'Buyurtma allaqachon yakunlangan',
+        'cannot_cancel' => "Bu buyurtmani bekor qilib bo'lmaydi.",
+        'cancel_reason_required' => 'Bekor qilish sababini kiriting.',
+        'cancel_pick_reason' => 'Bekor qilish sababini tanlang:',
+        'reason_out' => 'Taom tugab qoldi',
+        'reason_busy' => 'Restoran hozir band',
+        'reason_other' => 'Boshqa sabab',
+        'cancel_ask_reason' => 'Bekor qilish sababini yozing:',
+        'cancel_done' => 'Buyurtma bekor qilindi',
     ],
 
     // Savat / restoran

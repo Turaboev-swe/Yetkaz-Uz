@@ -79,21 +79,30 @@ class KitchenOrderMessage
         return implode("\n", $lines);
     }
 
-    /** Keyingi amal tugmasi. Yakunlangan buyurtmада — bo'sh (tugmasiz) markup. */
+    /**
+     * Amal tugmalari: "keyingisi" + (accepted/preparing bo'lsa) "❌ Bekor qilish".
+     * Yakunlangan buyurtmада — bo'sh markup.
+     */
     public function keyboard(Order $order): InlineKeyboardMarkup
     {
+        $keyboard = InlineKeyboardMarkup::make();
+
         $next = $this->status->nextStatus($order);
-
-        if ($next === null) {
-            return InlineKeyboardMarkup::make();
-        }
-
-        return InlineKeyboardMarkup::make()->addRow(
-            InlineKeyboardButton::make(
+        if ($next !== null) {
+            $keyboard->addRow(InlineKeyboardButton::make(
                 $this->buttonLabel($next, $order),
                 callback_data: self::callbackData($order),
-            ),
-        );
+            ));
+        }
+
+        if ($this->status->canCancel($order)) {
+            $keyboard->addRow(InlineKeyboardButton::make(
+                (string) __('messages.kitchen_bot.btn_cancel', [], $this->locale),
+                callback_data: "kcancel:{$order->id}:{$order->status->value}",
+            ));
+        }
+
+        return $keyboard;
     }
 
     private function buttonLabel(OrderStatus $next, Order $order): string
