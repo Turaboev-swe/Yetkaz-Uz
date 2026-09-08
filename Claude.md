@@ -273,6 +273,46 @@ Har status o'zgarishi mijozga bot orqali avtomat xabar yuboradi.
 
 ---
 
+## Deploy siyosati — faqat kod, ma'lumot emas
+
+Lokal/test muhitidagi ish ikki turga bo'linadi, ularга munosabat **boshqacha**.
+
+### 1. Kod / funksiya — push qilinadi, production'ga o'tadi
+
+- yangi tugma, yangi ekran, yangi buyruq
+- mavjud funksiyaga tuzatish yoki yaxshilash
+- yangi API endpoint, middleware, servis
+- migratsiya — **agar** yangi jadval/ustun qo'shsa va mavjud ma'lumotni o'chirmasa
+
+### 2. Ma'lumot — faqat lokalda qoladi, production'ga push QILINMAYDI
+
+- test/demo restoranlar va ularning menyulari
+- sinov uchun yaratilgan foydalanuvchilar, buyurtmalar
+- har qanday seeder natijasi bo'lgan konkret yozuv — agar u shunchaki funksiyani
+  sinash uchun bo'lsa, haqiqiy biznes ma'lumoti bo'lmasa
+
+### Qoida
+
+Lokal sessiyada **yangi funksiya** sinalayotgan bo'lib, buning uchun test ma'lumoti
+(masalan yangi restoran) yaratilган bo'lsa — **faqat funksiyaning o'zi (kod)** push
+qilinadi. Test ma'lumotini yaratuvchi seeder push **qilinmaydi**, agar foydalanuvchi
+buni aniq so'ramasa.
+
+Har push'dan oldin o'zingdan so'ra: **"Bu commit faqat kod o'zgarishimi, yoki
+ichida ma'lumot (seeder, fixture, demo restoran) ham bormi?"** Ma'lumot bo'lsa,
+foydalanuvchidan aniq tasdiqlash so'ra: *"Bu test ma'lumotini ham production'ga
+qo'shaylikmi, yoki faqat kodni ajratib push qilaylikmi?"*
+
+### Buzilgan holat — o'rganish uchun eslatma
+
+2026-09-07/08 sessiyasida `Vanilla` / `Fresh Food` / `Istiqlol Food` / `Sushi Xan`
+restoranlari va ularning to'liq menyulari lokal muhitda "variant narxlash" va
+"rasm moslashuvi" funksiyalarini sinash uchun yaratildi. Bu funksiyalarning o'zi
+production'da `Donix` orqali allaqachon ishlagani uchun, ushbu to'rtta restoran
+ma'lumoti production'ga hech qachon push qilinmadi — faqat lokalда qoldi.
+
+---
+
 ## Ishlab chiqish bosqichlari
 
 1. Baza migratsiyalari + modellar ✓
