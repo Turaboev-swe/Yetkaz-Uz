@@ -107,13 +107,10 @@ return [
 
     // Mijoz baholovi — buyurtma yakunlangach 15 daqiqadan keyin (RequestOrderRating)
     'rating' => [
-        'ask' => "Buyurtmangiz :n qanday o'tdi?",
+        'ask' => "Buyurtmangiz :n qanday o'tdi?\nYulduzcha bilan baholang, yoki izohingizni yozib yuboring 👇",
         'saved_toast' => 'Bahoyingiz qabul qilindi',
         'already' => 'Siz bu buyurtmani allaqachon baholagansiz.',
         'thanks' => 'Rahmat! Bahoyingiz: :stars',
-        'leave_comment' => '💬 Izoh qoldirish',
-        'no_thanks' => "Yo'q, rahmat",
-        'ask_comment' => 'Izohingizni yozing:',
         'comment_saved' => 'Rahmat, izohingiz qabul qilindi!',
     ],
 

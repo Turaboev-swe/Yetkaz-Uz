@@ -9,6 +9,7 @@ use App\Models\Order;
 use App\Models\Restaurant;
 use App\Models\User;
 use App\Services\Ordering\OrderStatusService;
+use App\Services\Ordering\PendingRatingStore;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
@@ -48,12 +49,21 @@ class OrderRatingTest extends TestCase
             ], $attrs));
     }
 
-    private function click(int $chatId, string $data): Nutgram
+    /** Baho so'rovini yuboradi (xabar + kutilayotgan holat). */
+    private function sendRatingRequest(Order $order): Nutgram
+    {
+        $bot = app(Nutgram::class);
+        (new RequestOrderRating($order->id))->handle($bot, app(PendingRatingStore::class));
+
+        return $bot;
+    }
+
+    private function clickStar(int $chatId, Order $order, int $star): Nutgram
     {
         $bot = app(Nutgram::class);
         $bot->hearUpdateType(UpdateType::CALLBACK_QUERY, [
             'from' => ['id' => $chatId, 'first_name' => 'X'],
-            'data' => $data,
+            'data' => "rate:{$order->id}:{$star}",
             'message' => [
                 'message_id' => 77,
                 'date' => 1703892479,
@@ -64,9 +74,20 @@ class OrderRatingTest extends TestCase
         return $bot;
     }
 
-    // --- Job ---------------------------------------------------------------
+    private function sendText(int $chatId, string $text): Nutgram
+    {
+        $bot = app(Nutgram::class);
+        $bot->hearMessage([
+            'from' => ['id' => $chatId, 'first_name' => 'X'],
+            'text' => $text,
+        ])->reply();
 
-    public function test_rating_request_is_queued_15_minutes_after_delivery(): void
+        return $bot;
+    }
+
+    // --- Job / so'rov -----------------------------------------------------
+
+    public function test_request_is_queued_15_minutes_after_delivery(): void
     {
         Queue::fake();
 
@@ -84,12 +105,11 @@ class OrderRatingTest extends TestCase
         });
     }
 
-    public function test_job_sends_message_with_five_star_buttons(): void
+    public function test_request_message_shows_stars_and_invites_a_comment(): void
     {
         $order = $this->deliveredOrder();
 
-        $bot = app(Nutgram::class);
-        (new RequestOrderRating($order->id))->handle($bot);
+        $bot = $this->sendRatingRequest($order);
 
         $bot->assertCalled('sendMessage');
         $bot->assertRaw(function ($request) use ($order) {
@@ -99,112 +119,151 @@ class OrderRatingTest extends TestCase
                 && str_contains($body, 'rate:'.$order->id.':1')
                 && str_contains($body, 'rate:'.$order->id.':5');
         });
+        $this->assertSame($order->id, app(PendingRatingStore::class)->pendingOrderId(self::OWNER_TG));
     }
 
-    public function test_job_skips_when_already_rated(): void
+    public function test_job_skips_when_already_responded(): void
     {
-        $order = $this->deliveredOrder(['rating' => 4, 'rated_at' => now()]);
+        $order = $this->deliveredOrder(['rated_at' => now()]);
 
-        $bot = app(Nutgram::class);
-        (new RequestOrderRating($order->id))->handle($bot);
+        $bot = $this->sendRatingRequest($order);
 
         $bot->assertCalled('sendMessage', 0);
     }
 
-    // --- Yulduzcha bosish -------------------------------------------------
+    // --- (a) faqat yulduzcha ------------------------------------------
 
-    public function test_star_press_saves_rating(): void
+    public function test_star_only_saves_rating_without_a_comment(): void
     {
         $order = $this->deliveredOrder();
+        $this->sendRatingRequest($order);
 
-        $bot = $this->click(self::OWNER_TG, "rate:{$order->id}:4");
+        $bot = $this->clickStar(self::OWNER_TG, $order, 4);
 
         $order->refresh();
         $this->assertSame(4, $order->rating);
+        $this->assertNull($order->rating_comment);
         $this->assertNotNull($order->rated_at);
         $bot->assertCalled('answerCallbackQuery');
         $bot->assertCalled('editMessageText');
     }
 
-    public function test_only_the_order_owner_can_rate(): void
+    // --- (b) faqat matn ---------------------------------------------
+
+    public function test_plain_text_is_saved_as_comment_and_rating_stays_null(): void
     {
         $order = $this->deliveredOrder();
+        $this->sendRatingRequest($order);
 
-        $bot = $this->click(999111, "rate:{$order->id}:5");
+        $bot = $this->sendText(self::OWNER_TG, 'Kuryer kech keldi, lekin taom issiq edi.');
+
+        $order->refresh();
+        $this->assertNull($order->rating);
+        $this->assertSame('Kuryer kech keldi, lekin taom issiq edi.', $order->rating_comment);
+        $this->assertNotNull($order->rated_at);
+        $bot->assertReplyText(__('messages.rating.comment_saved'));
+    }
+
+    // --- (c) yulduzcha, keyin matn --------------------------------
+
+    public function test_star_then_text_saves_both(): void
+    {
+        $order = $this->deliveredOrder();
+        $this->sendRatingRequest($order);
+
+        $this->clickStar(self::OWNER_TG, $order, 5);
+        $this->sendText(self::OWNER_TG, 'Zo\'r, rahmat!');
+
+        $order->refresh();
+        $this->assertSame(5, $order->rating);
+        $this->assertSame('Zo\'r, rahmat!', $order->rating_comment);
+    }
+
+    // --- (d) matn, keyin yulduzcha --------------------------------
+
+    public function test_text_then_star_saves_both(): void
+    {
+        $order = $this->deliveredOrder();
+        $this->sendRatingRequest($order);
+
+        $this->sendText(self::OWNER_TG, 'Hammasi joyida.');
+        $this->clickStar(self::OWNER_TG, $order, 3);
+
+        $order->refresh();
+        $this->assertSame(3, $order->rating);
+        $this->assertSame('Hammasi joyida.', $order->rating_comment);
+    }
+
+    // --- Holat eskirishi -------------------------------------------
+
+    public function test_expired_pending_state_ignores_plain_text(): void
+    {
+        $order = $this->deliveredOrder();
+        $this->sendRatingRequest($order);
+
+        $this->travel(25)->hours();
+
+        $bot = $this->sendText(self::OWNER_TG, 'Bu endi izoh emas');
+
+        $this->assertNull($order->refresh()->rating_comment);
+        $bot->assertReplyText(__('messages.main_menu.title'));
+    }
+
+    public function test_plain_text_without_pending_state_is_not_a_comment(): void
+    {
+        $bot = $this->sendText(self::OWNER_TG, 'Salom, bu shunchaki xabar');
+
+        $bot->assertReplyText(__('messages.main_menu.title'));
+    }
+
+    public function test_another_users_text_does_not_touch_the_pending_order(): void
+    {
+        $order = $this->deliveredOrder();
+        $this->sendRatingRequest($order);
+
+        $other = User::factory()->create(['telegram_id' => 909090, 'profile_completed' => true, 'language' => 'uz']);
+
+        $bot = $this->sendText($other->telegram_id, 'Boshqa odam yozyapti');
+
+        $this->assertNull($order->refresh()->rating_comment);
+        $bot->assertReplyText(__('messages.main_menu.title'));
+    }
+
+    // --- Ruxsat / qayta baholash -----------------------------------
+
+    public function test_only_the_order_owner_can_press_a_star(): void
+    {
+        $order = $this->deliveredOrder();
+        $this->sendRatingRequest($order);
+
+        $bot = $this->clickStar(999111, $order, 5);
 
         $this->assertNull($order->refresh()->rating);
         $bot->assertCalled('answerCallbackQuery');
         $bot->assertCalled('editMessageText', 0);
     }
 
-    public function test_re_rating_is_rejected(): void
+    public function test_re_pressing_a_star_is_rejected(): void
     {
         $order = $this->deliveredOrder(['rating' => 5, 'rated_at' => now()]);
 
-        $bot = $this->click(self::OWNER_TG, "rate:{$order->id}:2");
+        $bot = $this->clickStar(self::OWNER_TG, $order, 2);
 
         $this->assertSame(5, $order->refresh()->rating);
-        $bot->assertCalled('answerCallbackQuery');
         $bot->assertCalled('editMessageText', 0);
     }
 
-    // --- Izoh -----------------------------------------------------------
+    // --- Menyu tugmasi holatni tugatadi --------------------------
 
-    public function test_leave_comment_saves_the_next_text_message(): void
+    public function test_pressing_a_menu_button_clears_the_pending_state(): void
     {
-        $order = $this->deliveredOrder(['rating' => 5, 'rated_at' => now()]);
+        $order = $this->deliveredOrder();
+        $this->sendRatingRequest($order);
 
-        $bot = app(Nutgram::class);
-        $bot->willStartConversation();
+        $this->sendText(self::OWNER_TG, __('messages.main_menu.order'));   // menyu tugmasi
 
-        $bot->hearUpdateType(UpdateType::CALLBACK_QUERY, [
-            'from' => ['id' => self::OWNER_TG, 'first_name' => 'X'],
-            'data' => "ratefu:{$order->id}:c",
-            'message' => ['message_id' => 77, 'date' => 1703892479, 'chat' => ['id' => self::OWNER_TG, 'type' => 'private']],
-        ])->reply();
-        // 0: answerCallbackQuery, 1: editMessageReplyMarkup, 2: suhbat sendMessage
-        $bot->assertActiveConversation();
-        $bot->assertReplyText(__('messages.rating.ask_comment'), 2);
-
-        $bot->hearMessage([
-            'from' => ['id' => self::OWNER_TG, 'first_name' => 'X'],
-            'text' => 'Hammasi zo\'r edi, rahmat!',
-        ])->reply();
-
-        $this->assertSame('Hammasi zo\'r edi, rahmat!', $order->refresh()->rating_comment);
-        $bot->assertReplyText(__('messages.rating.comment_saved'));
-        $bot->assertNoConversation();
-    }
-
-    public function test_conversation_state_is_cleared_after_the_comment(): void
-    {
-        $order = $this->deliveredOrder(['rating' => 3, 'rated_at' => now()]);
-
-        $bot = app(Nutgram::class);
-        $bot->willStartConversation();
-
-        $bot->hearUpdateType(UpdateType::CALLBACK_QUERY, [
-            'from' => ['id' => self::OWNER_TG, 'first_name' => 'X'],
-            'data' => "ratefu:{$order->id}:c",
-            'message' => ['message_id' => 77, 'date' => 1703892479, 'chat' => ['id' => self::OWNER_TG, 'type' => 'private']],
-        ])->reply();
-
-        $bot->hearMessage(['from' => ['id' => self::OWNER_TG, 'first_name' => 'X'], 'text' => 'Birinchi izoh'])->reply();
-        $bot->hearMessage(['from' => ['id' => self::OWNER_TG, 'first_name' => 'X'], 'text' => 'Ikkinchi xabar'])->reply();
-
-        // Ikkinchi xabar izoh sifatida SAQLANMAYDI.
-        $this->assertSame('Birinchi izoh', $order->refresh()->rating_comment);
-        $bot->assertNoConversation();
-    }
-
-    public function test_no_thanks_finishes_without_a_comment(): void
-    {
-        $order = $this->deliveredOrder(['rating' => 4, 'rated_at' => now()]);
-
-        $bot = $this->click(self::OWNER_TG, "ratefu:{$order->id}:s");
+        $this->sendText(self::OWNER_TG, 'Endi bu izoh bo\'lmasligi kerak');
 
         $this->assertNull($order->refresh()->rating_comment);
-        $bot->assertCalled('answerCallbackQuery');
-        $bot->assertCalled('editMessageReplyMarkup');
     }
 }

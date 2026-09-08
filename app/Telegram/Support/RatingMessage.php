@@ -9,10 +9,10 @@ use SergiX44\Nutgram\Telegram\Types\Keyboard\InlineKeyboardMarkup;
 /**
  * Baholash xabari va tugmalari.
  *
- * callback_data:
- *   rate:{orderId}:{1-5}      — yulduzcha bosildi
- *   ratefu:{orderId}:c        — "Izoh qoldirish"
- *   ratefu:{orderId}:s        — "Yo'q, rahmat"
+ *   rate:{orderId}:{1-5}   — yulduzcha bosildi
+ *
+ * Izoh alohida tugma emas: foydalanuvchi shunchaki matn yozib yuboradi
+ * (PendingRatingStore holati orqali ushlanadi).
  */
 final class RatingMessage
 {
@@ -30,15 +30,6 @@ final class RatingMessage
         }
 
         return InlineKeyboardMarkup::make()->addRow(...$row);
-    }
-
-    /** Baholangandan keyin: "Izoh qoldirish" / "Yo'q, rahmat". */
-    public static function followUpKeyboard(int $orderId): InlineKeyboardMarkup
-    {
-        return InlineKeyboardMarkup::make()->addRow(
-            InlineKeyboardButton::make(__('messages.rating.leave_comment'), callback_data: "ratefu:{$orderId}:c"),
-            InlineKeyboardButton::make(__('messages.rating.no_thanks'), callback_data: "ratefu:{$orderId}:s"),
-        );
     }
 
     public static function askText(Order $order): string

@@ -13,8 +13,9 @@ use SergiX44\Nutgram\Telegram\Exceptions\TelegramException;
  * `rate:{orderId}:{star}` — mijoz yulduzcha bosdi.
  *
  * - faqat buyurtma egasi (from.id == order.user.telegram_id); boshqasi jimgina rad
- * - allaqachon baholangan bo'lsa — "Siz allaqachon baholagansiz", o'zgartirilmaydi
- * - saqlangach xabar "Rahmat!" ga yangilanadi + izoh tugmalari chiqadi
+ * - yulduzcha bir marta: allaqachon baholangan bo'lsa "Siz allaqachon baholagansiz"
+ * - saqlangach xabar "Rahmat!" ga yangilanadi (tugmalarsiz). Izoh keyin ham
+ *   alohida matn bilan yozilishi mumkin (PendingRatingStore holati saqlanadi).
  */
 class RateOrderHandler
 {
@@ -38,7 +39,10 @@ class RateOrderHandler
                 return 'already';
             }
 
-            $order->forceFill(['rating' => $rating, 'rated_at' => now()])->save();
+            $order->forceFill([
+                'rating' => $rating,
+                'rated_at' => $order->rated_at ?? now(),
+            ])->save();
 
             return 'saved';
         });
@@ -60,10 +64,7 @@ class RateOrderHandler
         $order = Order::withoutGlobalScopes()->find((int) $orderId);
 
         try {
-            $bot->editMessageText(
-                text: RatingMessage::thanksText($order),
-                reply_markup: RatingMessage::followUpKeyboard($order->id),
-            );
+            $bot->editMessageText(text: RatingMessage::thanksText($order));
         } catch (TelegramException $e) {
             Log::info('[rating] editMessageText o\'tkazib yuborildi', [
                 'order' => $order->order_number,

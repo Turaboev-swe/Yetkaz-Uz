@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Enums\OrderStatus;
 use App\Models\Order;
+use App\Services\Ordering\PendingRatingStore;
 use App\Telegram\Support\RatingMessage;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -16,9 +17,11 @@ use SergiX44\Nutgram\Telegram\Exceptions\TelegramException;
 
 /**
  * Buyurtma yakunlangach (delivered / mijoz oldi) 15 daqiqadan keyin mijozdan
- * baho so'raydi — 1–5 yulduzcha inline tugmalar bilan.
+ * baho so'raydi — 1–5 yulduzcha inline tugmalar bilan. Foydalanuvchi yulduzcha
+ * bosishi YOKI shunchaki izoh matnini yozib yuborishi mumkin (PendingRatingStore).
  *
- * Allaqachon baholangan yoki buyurtma yakunlanmagan bo'lsa — jimgina o'tadi.
+ * Foydalanuvchi allaqachon javob bergan (`rated_at`) yoki buyurtma yakunlanmagan
+ * bo'lsa — jimgina o'tadi.
  */
 class RequestOrderRating implements ShouldQueue
 {
@@ -33,11 +36,11 @@ class RequestOrderRating implements ShouldQueue
 
     public function __construct(public readonly int $orderId) {}
 
-    public function handle(Nutgram $bot): void
+    public function handle(Nutgram $bot, PendingRatingStore $pending): void
     {
         $order = Order::withoutGlobalScopes()->with('user')->find($this->orderId);
 
-        if ($order === null || $order->rating !== null) {
+        if ($order === null || $order->rated_at !== null) {
             return;
         }
 
@@ -62,5 +65,9 @@ class RequestOrderRating implements ShouldQueue
             }
             throw $e;
         }
+
+        // Endi shu foydalanuvchidan kelgan matn (menyu tugmasi bo'lmasa) shu
+        // buyurtmaning izohi sifatida qabul qilinadi — 24 soat ichida.
+        $pending->remember($order->user->telegram_id, $order->id);
     }
 }

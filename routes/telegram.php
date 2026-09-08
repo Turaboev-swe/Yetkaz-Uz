@@ -7,7 +7,6 @@ use App\Telegram\Handlers\KitchenCallbackHandler;
 use App\Telegram\Handlers\LanguageCallbackHandler;
 use App\Telegram\Handlers\MenuHandler;
 use App\Telegram\Handlers\NewAddressHandler;
-use App\Telegram\Handlers\RateFollowUpHandler;
 use App\Telegram\Handlers\RateOrderHandler;
 use App\Telegram\Handlers\StartHandler;
 use App\Telegram\Middleware\RequireRegistration;
@@ -41,15 +40,12 @@ $bot->onCallbackQueryData('kadv:{orderId}:{expected}', KitchenCallbackHandler::c
     ->where('orderId', '\d+')
     ->where('expected', '[a-z_]+');
 
-// Mijoz baholovi (RequireRegistration'dan TASHQARIDA — egalik `order.user` bo'yicha
-// tekshiriladi). Izoh suhbati keyingi matnli xabarni Nutgram core orqali oladi.
+// Mijoz baholovi — yulduzcha (RequireRegistration'dan TASHQARIDA, egalik
+// `order.user` bo'yicha tekshiriladi). Izoh esa oddiy matn bilan yoziladi va
+// MenuHandler'da PendingRatingStore orqali ushlanadi.
 $bot->onCallbackQueryData('rate:{orderId}:{star}', RateOrderHandler::class)
     ->where('orderId', '\d+')
     ->where('star', '[1-5]');
-
-$bot->onCallbackQueryData('ratefu:{orderId}:{action}', RateFollowUpHandler::class)
-    ->where('orderId', '\d+')
-    ->where('action', '[cs]');
 
 // Ro'yxatdan o'tgan foydalanuvchi uchun menyu amallari.
 $bot->group(function (Nutgram $bot) {
