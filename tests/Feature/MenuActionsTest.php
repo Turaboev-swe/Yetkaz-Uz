@@ -45,7 +45,9 @@ class MenuActionsTest extends TestCase
             'profile_completed' => true,
         ]);
         Address::factory()->for($user)->default()->create([
-            'label' => 'Uy', 'lat' => 40.7825, 'lng' => 72.35, 'address_text' => 'Uy manzili',
+            'label' => 'Uy', 'lat' => 40.7825, 'lng' => 72.35,
+            'address_text' => 'Uy manzili',
+            'resolved_address' => "Bobur ko'chasi 12, Andijon shahri",
         ]);
 
         return $user;
@@ -104,7 +106,7 @@ class MenuActionsTest extends TestCase
 
         $bot->assertReplyMessage([
             'text' => __('messages.addresses.title')."\n\n"
-                .'• Uy — Uy manzili'.__('messages.addresses.default_marker')."\n\n"
+                ."• Uy · Bobur ko'chasi 12, Andijon shahri".__('messages.addresses.default_marker')."\n\n"
                 .__('messages.addresses.hint'),
         ]);
     }
@@ -124,7 +126,7 @@ class MenuActionsTest extends TestCase
         $this->assertEqualsWithDelta(40.79, $new->lat, 0.0001);
         $this->assertSame(__('messages.addresses.label', ['n' => 2]), $new->label);
         $bot->assertReplyText(__('messages.addresses.added', [
-            'address' => $new->label.' — '.$new->address_text,
+            'address' => $new->displayAddress(),
         ]));
     }
 

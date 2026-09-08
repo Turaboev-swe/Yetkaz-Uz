@@ -35,9 +35,10 @@ class AddressGeocoder
             $district?->name,
         ]);
 
+        // Xom koordinata HECH QACHON matn sifatida qaytmaydi — bo'lmasa tuman nomi.
         $text = $parts !== []
             ? implode(', ', $parts)
-            : sprintf('%.6f, %.6f', $lat, $lng);
+            : (string) $district?->name;
 
         return [
             'district_id' => $district?->id,

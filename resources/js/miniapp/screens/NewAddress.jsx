@@ -98,9 +98,9 @@ export default function NewAddress() {
             >
                 <div className="mb-3 min-h-[2.5rem]">
                     <p className="text-[14px] font-semibold" style={{ color: 'var(--tg-text)' }}>
-                        {loadingGeo ? 'Aniqlanmoqda…' : geo?.address_text || 'Xaritani suring'}
+                        {loadingGeo ? 'Aniqlanmoqda…' : geo?.address_text || geo?.district_name || 'Xaritani suring'}
                     </p>
-                    {geo?.district_name && !loadingGeo && (
+                    {geo?.district_name && geo.district_name !== geo.address_text && !loadingGeo && (
                         <p className="text-[12px]" style={{ color: 'var(--tg-hint)' }}>{geo.district_name}</p>
                     )}
                 </div>

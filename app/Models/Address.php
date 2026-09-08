@@ -75,27 +75,16 @@ class Address extends Model
     }
 
     /**
-     * Mijozga ko'rsatiladigan manzil matni. HECH QACHON bo'sh yoki xom koordinata
-     * emas: resolved_address -> (tuman + address_text) -> label.
+     * Mijozga ko'rsatiladigan manzil. Xom koordinata HECH QACHON ko'rsatilmaydi —
+     * u faqat backend va "Xaritada ko'rish" havolasi uchun.
+     *
+     * Tartib:  1. resolved_address (Nominatim ko'cha/tuman bergan bo'lsa)
+     *          2. label ("Uy", "Ish")
      */
     public function displayAddress(): string
     {
-        if (filled($this->resolved_address)) {
-            return $this->resolved_address;
-        }
-
-        $text = trim((string) $this->address_text);
-        $isCoords = (bool) preg_match('/^-?\d+(\.\d+)?,\s*-?\d+(\.\d+)?$/', $text);
-
-        $parts = array_filter([
-            $this->district?->name,
-            $isCoords ? null : ($text !== '' ? $text : null),
-        ]);
-
-        if ($parts !== []) {
-            return implode(', ', array_values(array_unique($parts)));
-        }
-
-        return $this->label ?: '—';
+        return filled($this->resolved_address)
+            ? $this->resolved_address
+            : ($this->label ?: '—');
     }
 }

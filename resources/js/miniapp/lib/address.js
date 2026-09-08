@@ -1,18 +1,12 @@
 /**
- * Koordinatadan aniqlangan haqiqiy manzil matni (backend `resolved_address`).
- * Bar / tasdiqlash / menyu tepasi / checkout'da label ("Uy") o'rniga shu ko'rsatiladi.
- * Backend hech qachon bo'sh/koordinata qaytarmaydi, lekin zaxira ham bor.
+ * Mijozga ko'rsatiladigan manzil (backend `resolved_address` — Nominatim reverse).
+ * Bar / tasdiqlash / checkout / tanlash ro'yxatida label ("Uy") o'rniga shu.
+ *
+ * Xom koordinata HECH QACHON ko'rsatilmaydi.
+ *   1. resolved_address (Nominatim ko'cha/tuman bergan bo'lsa)
+ *   2. label ("Uy", "Ish")
  */
 export function resolvedAddress(a) {
     if (!a) return '';
-    if (a.resolved_address) return a.resolved_address;
-
-    const text = (a.address_text || '').trim();
-    const isCoords = /^-?\d+(\.\d+)?,\s*-?\d+(\.\d+)?$/.test(text);
-
-    return (
-        [a.district, isCoords ? '' : text].filter(Boolean).join(', ') ||
-        a.label ||
-        'Manzil'
-    );
+    return a.resolved_address || a.label || 'Manzil';
 }

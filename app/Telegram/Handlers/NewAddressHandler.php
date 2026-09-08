@@ -40,7 +40,7 @@ class NewAddressHandler
         ]);
 
         $bot->sendMessage(
-            __('messages.addresses.added', ['address' => trim($address->label.' — '.$address->address_text)]),
+            __('messages.addresses.added', ['address' => $address->displayAddress()]),
             reply_markup: Keyboards::mainMenu(),
         );
     }

@@ -86,7 +86,7 @@ class AddressResolvedAddressTest extends TestCase
 
     // --- Nominatim xato bo'lganda zaxira ---------------------------
 
-    public function test_falls_back_to_district_and_text_when_nominatim_fails(): void
+    public function test_falls_back_to_label_when_nominatim_fails(): void
     {
         Http::fake(['*nominatim*' => Http::response('', 500)]);
 
@@ -97,16 +97,15 @@ class AddressResolvedAddressTest extends TestCase
             'address_text' => 'Amir Temur 5',
             'district_id' => $this->district->id,
         ], $this->headers())->assertCreated()
-            ->assertJsonPath('data.resolved_address', "Qo'rg'ontepa tumani, Amir Temur 5");
+            ->assertJsonPath('data.resolved_address', 'Ish');   // koordinata/matn emas — faqat label
 
         $this->assertNull(Address::latest('id')->value('resolved_address'));
     }
 
-    public function test_falls_back_to_label_when_nothing_else_is_available(): void
+    public function test_raw_address_text_never_leaks_into_the_display(): void
     {
         Http::fake(['*nominatim*' => Http::response('', 500)]);
 
-        // address_text — xom koordinata (registratsiya oqimidagi kabi), tuman yo'q
         $address = app(AddressService::class)->create($this->user, [
             'label' => 'Uy',
             'lat' => 40.5,
@@ -115,7 +114,7 @@ class AddressResolvedAddressTest extends TestCase
         ]);
 
         $this->assertNull($address->resolved_address);
-        $this->assertSame('Uy', $address->fresh()->load('district')->displayAddress());
+        $this->assertSame('Uy', $address->fresh()->displayAddress());
     }
 
     public function test_resolved_address_is_never_raw_coordinates(): void

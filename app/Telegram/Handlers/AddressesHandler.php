@@ -30,8 +30,11 @@ class AddressesHandler
 
         $lines = $addresses->map(function ($a) {
             $marker = $a->is_default ? __('messages.addresses.default_marker') : '';
+            // Xom koordinata emas — resolved_address (Nominatim) yoki label.
+            $display = $a->displayAddress();
+            $name = $a->label && $a->label !== $display ? "{$a->label} · {$display}" : $display;
 
-            return '• '.trim($a->label.' — '.$a->address_text).$marker;
+            return '• '.$name.$marker;
         })->implode("\n");
 
         $bot->sendMessage(
