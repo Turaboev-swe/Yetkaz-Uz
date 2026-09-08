@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Address;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
 use SergiX44\Nutgram\Nutgram;
 use Tests\TestCase;
 
@@ -17,6 +18,12 @@ class RegistrationFlowTest extends TestCase
     use RefreshDatabase;
 
     private const TG_ID = 555001;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        Http::fake(); // uy manzili — reverse geocoding tashqi so'rovsiz
+    }
 
     private function bot(): Nutgram
     {

@@ -4,7 +4,6 @@ namespace App\Services\User;
 
 use App\Models\Address;
 use App\Models\User;
-use Illuminate\Support\Facades\DB;
 
 /**
  * Foydalanuvchi profili va ro'yxatdan o'tish mantiqi.
@@ -16,6 +15,8 @@ use Illuminate\Support\Facades\DB;
  */
 class ProfileService
 {
+    public function __construct(private readonly AddressService $addresses) {}
+
     public function findOrCreateFromTelegram(
         int $telegramId,
         ?string $languageCode = null,
@@ -57,8 +58,9 @@ class ProfileService
     }
 
     /**
-     * Ro'yxatdan o'tishning oxirgi qadami: uy manzilini saqlaydi va profilni tugatadi.
-     * Bitta tranzaksiyada — yarim holat qolmaydi.
+     * Ro'yxatdan o'tishning oxirgi qadami: uy manzilini saqlaydi (AddressService —
+     * reverse geocoding shu yerda) va profilni tugatadi. Geokodlash HTTP so'rovi
+     * DB tranzaksiyasidan tashqarida bo'lishi uchun bu yerda alohida tranzaksiya yo'q.
      */
     public function completeWithHomeAddress(
         User $user,
@@ -66,19 +68,17 @@ class ProfileService
         float $lng,
         ?string $addressText = null,
     ): Address {
-        return DB::transaction(function () use ($user, $lat, $lng, $addressText) {
-            $address = $user->addresses()->create([
-                'label' => Address::LABEL_HOME,
-                'lat' => $lat,
-                'lng' => $lng,
-                'address_text' => $addressText ?: $this->coordsAsText($lat, $lng),
-                'is_default' => true,
-            ]);
+        $address = $this->addresses->create($user, [
+            'label' => Address::LABEL_HOME,
+            'lat' => $lat,
+            'lng' => $lng,
+            'address_text' => $addressText ?: $this->coordsAsText($lat, $lng),
+            'is_default' => true,
+        ]);
 
-            $user->update(['profile_completed' => true]);
+        $user->update(['profile_completed' => true]);
 
-            return $address;
-        });
+        return $address;
     }
 
     public function isRegistered(User $user): bool

@@ -29,6 +29,7 @@ class Address extends Model
         'lat',
         'lng',
         'address_text',
+        'resolved_address',
         'entrance',
         'floor',
         'apartment',
@@ -71,5 +72,30 @@ class Address extends Model
     public function scopeDefault(Builder $query): Builder
     {
         return $query->where('is_default', true);
+    }
+
+    /**
+     * Mijozga ko'rsatiladigan manzil matni. HECH QACHON bo'sh yoki xom koordinata
+     * emas: resolved_address -> (tuman + address_text) -> label.
+     */
+    public function displayAddress(): string
+    {
+        if (filled($this->resolved_address)) {
+            return $this->resolved_address;
+        }
+
+        $text = trim((string) $this->address_text);
+        $isCoords = (bool) preg_match('/^-?\d+(\.\d+)?,\s*-?\d+(\.\d+)?$/', $text);
+
+        $parts = array_filter([
+            $this->district?->name,
+            $isCoords ? null : ($text !== '' ? $text : null),
+        ]);
+
+        if ($parts !== []) {
+            return implode(', ', array_values(array_unique($parts)));
+        }
+
+        return $this->label ?: '—';
     }
 }

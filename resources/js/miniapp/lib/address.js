@@ -1,13 +1,18 @@
-/** Manzil kartasi uchun sarlavha (label) + tag (ko'cha/tuman, o'zbekcha). */
-export function addressLines(a) {
-    if (!a) return { title: '', subtitle: '' };
+/**
+ * Koordinatadan aniqlangan haqiqiy manzil matni (backend `resolved_address`).
+ * Bar / tasdiqlash / menyu tepasi / checkout'da label ("Uy") o'rniga shu ko'rsatiladi.
+ * Backend hech qachon bo'sh/koordinata qaytarmaydi, lekin zaxira ham bor.
+ */
+export function resolvedAddress(a) {
+    if (!a) return '';
+    if (a.resolved_address) return a.resolved_address;
 
     const text = (a.address_text || '').trim();
     const isCoords = /^-?\d+(\.\d+)?,\s*-?\d+(\.\d+)?$/.test(text);
-    const subtitle = isCoords ? a.district || text : text || a.district || '';
 
-    return {
-        title: a.label || a.district || 'Manzil',
-        subtitle,
-    };
+    return (
+        [a.district, isCoords ? '' : text].filter(Boolean).join(', ') ||
+        a.label ||
+        'Manzil'
+    );
 }

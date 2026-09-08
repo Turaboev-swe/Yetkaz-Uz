@@ -4,6 +4,7 @@ namespace App\Services\User;
 
 use App\Models\Address;
 use App\Models\User;
+use App\Services\Geo\AddressGeocoder;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -18,9 +19,16 @@ use Illuminate\Support\Facades\DB;
  */
 class AddressService
 {
+    public function __construct(private readonly AddressGeocoder $geocoder) {}
+
     /** @param array<string,mixed> $data */
     public function create(User $user, array $data): Address
     {
+        // Manzil matni koordinatadan BIR MARTA aniqlanadi va keshlanadi.
+        if (! array_key_exists('resolved_address', $data) && isset($data['lat'], $data['lng'])) {
+            $data['resolved_address'] = $this->geocoder->resolve((float) $data['lat'], (float) $data['lng']);
+        }
+
         return DB::transaction(function () use ($user, $data) {
             $makeDefault = (bool) ($data['is_default'] ?? false) || ! $user->addresses()->exists();
 

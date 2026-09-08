@@ -46,6 +46,38 @@ class AddressGeocoder
         ];
     }
 
+    /**
+     * Nuqta -> qisqa, o'qiladigan manzil ("Bobur ko'chasi 12, Qo'rg'ontepa tumani").
+     * Manzil yaratilganda `resolved_address` uchun keshlanadi.
+     *
+     * Nominatim ishlamasa NULL qaytadi — chaqiruvchi o'z zaxirasini ishlatadi
+     * (tuman + address_text yoki label). `describe()` dan farqi: xom koordinata
+     * qaytarmaydi.
+     */
+    public function resolve(float $lat, float $lng): ?string
+    {
+        $osm = $this->reverse($lat, $lng);
+
+        if ($osm === []) {
+            return null;
+        }
+
+        $district = $this->matchDistrict($osm['county'] ?? $osm['city'] ?? null)
+            ?? $this->nearestDistrict($lat, $lng);
+
+        $street = trim(implode(' ', array_filter([
+            $osm['road'] ?? null,
+            $osm['house_number'] ?? null,
+        ])));
+
+        $parts = array_filter([
+            $street !== '' ? $street : ($osm['neighbourhood'] ?? $osm['suburb'] ?? null),
+            $district?->name,
+        ]);
+
+        return $parts !== [] ? mb_substr(implode(', ', $parts), 0, 255) : null;
+    }
+
     public function nearestDistrict(float $lat, float $lng): ?District
     {
         return District::query()->active()->get()

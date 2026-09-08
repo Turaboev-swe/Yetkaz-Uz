@@ -6,6 +6,7 @@ use App\Models\Address;
 use App\Models\User;
 use App\Services\User\ProfileService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
 class ProfileServiceTest extends TestCase
@@ -17,6 +18,7 @@ class ProfileServiceTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        Http::fake(); // uy manzili — reverse geocoding tashqi so'rovsiz
         $this->service = app(ProfileService::class);
     }
 

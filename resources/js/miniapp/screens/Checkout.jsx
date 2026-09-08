@@ -6,7 +6,7 @@ import { showBackButton, setMainButton, hideMainButton, notify, isInsideTelegram
 import { useSession } from '../store/session';
 import { useCart, cartItems, cartTotal, cartCount } from '../store/cart';
 import { som, somLabel } from '../lib/format';
-import { addressLines } from '../lib/address';
+import { resolvedAddress } from '../lib/address';
 import { Spinner, ErrorState } from '../components/States';
 
 /** Bugungi ish vaqti "09:00–23:00" ko'rinishida (ixtiyoriy). */
@@ -122,7 +122,7 @@ export default function Checkout() {
                     </>
                 ) : (
                     <>
-                        <Row icon="📍" title={addressLines(address).title} subtitle={addressLines(address).subtitle} />
+                        <Row icon="📍" title={resolvedAddress(address)} subtitle={[address?.entrance && `kirish ${address.entrance}`, address?.floor && `qavat ${address.floor}`, address?.apartment && `xonadon ${address.apartment}`].filter(Boolean).join(' · ') || null} />
                         <button
                             onClick={() => navigate('/')}
                             className="mt-1 text-[13px] font-medium"

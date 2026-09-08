@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import BottomSheet from './BottomSheet';
-import { addressLines } from '../lib/address';
+import { resolvedAddress } from '../lib/address';
 import { haptic } from '../lib/telegram';
 
 /**
@@ -21,7 +21,9 @@ export default function AddressPickerSheet({ open, onClose, dismissible = true, 
 
             <div className="space-y-2">
                 {addresses.map((a) => {
-                    const { title, subtitle } = addressLines(a);
+                    // Tanlashda LABEL ("Uy"/"Ish") foydali — pastida haqiqiy manzil.
+                    const label = a.label || a.district || 'Manzil';
+                    const detail = resolvedAddress(a);
                     const active = mode === 'delivery' && a.id === currentId;
                     return (
                         <button
@@ -35,9 +37,9 @@ export default function AddressPickerSheet({ open, onClose, dismissible = true, 
                         >
                             <span aria-hidden>📍</span>
                             <span className="min-w-0 flex-1">
-                                <span className="block text-[14px] font-semibold" style={{ color: 'var(--tg-text)' }}>{title}</span>
-                                {subtitle && (
-                                    <span className="block truncate text-[12px]" style={{ color: 'var(--tg-hint)' }}>{subtitle}</span>
+                                <span className="block text-[14px] font-semibold" style={{ color: 'var(--tg-text)' }}>{label}</span>
+                                {detail && detail !== label && (
+                                    <span className="block truncate text-[12px]" style={{ color: 'var(--tg-hint)' }}>{detail}</span>
                                 )}
                             </span>
                             {active && <span style={{ color: 'var(--tg-link)' }}>✓</span>}
