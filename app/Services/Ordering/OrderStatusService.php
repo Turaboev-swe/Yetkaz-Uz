@@ -5,6 +5,7 @@ namespace App\Services\Ordering;
 use App\Enums\OrderStatus;
 use App\Events\OrderStatusChanged;
 use App\Jobs\NotifyCustomerOfStatusChange;
+use App\Jobs\RequestOrderRating;
 use App\Models\Order;
 use App\Models\OrderStatusHistory;
 use Illuminate\Support\Facades\DB;
@@ -76,6 +77,11 @@ class OrderStatusService
 
         OrderStatusChanged::dispatch($order->id, $order->restaurant_id, $to);
         NotifyCustomerOfStatusChange::dispatch($order->id);
+
+        // Yetkazilgach (yoki mijoz olib ketgach) — 15 daqiqadan keyin baho so'rovi.
+        if ($to === OrderStatus::Delivered) {
+            RequestOrderRating::dispatch($order->id)->delay(now()->addMinutes(15));
+        }
 
         return $order;
     }

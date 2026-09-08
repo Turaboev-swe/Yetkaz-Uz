@@ -41,6 +41,9 @@ class Order extends Model
         'status',
         'eta_minutes',
         'distance_km',
+        'rating',
+        'rating_comment',
+        'rated_at',
         'dispatched_at',
         'printed_at',
         'dispatch_failed_at',
@@ -62,6 +65,8 @@ class Order extends Model
             'payment_status' => PaymentStatus::class,
             'eta_minutes' => 'integer',
             'distance_km' => 'float',
+            'rating' => 'integer',
+            'rated_at' => 'datetime',
             'dispatched_at' => 'datetime',
             'printed_at' => 'datetime',
             'dispatch_failed_at' => 'datetime',
@@ -114,5 +119,10 @@ class Order extends Model
     public function isActive(): bool
     {
         return $this->status->isActive();
+    }
+
+    public function isRated(): bool
+    {
+        return $this->rating !== null;
     }
 }
