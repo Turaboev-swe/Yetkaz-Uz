@@ -28,7 +28,7 @@ class Ratings extends Page implements HasTable
 {
     use InteractsWithTable;
 
-    protected static ?string $navigationIcon = 'heroicon-o-star';
+    protected static ?string $navigationIcon = 'heroicon-s-star';
 
     protected static ?string $navigationLabel = 'Baholar';
 
@@ -87,7 +87,7 @@ class Ratings extends Page implements HasTable
 
                 TextColumn::make('rating')
                     ->label('Baho')
-                    ->formatStateUsing(fn (int $state): string => str_repeat('★', $state).str_repeat('☆', 5 - $state))
+                    ->formatStateUsing(fn (int $state): string => str_repeat('⭐️', $state))
                     ->sortable(),
 
                 TextColumn::make('rating_comment')
@@ -104,11 +104,11 @@ class Ratings extends Page implements HasTable
                 SelectFilter::make('rating')
                     ->label('Yulduzcha')
                     ->options([
-                        5 => '★★★★★',
-                        4 => '★★★★',
-                        3 => '★★★',
-                        2 => '★★',
-                        1 => '★',
+                        5 => '⭐️⭐️⭐️⭐️⭐️',
+                        4 => '⭐️⭐️⭐️⭐️',
+                        3 => '⭐️⭐️⭐️',
+                        2 => '⭐️⭐️',
+                        1 => '⭐️',
                     ]),
 
                 TernaryFilter::make('has_comment')

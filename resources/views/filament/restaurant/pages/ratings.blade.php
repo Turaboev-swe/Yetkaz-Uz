@@ -6,7 +6,7 @@
             <div class="rounded-xl bg-gray-50 p-4 dark:bg-white/5">
                 <div class="text-sm text-gray-500 dark:text-gray-400">O'rtacha reyting</div>
                 <div class="mt-1 text-xl font-semibold text-gray-950 dark:text-white">
-                    {{ $average !== null ? number_format($average, 1) : '—' }}
+                    {{ $average !== null ? '⭐️ '.number_format($average, 1) : '—' }}
                 </div>
             </div>
             <div class="rounded-xl bg-gray-50 p-4 dark:bg-white/5">
