@@ -4,11 +4,15 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="theme-color" content="#0e1621">
-    <meta name="description" content="Qo'rg'ontepa hududida tez va qulay ovqat yetkazib berish. Buyurtma Telegram bot orqali.">
+    <meta name="description" content="Sevimli taomlaringiz eshigingizgacha. Telegram orqali buyurtma bering.">
+
+    <link rel="icon" type="image/png" href="{{ asset('images/yetkaz-logo.png') }}">
+    <link rel="apple-touch-icon" href="{{ asset('images/yetkaz-logo.png') }}">
 
     <meta property="og:type" content="website">
     <meta property="og:title" content="Yetkaz — ovqat yetkazib berish">
-    <meta property="og:description" content="Qo'rg'ontepa hududida tez va qulay ovqat yetkazib berish.">
+    <meta property="og:description" content="Sevimli taomlaringiz eshigingizgacha. Telegram orqali buyurtma bering.">
+    <meta property="og:image" content="{{ asset('images/yetkaz-logo.png') }}">
 
     <title>Yetkaz — ovqat yetkazib berish</title>
 
@@ -48,41 +52,32 @@
 
         .card { width: 100%; max-width: 380px; text-align: center; }
 
-        .mark {
-            display: inline-flex;
-            align-items: center;
-            gap: 10px;
-            margin-bottom: 28px;
+        .logo {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            object-fit: cover;
+            display: block;
+            margin: 0 auto 16px;
+            box-shadow: 0 10px 40px rgba(245, 166, 35, 0.18);
         }
 
-        .mark__dot {
-            width: 44px;
-            height: 44px;
-            border-radius: 14px;
-            background: var(--accent);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-shrink: 0;
-        }
-
-        .mark__dot svg { width: 26px; height: 26px; display: block; }
-
-        .mark__name {
-            font-size: 26px;
+        .wordmark {
+            font-size: 28px;
             font-weight: 700;
             letter-spacing: -0.02em;
+            margin-bottom: 24px;
         }
 
         h1 {
             font-size: 22px;
             font-weight: 600;
             letter-spacing: -0.01em;
-            margin-bottom: 12px;
+            margin-bottom: 8px;
         }
 
         p.lead {
-            font-size: 16px;
+            font-size: 15px;
             color: var(--hint);
             margin-bottom: 32px;
         }
@@ -123,25 +118,18 @@
 
         @media (min-width: 480px) {
             h1 { font-size: 24px; }
-            .mark__name { font-size: 28px; }
+            .wordmark { font-size: 30px; }
         }
     </style>
 </head>
 <body>
     <div class="page">
         <main class="card">
-            <div class="mark">
-                <span class="mark__dot" aria-hidden="true">
-                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M4 10.5C4 7 6.7 4 12 4C17.3 4 20 7 20 10.5C20 12.9 18.6 14.6 16.7 16.1C15.3 17.2 13.9 18.2 12.9 19.4C12.5 19.9 11.5 19.9 11.1 19.4C10.1 18.2 8.7 17.2 7.3 16.1C5.4 14.6 4 12.9 4 10.5Z" fill="#1b1b18"/>
-                        <circle cx="12" cy="10.5" r="2.6" fill="#F5A623"/>
-                    </svg>
-                </span>
-                <span class="mark__name">Yetkaz</span>
-            </div>
+            <img class="logo" src="{{ asset('images/yetkaz-logo.png') }}" alt="Yetkaz" width="120" height="120">
+            <div class="wordmark">Yetkaz</div>
 
-            <h1>Qo‘rg‘ontepa hududida ovqat yetkazib berish</h1>
-            <p class="lead">Tez va qulay — buyurtma Telegram bot orqali, bir necha bosishda.</p>
+            <h1>Sevimli taomlaringiz eshigingizgacha</h1>
+            <p class="lead">Telegram orqali buyurtma bering</p>
 
             <a class="btn" href="https://t.me/Yetkaz_uzbot" rel="noopener">
                 <svg viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
