@@ -31,15 +31,18 @@ final class RatingMessage
         return __('messages.rating.ask', ['n' => $order->order_number]);
     }
 
-    /** Yulduzcha tugmalari — har biri o'z bahosicha yulduzcha ko'rsatadi. */
+    /**
+     * Yulduzcha tugmalari — har biri o'z bahosicha yulduzcha ko'rsatadi,
+     * har tugma ALOHIDA qatorda (vertikal).
+     */
     public static function askKeyboard(int $orderId): InlineKeyboardMarkup
     {
-        $row = [];
+        $keyboard = InlineKeyboardMarkup::make();
         foreach (range(1, 5) as $star) {
-            $row[] = InlineKeyboardButton::make(self::stars($star), callback_data: "rate:{$orderId}:{$star}");
+            $keyboard->addRow(InlineKeyboardButton::make(self::stars($star), callback_data: "rate:{$orderId}:{$star}"));
         }
 
-        return InlineKeyboardMarkup::make()->addRow(...$row);
+        return $keyboard;
     }
 
     /** So'rov xabarining joriy holati (yulduzcha va/yoki izoh). */
