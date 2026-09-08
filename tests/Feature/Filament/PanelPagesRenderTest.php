@@ -11,6 +11,7 @@ use App\Filament\Admin\Resources\StaffResource\Pages\ListStaff;
 use App\Filament\Admin\Widgets\OrdersTrendChart;
 use App\Filament\Admin\Widgets\PlatformOrdersStats;
 use App\Filament\Admin\Widgets\TopRestaurantsChart;
+use App\Filament\Restaurant\Pages\Ratings as RestaurantRatings;
 use App\Filament\Restaurant\Pages\Reports as RestaurantReports;
 use App\Filament\Restaurant\Pages\RestaurantSettings;
 use App\Filament\Restaurant\Resources\CategoryResource\Pages\ListCategories;
@@ -54,6 +55,7 @@ class PanelPagesRenderTest extends TestCase
         Livewire::test(ListOrders::class)->assertOk();
         Livewire::test(RestaurantSettings::class)->assertOk();
         Livewire::test(RestaurantReports::class)->assertOk();
+        Livewire::test(RestaurantRatings::class)->assertOk();
         Livewire::test(RestaurantOrdersStats::class)->assertOk();
         Livewire::test(RestaurantOrdersTrendChart::class)->assertOk();
     }
