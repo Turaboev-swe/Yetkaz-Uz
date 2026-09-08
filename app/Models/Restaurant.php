@@ -30,6 +30,8 @@ class Restaurant extends Model
         'notify_chat_id',
         'logo_url',
         'avg_prep_time_min',
+        'cached_average_rating',
+        'cached_ratings_count',
         'delivery_radius_km',
         'min_order_amount',
         'delivery_fee',
@@ -56,6 +58,8 @@ class Restaurant extends Model
             'lat' => 'float',
             'lng' => 'float',
             'avg_prep_time_min' => 'integer',
+            'cached_average_rating' => 'float',
+            'cached_ratings_count' => 'integer',
             'delivery_radius_km' => 'float',
             'min_order_amount' => 'integer',
             'delivery_fee' => 'integer',
@@ -144,5 +148,21 @@ class Restaurant extends Model
         // Jadval bo'sh bo'lsa faqat is_open bayrog'iga tayanamiz.
         return $hours->isEmpty()
             || $hours->isOpenAt(CarbonImmutable::now(config('app.display_timezone')));
+    }
+
+    /** Reyting ommaviy ko'rsatiladigan minimal shart (Claude.md). */
+    public const MIN_PUBLIC_RATING = 4.0;
+
+    public const MIN_PUBLIC_RATINGS_COUNT = 5;
+
+    /**
+     * Reyting mijozga ko'rsatiladimi. Yo'q bo'lsa "Yangi" deb ko'rsatiladi —
+     * past ball hech qachon ochiq chiqmaydi.
+     */
+    public function hasPublicRating(): bool
+    {
+        return $this->cached_average_rating !== null
+            && $this->cached_average_rating >= self::MIN_PUBLIC_RATING
+            && $this->cached_ratings_count >= self::MIN_PUBLIC_RATINGS_COUNT;
     }
 }

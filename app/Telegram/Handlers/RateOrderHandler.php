@@ -2,6 +2,7 @@
 
 namespace App\Telegram\Handlers;
 
+use App\Jobs\RecalculateRestaurantRating;
 use App\Models\Order;
 use App\Telegram\Support\RatingMessage;
 use Illuminate\Support\Facades\DB;
@@ -59,6 +60,7 @@ class RateOrderHandler
         $bot->answerCallbackQuery(text: __('messages.rating.saved_toast'));
 
         $order = Order::withoutGlobalScopes()->find((int) $orderId);
+        RecalculateRestaurantRating::dispatch($order->restaurant_id);
         RatingMessage::refresh($bot, $order);
     }
 }

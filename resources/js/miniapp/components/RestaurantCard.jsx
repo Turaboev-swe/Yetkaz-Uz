@@ -38,11 +38,24 @@ export default function RestaurantCard({ restaurant }) {
                 </div>
 
                 <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[12px]" style={{ color: 'var(--tg-hint)' }}>
-                    {restaurant.distance_km != null && <span>{distanceLabel(restaurant.distance_km)}</span>}
+                    {/* Reyting HAR DOIM tayyorlash vaqtidan oldin */}
+                    {restaurant.average_rating != null ? (
+                        <span className="font-medium" style={{ color: 'var(--tg-text)' }}>
+                            ⭐️ {restaurant.average_rating.toFixed(1)}
+                        </span>
+                    ) : (
+                        <span>🆕 Yangi</span>
+                    )}
                     {open && (
                         <>
                             <span>·</span>
                             <span>{etaLabel(restaurant.distance_km, restaurant.avg_prep_time_min)}</span>
+                        </>
+                    )}
+                    {restaurant.distance_km != null && (
+                        <>
+                            <span>·</span>
+                            <span>{distanceLabel(restaurant.distance_km)}</span>
                         </>
                     )}
                 </div>

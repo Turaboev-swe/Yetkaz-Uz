@@ -31,6 +31,14 @@ class RestaurantResource extends JsonResource
             'delivery_fee' => $this->delivery_fee,
             'delivery_radius_km' => $this->delivery_radius_km,
             'avg_prep_time_min' => $this->avg_prep_time_min,
+            // Reyting faqat shart bajarilganda (>= 4.0 va >= 5 baho); aks holda
+            // ikkalasi null — Mini App "Yangi" deb ko'rsatadi. Past ball chiqmaydi.
+            'average_rating' => $this->resource->hasPublicRating()
+                ? round((float) $this->cached_average_rating, 1)
+                : null,
+            'ratings_count' => $this->resource->hasPublicRating()
+                ? (int) $this->cached_ratings_count
+                : null,
             'work_hours' => $this->work_hours, // {"mon":[["09:00","23:00"]], ...}
             'distance_km' => $this->when(
                 $this->distance_km !== null,

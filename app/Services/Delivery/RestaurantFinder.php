@@ -13,6 +13,11 @@ use Illuminate\Support\Collection;
  * - is_open = true VA joriy vaqt work_hours ichida
  * - masofa delivery_radius_km dan kichik (PostGIS ST_DWithin)
  * Radiusdan yoki ish vaqtidan tashqaridagi restoran umuman qaytmaydi.
+ *
+ * Saralash (masofa filtridan keyin):
+ *   1. ochiq restoranlar oldinda (includeClosed rejimida)
+ *   2. ommaviy reytingli ("Yangi" emas) restoranlar tepada — reyting bo'yicha kamayish
+ *   3. qolganlari — masofa bo'yicha o'sish
  */
 class RestaurantFinder
 {
@@ -37,13 +42,21 @@ class RestaurantFinder
             ->get();
 
         if (! $includeClosed) {
-            return $restaurants->filter(fn (Restaurant $r) => $r->isOpenNow())->values();
+            $restaurants = $restaurants->filter(fn (Restaurant $r) => $r->isOpenNow())->values();
         }
 
-        // Ochiqlar oldinda, har guruh ichida masofa bo'yicha (so'rov allaqachon saralagan).
-        return $restaurants
-            ->sortByDesc(fn (Restaurant $r) => $r->isOpenNow() ? 1 : 0)
-            ->values();
+        return $restaurants->sort($this->comparator(...))->values();
+    }
+
+    /** Ochiq oldinda -> reytingli oldinda -> reyting DESC -> masofa ASC. */
+    private function comparator(Restaurant $a, Restaurant $b): int
+    {
+        return ($b->isOpenNow() <=> $a->isOpenNow())
+            ?: ($b->hasPublicRating() <=> $a->hasPublicRating())
+            ?: ($a->hasPublicRating() && $b->hasPublicRating()
+                ? (float) $b->cached_average_rating <=> (float) $a->cached_average_rating
+                : 0)
+            ?: (float) $a->distance_km <=> (float) $b->distance_km;
     }
 
     /** Bitta restoran shu manzilга yetkazadimi (menyu endpointi uchun). */
