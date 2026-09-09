@@ -2,6 +2,7 @@
 
 namespace App\Providers\Filament;
 
+use App\Filament\Auth\Login;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
@@ -28,7 +29,7 @@ class RestaurantPanelProvider extends PanelProvider
         return $panel
             ->id('restaurant')
             ->path('restaurant')
-            ->login()
+            ->login(Login::class) // "Eslab qolish" oldindan belgilangan
             ->authGuard('staff')
             ->brandName('Yetkaz — Restoran')
             ->darkMode(true) // yorug'/qorong'i/tizim — o'ng yuqoridagi foydalanuvchi menyusida

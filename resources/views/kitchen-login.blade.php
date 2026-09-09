@@ -39,7 +39,7 @@
             </label>
 
             <label class="flex items-center gap-2 text-sm text-slate-600">
-                <input type="checkbox" name="remember" value="1"
+                <input type="checkbox" name="remember" value="1" checked
                        class="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500">
                 {{ __('messages.kitchen.remember') }}
             </label>

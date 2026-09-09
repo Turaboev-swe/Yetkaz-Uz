@@ -15,6 +15,13 @@ async function request(path, method = 'GET', body = null) {
         body: body ? JSON.stringify(body) : undefined,
     });
 
+    // Sessiya muddati tugadi (CSRF token eskirdi) — login sahifasiga qaytaramiz.
+    // "Eslab qolish" belgilangan bo'lsa u yerda avtomat qayta kiritiladi.
+    if (res.status === 419) {
+        window.location.assign('/kitchen/login');
+        throw new Error('Sessiyangiz muddati tugadi.');
+    }
+
     if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         throw new Error(err.message || `Xatolik ${res.status}`);

@@ -2,9 +2,12 @@
 
 use App\Http\Middleware\UsePanelSession;
 use App\Http\Middleware\ValidateTelegramInitData;
+use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Routing\Middleware\ThrottleRequests;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -31,7 +34,7 @@ return Application::configure(basePath: dirname(__DIR__))
         // foydalanuvchilar uchun umumiy) hisoblaydi. `ThrottleRequests` priority
         // ro'yxatida, `telegram.initdata` esa yo'q — shu sabab uni oldiga qo'yamiz.
         $middleware->prependToPriorityList(
-            before: \Illuminate\Routing\Middleware\ThrottleRequests::class,
+            before: ThrottleRequests::class,
             prepend: ValidateTelegramInitData::class,
         );
 
@@ -39,7 +42,7 @@ return Application::configure(basePath: dirname(__DIR__))
         // (u `config('session.cookie')` ni tanlaydi). Priority ro'yxatiga qo'yamiz —
         // aks holda middleware saralash uni EncryptCookies ortiga suradi.
         $middleware->prependToPriorityList(
-            before: \Illuminate\Cookie\Middleware\EncryptCookies::class,
+            before: EncryptCookies::class,
             prepend: UsePanelSession::class,
         );
 
@@ -57,5 +60,26 @@ return Application::configure(basePath: dirname(__DIR__))
         });
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        //
+        // Sessiya muddati tugab CSRF token eskirsa (419) — barcha panellar
+        // (admin / restaurant / kitchen) uchun umumiy, yumshoq ishlov:
+        //   - JSON / Livewire / fetch so'rovi: toza 419 + tushunarli xabar
+        //   - to'liq sahifa so'rovi: errors/419.blade.php ("yangilanmoqda…" +
+        //     avtomat qaytish — u yerda "Eslab qolish" cookie qayta kiritadi
+        //     yoki login sahifasiga o'tkazadi)
+        // TokenMismatchException bu bosqichda allaqachon HttpException(419) ga
+        // aylantirilgan (Handler::prepareException), shuning uchun status bo'yicha
+        // tekshiramiz.
+        $exceptions->render(function (HttpException $e, $request) {
+            if ($e->getStatusCode() !== 419) {
+                return null;
+            }
+
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'message' => 'Sessiyangiz muddati tugadi. Sahifani yangilang va qaytadan urinib ko‘ring.',
+                ], 419);
+            }
+
+            return null; // errors/419.blade.php ishlatiladi
+        });
     })->create();
