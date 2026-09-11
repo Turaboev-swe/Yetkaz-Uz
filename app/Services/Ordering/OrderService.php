@@ -16,6 +16,7 @@ use App\Models\OrderStatusHistory;
 use App\Models\Product;
 use App\Models\Restaurant;
 use App\Models\User;
+use App\Services\Delivery\DeliveryFeeCalculator;
 use App\Services\Delivery\RestaurantFinder;
 use App\Services\Eta\EtaEstimate;
 use App\Services\Eta\EtaEstimator;
@@ -34,6 +35,7 @@ class OrderService
         private readonly RestaurantFinder $finder,
         private readonly EtaEstimator $eta,
         private readonly OrderNumberGenerator $orderNumbers,
+        private readonly DeliveryFeeCalculator $feeCalculator,
     ) {}
 
     /**
@@ -81,7 +83,7 @@ class OrderService
             ]);
         }
 
-        $deliveryFee = $type->isPickup() ? 0 : (int) $restaurant->delivery_fee;
+        $deliveryFee = $this->feeCalculator->calculate($restaurant, $type, $distanceKm);
         $maxPrep = max(array_map(fn ($l) => $l['prep'], $lines) ?: [(int) $restaurant->avg_prep_time_min]);
         $eta = $this->eta->estimate($restaurant, $type, $distanceKm, $maxPrep)->minutes;
 
@@ -149,6 +151,33 @@ class OrderService
             ->whereIn('id', $ids)->max('prep_time_min') ?: $restaurant->avg_prep_time_min);
 
         return $this->eta->estimate($restaurant, $type, $distanceKm, $maxPrep);
+    }
+
+    /**
+     * Rasmiylashtirish ekrani uchun: masofaga qarab yetkazish narxi.
+     * Buyurtma yaratmaydi — `place()` bilan bitta manba (DeliveryFeeCalculator),
+     * shuning uchun bu yerda ko'rsatilgan narx buyurtma yaratilganda o'zgarmaydi.
+     *
+     * @param  array{restaurant_id:int, delivery_type:string, address_id?:int|null}  $data
+     * @return array{delivery_fee:int, distance_km:?float}
+     */
+    public function estimateDeliveryFee(User $user, array $data): array
+    {
+        $restaurant = Restaurant::query()->findOrFail($data['restaurant_id']);
+        $type = DeliveryType::from($data['delivery_type']);
+
+        $distanceKm = null;
+        if (! $type->isPickup() && ! empty($data['address_id'])) {
+            $address = $user->addresses()->find($data['address_id']);
+            if ($address !== null) {
+                $distanceKm = $this->finder->distanceKm($restaurant, $address);
+            }
+        }
+
+        return [
+            'delivery_fee' => $this->feeCalculator->calculate($restaurant, $type, $distanceKm),
+            'distance_km' => $distanceKm,
+        ];
     }
 
     /**

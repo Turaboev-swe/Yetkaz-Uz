@@ -5,7 +5,7 @@ import { useAsync } from '../hooks/useAsync';
 import { showBackButton, setMainButton, hideMainButton, notify, isInsideTelegram, botUsername, openTelegramLink } from '../lib/telegram';
 import { useSession } from '../store/session';
 import { useCart, cartItems, cartTotal, cartCount } from '../store/cart';
-import { som, somLabel } from '../lib/format';
+import { som, somLabel, distanceLabel } from '../lib/format';
 import { resolvedAddress } from '../lib/address';
 import { Spinner, ErrorState } from '../components/States';
 
@@ -93,10 +93,13 @@ export default function Checkout() {
 
     const restaurant = data.data?.[0]?.data;
     const addresses = data.data?.[1]?.data?.addresses || [];
+    const estimate = data.data?.[2]?.data;
     const address = addresses.find((a) => a.id === addressId);
     const belowMin = restaurant && total < restaurant.min_order_amount;
     const shortfall = belowMin ? restaurant.min_order_amount - total : 0;
-    const deliveryFee = mode === 'delivery' && restaurant ? restaurant.delivery_fee : 0;
+    // Backend hisoblaydi (masofaga qarab bo'lishi mumkin) — buyurtma yaratilganda
+    // xuddi shu qiymat chiqadi, mijoz tomonidan taxmin qilinmaydi.
+    const deliveryFee = estimate?.delivery_fee ?? 0;
 
     // Tasdiqlash — MainButton (min yetmasa — nofaol + "yana X qo'shing").
     useEffect(() => {
@@ -115,7 +118,6 @@ export default function Checkout() {
     if (data.loading) return <Spinner />;
     if (data.error) return <ErrorState error={data.error} onRetry={data.reload} />;
 
-    const estimate = data.data?.[2]?.data;
     const eta = estimate ? `${estimate.eta_low}–${estimate.eta_high} daq` : '…';
     const hours = todayHours(restaurant.work_hours);
 
@@ -168,7 +170,12 @@ export default function Checkout() {
                 <Line label={`Taomlar (${count})`} value={somLabel(total)} />
                 <Line
                     label="Yetkazish"
-                    value={mode === 'pickup' ? '—' : deliveryFee === 0 ? 'Bepul' : somLabel(deliveryFee)}
+                    value={
+                        mode === 'pickup'
+                            ? '—'
+                            : (deliveryFee === 0 ? 'Bepul' : somLabel(deliveryFee))
+                              + (estimate?.distance_km != null ? ` (${distanceLabel(estimate.distance_km)})` : '')
+                    }
                 />
                 <div className="mt-2 flex justify-between border-t pt-2 text-[15px] font-bold" style={{ borderColor: 'var(--tg-bg)', color: 'var(--tg-text)' }}>
                     <span>Jami</span>

@@ -39,11 +39,16 @@ class OrderController extends Controller
         ]);
 
         $eta = $this->orders->estimateEta($request->user(), $data);
+        $delivery = $this->orders->estimateDeliveryFee($request->user(), $data);
 
         return response()->json(['data' => [
             'eta_minutes' => $eta->minutes,
             'eta_low' => $eta->low,
             'eta_high' => $eta->high,
+            // Pul — tiyinda. Buyurtma yaratilganda ham xuddi shu qiymat chiqadi
+            // (bitta manba — DeliveryFeeCalculator).
+            'delivery_fee' => $delivery['delivery_fee'],
+            'distance_km' => $delivery['distance_km'] !== null ? round($delivery['distance_km'], 2) : null,
         ]]);
     }
 

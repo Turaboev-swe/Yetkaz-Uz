@@ -51,13 +51,28 @@ class RestaurantResource extends Resource
                 ->columns(2),
 
             Forms\Components\Section::make('Yetkazish')->schema([
-                Forms\Components\TextInput::make('delivery_radius_km')->label('Radius (km)')->numeric()->default(5),
+                Forms\Components\TextInput::make('delivery_radius_km')
+                    ->label('Yetkazish radiusi — maksimal masofa (km)')
+                    ->helperText('Restoran shu masofadan uzoqqa UMUMAN yetkazib bermaydi.')
+                    ->numeric()->default(5),
                 Forms\Components\TextInput::make('avg_prep_time_min')->label('O`rtacha tayyorlash (min)')->numeric()->default(20),
                 Forms\Components\TextInput::make('min_order_amount')->label("Minimal buyurtma (so'm)")
                     ->numeric()->default(0)
                     ->formatStateUsing(fn (?int $state) => $state === null ? null : intdiv($state, 100))
                     ->dehydrateStateUsing(fn ($state) => (int) round((float) $state * 100)),
-                Forms\Components\TextInput::make('delivery_fee')->label("Yetkazish narxi (so'm)")
+                Forms\Components\TextInput::make('free_delivery_radius_km')
+                    ->label('Bepul yetkazish radiusi (km)')
+                    ->helperText("Shundan keyin pullik bo'ladi. Yuqoridagi \"Yetkazish radiusi\"dan BOSHQA narsa — bo'sh qoldirilsa bepul radius yo'q.")
+                    ->numeric()->minValue(0),
+                Forms\Components\TextInput::make('price_per_km')
+                    ->label("Km narxi (so'm)")
+                    ->helperText("To'ldirilsa, masofaga qarab hisoblanadi. Bo'sh qoldirilsa — pastdagi qat'iy narx ishlatiladi.")
+                    ->numeric()->minValue(0)
+                    ->formatStateUsing(fn (?int $state) => $state === null ? null : intdiv($state, 100))
+                    ->dehydrateStateUsing(fn ($state) => filled($state) ? (int) round((float) $state * 100) : null),
+                Forms\Components\TextInput::make('delivery_fee')
+                    ->label("Qat'iy yetkazish narxi — zaxira (so'm)")
+                    ->helperText("Km narxi yoki bepul radius sozlanmagan bo'lsa shu narx ishlatiladi.")
                     ->numeric()->default(0)
                     ->formatStateUsing(fn (?int $state) => $state === null ? null : intdiv($state, 100))
                     ->dehydrateStateUsing(fn ($state) => (int) round((float) $state * 100)),

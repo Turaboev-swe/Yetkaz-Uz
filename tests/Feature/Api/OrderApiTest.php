@@ -8,6 +8,7 @@ use App\Models\District;
 use App\Models\Product;
 use App\Models\Restaurant;
 use App\Models\User;
+use App\Services\Delivery\RestaurantFinder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
@@ -147,6 +148,47 @@ class OrderApiTest extends TestCase
 
         // Pickup ETA = pishirish(20) + navbat(0) + bufer(5) = 25; kuryer/yo'l = 0
         $this->assertSame(25, $res->json('data.eta_minutes'));
+    }
+
+    // --- Masofaga qarab yetkazish narxi (free_delivery_radius_km / price_per_km) ---
+
+    public function test_delivery_is_free_within_the_free_radius(): void
+    {
+        // Restoran va manzil bir-biriga juda yaqin (setUp) — masofa 1 km dan kam.
+        $this->restaurant->update(['free_delivery_radius_km' => 1, 'price_per_km' => 300_000]);
+
+        $this->postJson('/api/orders', $this->payload(), $this->headers())
+            ->assertCreated()
+            ->assertJsonPath('data.delivery_fee', 0)
+            ->assertJsonPath('data.total', 6_900_000); // faqat taomlar summasi
+    }
+
+    public function test_delivery_beyond_free_radius_charges_price_per_km_for_the_whole_distance(): void
+    {
+        $this->restaurant->update(['free_delivery_radius_km' => 1, 'price_per_km' => 200_000]); // 2000 so'm/km
+        $far = Address::factory()->for($this->user)->create(['lat' => 40.83, 'lng' => 72.40]);
+
+        $distanceKm = app(RestaurantFinder::class)->distanceKm($this->restaurant, $far);
+        $expectedFee = (int) round($distanceKm * 200_000);
+
+        $res = $this->postJson('/api/orders', $this->payload(['address_id' => $far->id]), $this->headers())
+            ->assertCreated();
+
+        $this->assertGreaterThan(1, $distanceKm); // haqiqatan ham bepul radiusdan tashqarida
+        $this->assertSame($expectedFee, $res->json('data.delivery_fee'));
+        $this->assertSame(6_900_000 + $expectedFee, $res->json('data.total'));
+    }
+
+    public function test_distance_pricing_unset_keeps_the_old_flat_fee(): void
+    {
+        // free_delivery_radius_km / price_per_km hech biri to'ldirilmagan (setUp'dagi holat) —
+        // eski qat'iy delivery_fee o'zgarishsiz ishlaydi (regressiya yo'q).
+        $this->assertNull($this->restaurant->free_delivery_radius_km);
+        $this->assertNull($this->restaurant->price_per_km);
+
+        $this->postJson('/api/orders', $this->payload(), $this->headers())
+            ->assertCreated()
+            ->assertJsonPath('data.delivery_fee', 1_000_000);
     }
 
     public function test_delivery_requires_address_id(): void

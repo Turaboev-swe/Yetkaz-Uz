@@ -79,14 +79,26 @@ class RestaurantSettings extends Page implements HasForms
                             ->numeric()->minValue(0)->step(1000)->suffix("so'm")
                             ->formatStateUsing(fn (?int $state) => $state === null ? null : intdiv($state, 100))
                             ->dehydrateStateUsing(fn ($state) => (int) round((float) $state * 100)),
+                        TextInput::make('delivery_radius_km')
+                            ->label('Yetkazish radiusi — maksimal masofa (km)')
+                            ->helperText('Bu masofadan uzoqqa UMUMAN yetkazib berilmaydi.')
+                            ->numeric()->minValue(0)->step(0.5)->suffix('km'),
+                        TextInput::make('free_delivery_radius_km')
+                            ->label('Bepul yetkazish radiusi (km)')
+                            ->helperText('Shundan keyin pullik bo\'ladi. Yuqoridagi radiusdan BOSHQA narsa — ixtiyoriy.')
+                            ->numeric()->minValue(0)->step(0.5)->suffix('km'),
+                        TextInput::make('price_per_km')
+                            ->label("Km narxi (so'm)")
+                            ->helperText('To\'ldirilsa masofaga qarab hisoblanadi. Bo\'sh — pastdagi qat\'iy narx ishlaydi.')
+                            ->numeric()->minValue(0)->step(500)->suffix("so'm/km")
+                            ->formatStateUsing(fn (?int $state) => $state === null ? null : intdiv($state, 100))
+                            ->dehydrateStateUsing(fn ($state) => filled($state) ? (int) round((float) $state * 100) : null),
                         TextInput::make('delivery_fee')
-                            ->label("Yetkazish narxi (so'm)")
+                            ->label("Qat'iy yetkazish narxi — zaxira (so'm)")
+                            ->helperText('Km narxi yoki bepul radius sozlanmagan bo\'lsa shu narx ishlatiladi.')
                             ->numeric()->minValue(0)->step(1000)->suffix("so'm")
                             ->formatStateUsing(fn (?int $state) => $state === null ? null : intdiv($state, 100))
                             ->dehydrateStateUsing(fn ($state) => (int) round((float) $state * 100)),
-                        TextInput::make('delivery_radius_km')
-                            ->label('Yetkazish radiusi (km)')
-                            ->numeric()->minValue(0)->step(0.5)->suffix('km'),
                         TextInput::make('avg_prep_time_min')
                             ->label("O'rtacha tayyorlash (daqiqa)")
                             ->numeric()->minValue(0),
