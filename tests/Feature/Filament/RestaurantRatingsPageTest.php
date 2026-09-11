@@ -144,6 +144,21 @@ class RestaurantRatingsPageTest extends TestCase
             ->assertDontSee('+998901234567');
     }
 
+    public function test_rated_between_filter_narrows_by_date(): void
+    {
+        $old = $this->rated($this->restA, 5);
+        $old->update(['rated_at' => now()->subDays(20)]);
+        $recent = $this->rated($this->restA, 4);
+        $recent->update(['rated_at' => now()->subDay()]);
+
+        Livewire::actingAs($this->ownerA, 'staff');
+
+        Livewire::test(Ratings::class)
+            ->filterTable('rated_between', ['from' => now()->subDays(5)->toDateString(), 'until' => null])
+            ->assertCanSeeTableRecords([$recent])
+            ->assertCanNotSeeTableRecords([$old]);
+    }
+
     public function test_header_stats_use_the_cached_values(): void
     {
         $this->restA->update(['cached_average_rating' => 4.6, 'cached_ratings_count' => 9]);

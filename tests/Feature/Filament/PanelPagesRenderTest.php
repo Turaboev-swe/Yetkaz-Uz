@@ -8,9 +8,11 @@ use App\Filament\Admin\Resources\RestaurantResource\Pages\CreateRestaurant;
 use App\Filament\Admin\Resources\RestaurantResource\Pages\ListRestaurants;
 use App\Filament\Admin\Resources\StaffResource\Pages\CreateStaff;
 use App\Filament\Admin\Resources\StaffResource\Pages\ListStaff;
+use App\Filament\Admin\Resources\UserResource\Pages\ListUsers as AdminListUsers;
 use App\Filament\Admin\Widgets\OrdersTrendChart;
 use App\Filament\Admin\Widgets\PlatformOrdersStats;
 use App\Filament\Admin\Widgets\TopRestaurantsChart;
+use App\Filament\Admin\Widgets\UsersOverviewStats;
 use App\Filament\Restaurant\Pages\Ratings as RestaurantRatings;
 use App\Filament\Restaurant\Pages\Reports as RestaurantReports;
 use App\Filament\Restaurant\Pages\RestaurantSettings;
@@ -39,10 +41,12 @@ class PanelPagesRenderTest extends TestCase
         Livewire::test(ListStaff::class)->assertOk();
         Livewire::test(CreateStaff::class)->assertOk();
         Livewire::test(AdminListOrders::class)->assertOk();
+        Livewire::test(AdminListUsers::class)->assertOk();
         Livewire::test(AdminReports::class)->assertOk();
         Livewire::test(PlatformOrdersStats::class)->assertOk();
         Livewire::test(OrdersTrendChart::class)->assertOk();
         Livewire::test(TopRestaurantsChart::class)->assertOk();
+        Livewire::test(UsersOverviewStats::class)->assertOk();
     }
 
     public function test_restaurant_pages_render(): void

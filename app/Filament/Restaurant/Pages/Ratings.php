@@ -127,7 +127,7 @@ class Ratings extends Page implements HasTable
                         DatePicker::make('from')->label('Dan')->native(false),
                         DatePicker::make('until')->label('Gacha')->native(false),
                     ])
-                    ->query(fn (Builder $q, array $data) => $q
+                    ->query(fn (Builder $query, array $data) => $query
                         ->when($data['from'] ?? null, fn (Builder $q, $d) => $q->whereDate('rated_at', '>=', $d))
                         ->when($data['until'] ?? null, fn (Builder $q, $d) => $q->whereDate('rated_at', '<=', $d)))
                     ->indicateUsing(function (array $data): array {
