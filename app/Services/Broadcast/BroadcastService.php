@@ -14,11 +14,20 @@ use Illuminate\Support\Collection;
  * har foydalanuvchi uchun alohida job navbatga qo'yadi.
  *
  * Job'lar bir-biridan STAGGER_MS millisekund oralatib qo'yiladi — Telegram'ning
- * umumiy yuborish limiti (~30 xabar/soniya) buzilmasligi uchun (bu yerda ~20/soniya).
+ * umumiy yuborish limiti (~30 xabar/soniya) buzilmasligi uchun (bu yerda ~10/soniya).
+ *
+ * 50ms emas 100ms: production'da Horizon supervisor bir nechta worker bilan
+ * ishlaydi (config/horizon.php — maxProcesses: 10), shuning uchun staggered
+ * dispatch-vaqti kechikishi ko'p workerlar bir vaqtda ishlaganda haqiqiy
+ * yuborish tezligini kafolatlamaydi — 100ms qo'shimcha zaxira beradi va
+ * auditoriya o'sganda ham xavfsiz qoladi (2026-09-12 broadcast tahlili:
+ * 429 emas, balki tarmoq ulanish timeout'i sabab bo'lgan sekin job'lar
+ * aniqlangan — bu o'zgarish ularni bartaraf etmaydi, faqat Telegram limitiga
+ * nisbatan xavfsizlik zaxirasini oshiradi).
  */
 class BroadcastService
 {
-    private const STAGGER_MS = 50;
+    private const STAGGER_MS = 100;
 
     /**
      * @param  array<int, int|string>  $districtIds
