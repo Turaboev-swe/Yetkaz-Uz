@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Filament;
 
+use App\Filament\Admin\Pages\Broadcasts;
 use App\Filament\Admin\Pages\Reports as AdminReports;
 use App\Filament\Admin\Resources\OrderResource\Pages\ListOrders as AdminListOrders;
 use App\Filament\Admin\Resources\RestaurantResource\Pages\CreateRestaurant;
@@ -42,6 +43,7 @@ class PanelPagesRenderTest extends TestCase
         Livewire::test(CreateStaff::class)->assertOk();
         Livewire::test(AdminListOrders::class)->assertOk();
         Livewire::test(AdminListUsers::class)->assertOk();
+        Livewire::test(Broadcasts::class)->assertOk();
         Livewire::test(AdminReports::class)->assertOk();
         Livewire::test(PlatformOrdersStats::class)->assertOk();
         Livewire::test(OrdersTrendChart::class)->assertOk();

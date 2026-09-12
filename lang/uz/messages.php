@@ -217,5 +217,10 @@ return [
         'kitchen_staff' => 'Oshxona xodimi',
     ],
 
+    'broadcast_audience' => [
+        'all' => 'Barcha foydalanuvchilar',
+        'district' => 'Tanlangan tuman(lar)',
+    ],
+
     'eta_range' => 'Taxminiy yetkazib berish: :from–:to daqiqa.',
 ];

@@ -216,5 +216,10 @@ return [
         'kitchen_staff' => 'Сотрудник кухни',
     ],
 
+    'broadcast_audience' => [
+        'all' => 'Все пользователи',
+        'district' => 'Выбранные районы',
+    ],
+
     'eta_range' => 'Примерная доставка: :from–:to минут.',
 ];
