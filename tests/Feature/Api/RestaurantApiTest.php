@@ -120,6 +120,59 @@ class RestaurantApiTest extends TestCase
         $this->assertLessThan($data[1]['distance_km'], $data[0]['distance_km']);
     }
 
+    // --- delivery_type=pickup — restoranning o'z delivery_radius_km cheklovsiz ---
+
+    public function test_pickup_returns_restaurants_outside_the_delivery_radius(): void
+    {
+        // "Uzoq" — delivery_radius_km=5 dan tashqarida, lekin pickup radiusi (50km) ichida.
+        $far = $this->restaurant(['name' => 'Uzoq', 'lat' => 41.35, 'lng' => 69.32, 'delivery_radius_km' => 5]);
+
+        // delivery_type=delivery (yoki umuman berilmasa) — ko'rinmaydi.
+        $this->getJson('/api/restaurants?address_id='.$this->address->id, $this->headers())
+            ->assertOk()->assertJsonCount(0, 'data');
+
+        // delivery_type=pickup — ko'rinadi, o'zining delivery_radius_km'i e'tiborga olinmaydi.
+        $this->getJson('/api/restaurants?address_id='.$this->address->id.'&delivery_type=pickup', $this->headers())
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $far->id);
+    }
+
+    public function test_pickup_still_excludes_restaurants_beyond_the_platform_pickup_radius(): void
+    {
+        config()->set('geo.pickup_radius_km', 10);
+        // ~50 km uzoqlikda — pickup radiusidan (10km) ham tashqarida.
+        $this->restaurant(['name' => 'Juda uzoq', 'lat' => 41.700, 'lng' => 69.700, 'delivery_radius_km' => 5]);
+
+        $this->getJson('/api/restaurants?address_id='.$this->address->id.'&delivery_type=pickup', $this->headers())
+            ->assertOk()->assertJsonCount(0, 'data');
+    }
+
+    public function test_pickup_results_are_still_sorted_by_distance(): void
+    {
+        $b = $this->restaurant(['name' => 'B', 'lat' => 41.330, 'lng' => 69.300, 'delivery_radius_km' => 1]);
+        $a = $this->restaurant(['name' => 'A', 'lat' => 41.311, 'lng' => 69.280, 'delivery_radius_km' => 1]);
+
+        $data = $this->getJson('/api/restaurants?address_id='.$this->address->id.'&delivery_type=pickup', $this->headers())
+            ->assertOk()->json('data');
+
+        $this->assertSame(['A', 'B'], array_column($data, 'name'));
+        $this->assertSame([$a->id, $b->id], array_column($data, 'id'));
+        $this->assertLessThan($data[1]['distance_km'], $data[0]['distance_km']);
+    }
+
+    public function test_delivery_type_defaults_to_delivery_when_omitted(): void
+    {
+        // param umuman berilmasa — eski xatti-harakat (delivery_radius_km qo'llanadi).
+        $near = $this->restaurant(['name' => 'Yaqin', 'lat' => 41.311, 'lng' => 69.281, 'delivery_radius_km' => 5]);
+        $this->restaurant(['name' => 'Uzoq', 'lat' => 41.700, 'lng' => 69.700, 'delivery_radius_km' => 5]);
+
+        $this->getJson('/api/restaurants?address_id='.$this->address->id, $this->headers())
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $near->id);
+    }
+
     public function test_address_of_another_user_is_rejected(): void
     {
         $other = Address::factory()->create(); // boshqa foydalanuvchi

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Enums\DeliveryType;
 use App\Http\Controllers\Concerns\ResolvesUserAddress;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\CategoryResource;
@@ -11,6 +12,7 @@ use App\Services\Catalog\MenuService;
 use App\Services\Delivery\RestaurantFinder;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Validation\Rule;
 
 class RestaurantController extends Controller
 {
@@ -22,16 +24,20 @@ class RestaurantController extends Controller
     ) {}
 
     /**
-     * GET /api/restaurants?address_id=&district_id=&include_closed= — shu manzilга
-     * yetkazadigan restoranlar. `district_id` — ixtiyoriy ko'rsatish filtri.
-     * `include_closed=1` — Mini App ro'yxati uchun yopiqlarni ham qaytaradi
-     * (`is_open_now` bayrog'i bilan; ochiqlari yuqorida).
+     * GET /api/restaurants?address_id=&district_id=&include_closed=&delivery_type= —
+     * shu manzilga yetkazadigan (yoki olib ketish uchun yaqin) restoranlar.
+     * `district_id` — ixtiyoriy ko'rsatish filtri. `include_closed=1` — Mini App
+     * ro'yxati uchun yopiqlarni ham qaytaradi (`is_open_now` bayrog'i bilan;
+     * ochiqlari yuqorida). `delivery_type` — bo'sh bo'lsa `delivery` (eski
+     * xatti-harakat): restoranning o'z delivery_radius_km'i qo'llanadi;
+     * `pickup` bo'lsa — kengroq FIKS radius (RestaurantFinder).
      */
     public function index(Request $request): AnonymousResourceCollection
     {
         $validated = $request->validate([
             'district_id' => ['nullable', 'integer', 'exists:districts,id'],
             'include_closed' => ['nullable', 'boolean'],
+            'delivery_type' => ['nullable', Rule::enum(DeliveryType::class)],
         ]);
 
         return RestaurantResource::collection(
@@ -39,6 +45,7 @@ class RestaurantController extends Controller
                 $this->resolveUserAddress($request),
                 $validated['district_id'] ?? null,
                 (bool) ($validated['include_closed'] ?? false),
+                isset($validated['delivery_type']) ? DeliveryType::from($validated['delivery_type']) : DeliveryType::Delivery,
             ),
         );
     }

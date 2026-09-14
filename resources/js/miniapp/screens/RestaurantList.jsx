@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { api } from '../lib/api';
 import { useAsync } from '../hooks/useAsync';
 import { hideBackButton } from '../lib/telegram';
@@ -9,10 +9,25 @@ import DistrictFilter from '../components/DistrictFilter';
 import RestaurantCard from '../components/RestaurantCard';
 import AddressConfirmSheet from '../components/AddressConfirmSheet';
 import AddressPickerSheet from '../components/AddressPickerSheet';
+import DeliveryModeSheet from '../components/DeliveryModeSheet';
 import { Spinner, ErrorState, EmptyState } from '../components/States';
 
 export default function RestaurantList() {
     useEffect(hideBackButton, []);
+    const location = useLocation();
+    const navigate = useNavigate();
+
+    // Bir martalik: NewAddress.jsx dan hozirgina qo'shilgan manzil id'si
+    // qaysi — mount'da o'qib olamiz va tarix holatidan darhol tozalaymiz,
+    // aks holda keyinroq shu sahifaga "Orqaga" bilan qaytilsa qayta ishga tushib
+    // ketardi (rejim tanlash qaytadan ochilib qolardi).
+    const [justAddedAddressId] = useState(() => location.state?.justAddedAddressId ?? null);
+    useEffect(() => {
+        if (location.state?.justAddedAddressId) {
+            navigate(location.pathname, { replace: true, state: {} });
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     const base = useAsync(() => Promise.all([api.me(), api.districts()]), []);
 
@@ -20,13 +35,22 @@ export default function RestaurantList() {
     if (base.error) return <ErrorState error={base.error} onRetry={base.reload} />;
 
     const [me, districtsRes] = base.data;
-    return <Flow addresses={me.data?.addresses || []} districts={districtsRes.data || []} />;
+    return (
+        <Flow
+            addresses={me.data?.addresses || []}
+            districts={districtsRes.data || []}
+            justAddedAddressId={justAddedAddressId}
+        />
+    );
 }
 
-function Flow({ addresses, districts }) {
-    const navigate = useNavigate();
-    const { addressId, mode, ready, confirmDelivery, choosePickup } = useSession();
-    const [sheet, setSheet] = useState(null); // null | 'confirm' | 'pick'
+/**
+ * Oqim: manzil tasdiqlash/tanlash -> yetkazish/olib ketish rejimi -> ro'yxat.
+ * Rejim har doim manzildan KEYIN, ro'yxatdan OLDIN so'raladi.
+ */
+function Flow({ addresses, districts, justAddedAddressId }) {
+    const { addressId, mode, ready, setAddress, confirmDelivery, choosePickup } = useSession();
+    const [step, setStep] = useState(null); // null | 'confirm' | 'pick' | 'mode'
 
     const current =
         addresses.find((a) => a.id === addressId) ||
@@ -34,27 +58,29 @@ function Flow({ addresses, districts }) {
         addresses[0] ||
         null;
 
-    // A: ilova ochilganda — tasdiq (manzil bor bo'lsa) yoki to'g'ridan-to'g'ri tanlash.
     useEffect(() => {
-        if (ready) {
-            setSheet(null);
-        } else {
-            setSheet(addresses.length === 0 ? 'pick' : 'confirm');
-        }
-    }, [ready, addresses.length]);
-
-    const pickAddress = (a) => {
-        confirmDelivery(a.id);
-        setSheet(null);
-    };
-    const pickup = () => {
-        if (addresses.length === 0) {
-            navigate('/address/new');
+        // Yangi manzil hozirgina qo'shildi (NewAddress.jsx) — to'g'ridan-to'g'ri
+        // rejim tanlashga, qayta tasdiqlash so'ralmaydi.
+        if (justAddedAddressId) {
+            setAddress(justAddedAddressId);
+            setStep('mode');
             return;
         }
-        choosePickup();
-        setSheet(null);
+
+        if (ready) {
+            setStep(null);
+        } else {
+            setStep(addresses.length === 0 ? 'pick' : 'confirm');
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [ready, addresses.length, justAddedAddressId]);
+
+    const goToMode = (addrId) => {
+        setAddress(addrId);
+        setStep('mode');
     };
+
+    const pickAddress = (a) => goToMode(a.id);
 
     return (
         <>
@@ -63,7 +89,8 @@ function Flow({ addresses, districts }) {
                     address={current}
                     pickup={mode === 'pickup'}
                     districts={districts}
-                    onChangeAddress={() => setSheet('pick')}
+                    onChangeAddress={() => setStep('pick')}
+                    onChangeMode={() => setStep('mode')}
                 />
             ) : (
                 <div className="pt-24">
@@ -72,27 +99,40 @@ function Flow({ addresses, districts }) {
             )}
 
             <AddressConfirmSheet
-                open={sheet === 'confirm'}
+                open={step === 'confirm'}
                 address={current}
-                onYes={() => current && pickAddress(current)}
-                onNo={() => setSheet('pick')}
+                onYes={() => current && goToMode(current.id)}
+                onNo={() => setStep('pick')}
             />
 
             <AddressPickerSheet
-                open={sheet === 'pick'}
-                onClose={() => setSheet(null)}
+                open={step === 'pick'}
+                onClose={() => setStep(ready ? null : 'confirm')}
                 dismissible={ready}
                 addresses={addresses}
                 currentId={addressId}
-                mode={mode}
                 onPickAddress={pickAddress}
-                onPickup={pickup}
+            />
+
+            <DeliveryModeSheet
+                open={step === 'mode'}
+                onClose={() => setStep(ready ? null : 'pick')}
+                dismissible={ready}
+                address={current}
+                onDelivery={() => {
+                    confirmDelivery(addressId);
+                    setStep(null);
+                }}
+                onPickup={() => {
+                    choosePickup(addressId);
+                    setStep(null);
+                }}
             />
         </>
     );
 }
 
-function Results({ address, pickup, districts, onChangeAddress }) {
+function Results({ address, pickup, districts, onChangeAddress, onChangeMode }) {
     const [districtId, setDistrictId] = useState(null);
 
     const list = useAsync(
@@ -102,9 +142,10 @@ function Results({ address, pickup, districts, onChangeAddress }) {
                       address_id: address.id,
                       include_closed: 1,
                       district_id: districtId ?? undefined,
+                      delivery_type: pickup ? 'pickup' : 'delivery',
                   })
                 : Promise.resolve({ data: [] }),
-        [address?.id, districtId],
+        [address?.id, districtId, pickup],
     );
 
     const { open, closed } = useMemo(() => {
@@ -117,7 +158,16 @@ function Results({ address, pickup, districts, onChangeAddress }) {
 
     return (
         <div className="mx-auto max-w-md px-4 pb-10 pt-1">
-            <AddressBar address={address} pickup={pickup} onClick={onChangeAddress} />
+            <div className="flex items-center justify-between gap-2">
+                <AddressBar address={address} pickup={pickup} onClick={onChangeAddress} />
+                <button
+                    onClick={onChangeMode}
+                    className="shrink-0 rounded-full px-2.5 py-1 text-[12px] font-medium"
+                    style={{ background: 'var(--tg-section-bg)', color: 'var(--tg-hint)' }}
+                >
+                    {pickup ? '🛍 Olib ketaman' : '🛵 Yetkazish'}
+                </button>
+            </div>
 
             <div className="sticky top-0 z-10 -mx-4 px-4 pb-2 pt-1" style={{ background: 'var(--tg-bg)' }}>
                 <DistrictFilter districts={districts} value={districtId} onChange={setDistrictId} />
@@ -129,12 +179,14 @@ function Results({ address, pickup, districts, onChangeAddress }) {
             {!list.loading && !list.error && (
                 <>
                     {open.length === 0 && closed.length === 0 && (
-                        <EmptyState>Bu hududda yetkazadigan restoran topilmadi.</EmptyState>
+                        <EmptyState>
+                            {pickup ? 'Yaqin atrofda restoran topilmadi.' : 'Bu hududda yetkazadigan restoran topilmadi.'}
+                        </EmptyState>
                     )}
 
                     <div className="mt-2 space-y-2">
                         {open.map((r) => (
-                            <RestaurantCard key={r.id} restaurant={r} />
+                            <RestaurantCard key={r.id} restaurant={r} pickup={pickup} />
                         ))}
                     </div>
 
@@ -145,7 +197,7 @@ function Results({ address, pickup, districts, onChangeAddress }) {
                             </p>
                             <div className="space-y-2">
                                 {closed.map((r) => (
-                                    <RestaurantCard key={r.id} restaurant={r} />
+                                    <RestaurantCard key={r.id} restaurant={r} pickup={pickup} />
                                 ))}
                             </div>
                         </>

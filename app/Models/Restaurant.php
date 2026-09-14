@@ -117,6 +117,20 @@ class Restaurant extends Model
         );
     }
 
+    /**
+     * Berilgan nuqtadan FIKS radius (km) ichidagi restoranlar — restoranning
+     * o'z `delivery_radius_km`iga bog'liq emas. Olib ketish (pickup) uchun:
+     * u yerda mijoz o'zi boradi, restoran radiusi cheklov emas
+     * (config('geo.pickup_radius_km')).
+     */
+    public function scopeWithinKm(Builder $query, float $lat, float $lng, float $radiusKm): Builder
+    {
+        return $query->whereRaw(
+            'ST_DWithin(location, ST_SetSRID(ST_MakePoint(?, ?), 4326)::geography, ?)',
+            [$lng, $lat, $radiusKm * 1000],
+        );
+    }
+
     /** Tanlangan nuqtadan masofani (km) hisoblab `distance_km` ustunini qo'shadi. */
     public function scopeWithDistanceKm(Builder $query, float $lat, float $lng): Builder
     {

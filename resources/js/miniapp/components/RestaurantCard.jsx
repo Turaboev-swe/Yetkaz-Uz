@@ -3,7 +3,7 @@ import Thumb from './Thumb';
 import { distanceLabel, etaLabel } from '../lib/format';
 import { haptic } from '../lib/telegram';
 
-export default function RestaurantCard({ restaurant }) {
+export default function RestaurantCard({ restaurant, pickup = false }) {
     const navigate = useNavigate();
     const open = restaurant.is_open_now;
 
@@ -49,7 +49,7 @@ export default function RestaurantCard({ restaurant }) {
                     {open && (
                         <>
                             <span>·</span>
-                            <span>{etaLabel(restaurant.distance_km, restaurant.avg_prep_time_min)}</span>
+                            <span>{etaLabel(restaurant.distance_km, restaurant.avg_prep_time_min, pickup)}</span>
                         </>
                     )}
                     {restaurant.distance_km != null && (

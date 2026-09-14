@@ -17,12 +17,16 @@ export function distanceLabel(km) {
 /**
  * ETA oralig'i, masalan "35–50 daq".
  *
- * VAQTINCHALIK heuristика — haqiqiy ETA hisobi keyingi bosqichda (Claude.md).
- * prep_time + (masofa / ~18 km/soat) va +15 daq oraliq.
+ * VAQTINCHALIK heuristика (restoranlar ro'yxati uchun — haqiqiy ETA backend'da,
+ * EtaEstimator). prep_time + (masofa / ~18 km/soat) va +15 daq oraliq.
+ *
+ * `pickup=true` bo'lsa yo'l vaqti hisoblanmaydi — mijoz o'zi boradi, faqat
+ * pishirish vaqti (backend EtaEstimator/DeliveryFeeCalculator pickup uchun
+ * xuddi shunday: kuryer_kutish=0, yo'l_vaqti=0).
  */
-export function etaLabel(km, prepMin) {
+export function etaLabel(km, prepMin, pickup = false) {
     const prep = Number(prepMin) || 20;
-    const travel = Math.round(((Number(km) || 0) / 18) * 60);
+    const travel = pickup ? 0 : Math.round(((Number(km) || 0) / 18) * 60);
     const low = Math.max(15, Math.round((prep + travel) / 5) * 5);
     return `${low}–${low + 15} daq`;
 }

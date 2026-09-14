@@ -23,7 +23,7 @@ export default function Checkout() {
     const rid = Number(ridParam);
     const navigate = useNavigate();
 
-    const { mode, addressId } = useSession();
+    const { mode, addressId, confirmDelivery, choosePickup } = useSession();
     const carts = useCart((s) => s.carts);
     const clear = useCart((s) => s.clear);
 
@@ -48,7 +48,9 @@ export default function Checkout() {
     const data = useAsync(
         () =>
             Promise.all([
-                api.restaurant(rid, mode === 'delivery' ? addressId : null),
+                // Rejimdan qat'i nazar addressId beriladi — pickup'da ham
+                // distance_km kerak (yetkazishga o'tish mumkinmi tekshirish uchun).
+                api.restaurant(rid, addressId),
                 api.me(),
                 api.estimateOrder({
                     restaurant_id: rid,
@@ -101,6 +103,18 @@ export default function Checkout() {
     // xuddi shu qiymat chiqadi, mijoz tomonidan taxmin qilinmaydi.
     const deliveryFee = estimate?.delivery_fee ?? 0;
 
+    // Olib ketishdan yetkazishga o'tish faqat restoran manzil radiusi ichida bo'lsa
+    // mumkin (backend OrderService::place() ham buni tekshiradi — bu yerda oldindan
+    // aniq xabar bilan ko'rsatamiz). Yetkazishdan olib ketishga o'tish har doim mumkin.
+    const canSwitchToDelivery = Boolean(
+        addressId != null
+            && restaurant?.distance_km != null
+            && restaurant?.delivery_radius_km != null
+            && restaurant.distance_km <= restaurant.delivery_radius_km,
+    );
+    const switchToDelivery = () => confirmDelivery(addressId);
+    const switchToPickup = () => choosePickup(addressId);
+
     // Tasdiqlash — MainButton (min yetmasa — nofaol + "yana X qo'shing").
     useEffect(() => {
         if (data.loading || submitting || phoneRequired) {
@@ -132,17 +146,42 @@ export default function Checkout() {
                         <Row icon="🏪" title={restaurant.name} subtitle={restaurant.district?.name} />
                         {hours && <p className="mt-1 text-[12px]" style={{ color: 'var(--tg-hint)' }}>Ish vaqti: {hours}</p>}
                         <p className="text-[12px]" style={{ color: 'var(--tg-hint)' }}>{restaurant.phone}</p>
+
+                        {addressId != null && (
+                            canSwitchToDelivery ? (
+                                <button
+                                    onClick={switchToDelivery}
+                                    className="mt-2 text-[13px] font-medium"
+                                    style={{ color: 'var(--tg-link)' }}
+                                >
+                                    🛵 Yetkazib berishga o‘tish
+                                </button>
+                            ) : (
+                                <p className="mt-2 text-[12px]" style={{ color: 'var(--tg-hint)' }}>
+                                    Bu restoran sizning manzilingizga yetkazib bermaydi, faqat olib ketish mavjud.
+                                </p>
+                            )
+                        )}
                     </>
                 ) : (
                     <>
                         <Row icon="📍" title={resolvedAddress(address)} subtitle={[address?.entrance && `kirish ${address.entrance}`, address?.floor && `qavat ${address.floor}`, address?.apartment && `xonadon ${address.apartment}`].filter(Boolean).join(' · ') || null} />
-                        <button
-                            onClick={() => navigate('/')}
-                            className="mt-1 text-[13px] font-medium"
-                            style={{ color: 'var(--tg-link)' }}
-                        >
-                            O‘zgartirish
-                        </button>
+                        <div className="mt-1 flex items-center gap-3">
+                            <button
+                                onClick={() => navigate('/')}
+                                className="text-[13px] font-medium"
+                                style={{ color: 'var(--tg-link)' }}
+                            >
+                                O‘zgartirish
+                            </button>
+                            <button
+                                onClick={switchToPickup}
+                                className="text-[13px] font-medium"
+                                style={{ color: 'var(--tg-link)' }}
+                            >
+                                🛍 Olib ketishga o‘tish
+                            </button>
+                        </div>
                     </>
                 )}
             </Section>

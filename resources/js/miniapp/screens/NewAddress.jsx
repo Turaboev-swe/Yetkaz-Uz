@@ -4,7 +4,6 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { api } from '../lib/api';
 import { showBackButton, haptic, notify } from '../lib/telegram';
-import { useSession } from '../store/session';
 
 const ANDIJAN = { lat: 40.7825, lng: 72.35 };
 const LABELS = ['Uy', 'Ish', 'Boshqa'];
@@ -23,8 +22,6 @@ export default function NewAddress() {
     const [customLabel, setCustomLabel] = useState('');
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState(null);
-
-    const confirmDelivery = useSession((s) => s.confirmDelivery);
 
     useEffect(() => showBackButton(() => navigate(-1)), [navigate]);
 
@@ -74,8 +71,9 @@ export default function NewAddress() {
                 is_default: true,
             });
             notify('success');
-            confirmDelivery(res.data.id);
-            navigate('/', { replace: true });
+            // Rejim (yetkazish/olib ketish) hali so'ralmagan — RestaurantList'da
+            // shu manzil uchun to'g'ridan-to'g'ri so'raladi (qayta tasdiqlashsiz).
+            navigate('/', { replace: true, state: { justAddedAddressId: res.data.id } });
         } catch (e) {
             setError(e.message);
             setSaving(false);

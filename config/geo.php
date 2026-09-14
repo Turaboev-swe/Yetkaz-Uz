@@ -30,4 +30,16 @@ return [
         'AN' => ['lat' => [40.35, 41.10], 'lng' => [71.60, 73.20]],
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Olib ketish (pickup) uchun qidiruv radiusi
+    |--------------------------------------------------------------------------
+    | Yetkazib berishda har restoranning o'z `delivery_radius_km`si ishlatiladi.
+    | Olib ketishda esa mijoz o'zi boradi — restoran radiusi cheklov emas,
+    | shuning uchun kengroq, platforma darajasidagi FIKS radius ishlatiladi
+    | (RestaurantFinder::deliveringTo). Restoranlar baribir masofa bo'yicha
+    | tartiblanadi.
+    */
+    'pickup_radius_km' => (float) env('PICKUP_RADIUS_KM', 50),
+
 ];

@@ -4,11 +4,13 @@ import { resolvedAddress } from '../lib/address';
 import { haptic } from '../lib/telegram';
 
 /**
- * B: manzil tanlash. Yuqoridan pastga —
- *   saqlangan manzillar (joriysi belgilangan) / 🛍 Olib ketaman / ➕ Yangi manzil
- * Nomlar DOIM o'zbekcha (districts jadvalidan).
+ * B: manzil tanlash. Yuqoridan pastga — saqlangan manzillar (joriysi
+ * belgilangan) / ➕ Yangi manzil. Nomlar DOIM o'zbekcha (districts jadvalidan).
+ *
+ * Faqat manzil tanlaydi — yetkazish/olib ketish rejimi bu yerda so'ralmaydi
+ * (keyingi qadam, DeliveryModeSheet).
  */
-export default function AddressPickerSheet({ open, onClose, dismissible = true, addresses, currentId, mode, onPickAddress, onPickup }) {
+export default function AddressPickerSheet({ open, onClose, dismissible = true, addresses, currentId, onPickAddress }) {
     const navigate = useNavigate();
 
     const row = 'flex w-full items-center gap-3 rounded-xl p-3 text-left';
@@ -24,7 +26,7 @@ export default function AddressPickerSheet({ open, onClose, dismissible = true, 
                     // Tanlashda LABEL ("Uy"/"Ish") foydali — pastida haqiqiy manzil.
                     const label = a.label || a.district || 'Manzil';
                     const detail = resolvedAddress(a);
-                    const active = mode === 'delivery' && a.id === currentId;
+                    const active = a.id === currentId;
                     return (
                         <button
                             key={a.id}
@@ -46,21 +48,6 @@ export default function AddressPickerSheet({ open, onClose, dismissible = true, 
                         </button>
                     );
                 })}
-
-                <button
-                    onClick={() => {
-                        haptic('light');
-                        onPickup();
-                    }}
-                    className={row}
-                    style={{ background: 'var(--tg-section-bg)' }}
-                >
-                    <span aria-hidden>🛍</span>
-                    <span className="flex-1 text-[14px] font-semibold" style={{ color: 'var(--tg-text)' }}>
-                        Olib ketaman
-                    </span>
-                    {mode === 'pickup' && <span style={{ color: 'var(--tg-link)' }}>✓</span>}
-                </button>
 
                 <button
                     onClick={() => {
