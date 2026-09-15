@@ -19,18 +19,18 @@ function tone(freq, start, dur) {
     const g = ctx.createGain();
     o.connect(g);
     g.connect(ctx.destination);
-    o.type = 'sine';
+    o.type = 'square';
     o.frequency.value = freq;
     g.gain.setValueAtTime(0.0001, ctx.currentTime + start);
-    g.gain.exponentialRampToValueAtTime(0.35, ctx.currentTime + start + 0.02);
+    g.gain.exponentialRampToValueAtTime(1.0, ctx.currentTime + start + 0.015);
     g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + start + dur);
     o.start(ctx.currentTime + start);
     o.stop(ctx.currentTime + start + dur);
 }
 
-/** Yangi buyurtma — ikki tovushli signal. */
+/** Yangi buyurtma — bip-bip (tibbiy uskuna uslubidagi, kesuvchi, eng baland ovoz). */
 export function newOrderChime() {
     if (!soundReady()) return;
-    tone(880, 0, 0.28);
-    tone(1174, 0.3, 0.4);
+    tone(1046, 0, 0.15);
+    tone(1046, 0.22, 0.15);
 }

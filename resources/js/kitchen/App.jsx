@@ -13,6 +13,7 @@ export default function App() {
     const [error, setError] = useState(null);
     const [connected, setConnected] = useState(false);
     const [soundOn, setSoundOn] = useState(soundReady());
+    const [muted, setMuted] = useState(false);
     const [busyId, setBusyId] = useState(null);
     const [couriers, setCouriers] = useState([]);
     const seen = useRef(new Set());
@@ -52,7 +53,6 @@ export default function App() {
             setOrders((cur) => {
                 if (seen.current.has(o.id)) return cur;
                 seen.current.add(o.id);
-                newOrderChime();
                 return sortInsert([...cur, o]);
             });
         });
@@ -77,6 +77,22 @@ export default function App() {
 
         return () => echo.leave(`kitchen.${restaurantId}`);
     }, [sortInsert, load]);
+
+    const pendingCount = orders.filter((o) => o.status === 'new').length;
+    const shouldRing = pendingCount > 0 && soundOn && !muted;
+
+    // Signal — qabul qilinmagan buyurtma bo'lguncha har 3s'da takrorlanadi.
+    useEffect(() => {
+        if (!shouldRing) return;
+        newOrderChime();
+        const t = setInterval(newOrderChime, 3000);
+        return () => clearInterval(t);
+    }, [shouldRing]);
+
+    // Barcha buyurtma qabul qilingach, keyingi safar ovoz o'chib qolmasin.
+    useEffect(() => {
+        if (pendingCount === 0) setMuted(false);
+    }, [pendingCount]);
 
     const advance = async (id, fields = null) => {
         setBusyId(id);
@@ -119,6 +135,14 @@ export default function App() {
                             className="rounded-lg bg-amber-600 px-3 py-2 text-[13px] font-bold text-white"
                         >
                             🔔 Ovozni yoqish
+                        </button>
+                    )}
+                    {soundOn && pendingCount > 0 && (
+                        <button
+                            onClick={() => setMuted((m) => !m)}
+                            className="rounded-lg bg-gray-800 px-3 py-2 text-[13px] font-bold text-gray-200 hover:bg-gray-700"
+                        >
+                            {muted ? '🔔 Ovozni yoqish' : '🔕 Ovozni to‘xtatish'}
                         </button>
                     )}
                     <span className="flex items-center gap-1.5 text-[12px] text-gray-400">
