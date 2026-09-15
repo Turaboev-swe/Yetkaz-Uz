@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { echo } from './lib/echo';
 import { api } from './lib/api';
-import { enableSound, soundReady, newOrderChime } from './lib/sound';
+import { enableSound, soundReady, startAlarm, pauseAlarm, stopAlarm } from './lib/sound';
 import OrderCard from './components/OrderCard';
 
 const { restaurantId, restaurantName, staffName, csrf } = window.__KITCHEN__;
@@ -79,19 +79,25 @@ export default function App() {
     }, [sortInsert, load]);
 
     const pendingCount = orders.filter((o) => o.status === 'new').length;
-    const shouldRing = pendingCount > 0 && soundOn && !muted;
 
-    // Signal — qabul qilinmagan buyurtma bo'lguncha har 3s'da takrorlanadi.
+    // Signal — qabul qilinmagan buyurtma bo'lguncha ijro etiladi (audio element
+    // o'zi loop qiladi, qo'shimcha takrorlash kerak emas). Mute — pozitsiyani
+    // saqlab vaqtincha to'xtatadi.
     useEffect(() => {
-        if (!shouldRing) return;
-        newOrderChime();
-        const t = setInterval(newOrderChime, 3000);
-        return () => clearInterval(t);
-    }, [shouldRing]);
+        if (pendingCount > 0 && soundOn && !muted) {
+            startAlarm();
+        } else if (muted) {
+            pauseAlarm();
+        }
+    }, [pendingCount, soundOn, muted]);
 
-    // Barcha buyurtma qabul qilingach, keyingi safar ovoz o'chib qolmasin.
+    // Barcha buyurtma qabul qilingach — to'liq to'xtatish (keyingi safar
+    // boshidan boshlanishi va ovoz o'chib qolmasligi uchun).
     useEffect(() => {
-        if (pendingCount === 0) setMuted(false);
+        if (pendingCount === 0) {
+            stopAlarm();
+            setMuted(false);
+        }
     }, [pendingCount]);
 
     const advance = async (id, fields = null) => {
