@@ -48,6 +48,9 @@ class OrderEstimateApiTest extends TestCase
             'name' => 'Test Resto', 'lat' => 40.7833, 'lng' => 72.3506,
             'is_open' => true, 'work_hours' => $always,
             'delivery_radius_km' => 8, 'delivery_fee' => 1_000_000,
+            // Factory'ning random qiymati (0 / 30 000 / 50 000 so'm) savat summasidan (32 000 so'm,
+            // bitta "osh") oshib ketsa test tasodifan flaky bo'lardi — shu sabab aniq 0 qilib qo'yamiz.
+            'min_order_amount' => 0,
         ]);
         $cat = Category::factory()->for($this->restaurant)->create(['is_active' => true]);
         $this->osh = Product::factory()->for($cat)->create(['price' => 3_200_000, 'prep_time_min' => 20, 'is_available' => true]);
