@@ -105,30 +105,38 @@ services:
       app:
         condition: service_healthy
 
-  # --- Telegram bot: HOZIRCHA long polling (webhook uchun domen kerak) ---
-  # --pollingTimeout=5: O'zbekiston serverida xalqaro tarmoq beqaror —
-  # qisqaroq long-poll uzilish oynasini kamaytiradi. Guzzle klient darajasida
-  # ConnectException 2 marta qayta uriladi (RedactingBotClientHandler).
+  # --- Telegram bot: POLLING'DAN WEBHOOK'GA O'TKAZILDI — 2026-09-15 ---
+  # Bu yerda ilgari `bot` xizmati bor edi (`php artisan nutgram:run` — long
+  # polling). Webhook o'rnatilgach (docs/deploy.md, 7-bo'lim) Telegram bitta
+  # botga bir vaqtda FAQAT bitta yetkazish usulini beradi — webhook ustunlik
+  # qiladi, polling esa har safar "409 Conflict: can't use getUpdates method
+  # while webhook is active" bilan ishlamay, konteyner cheksiz qayta ishga
+  # tushib (crash-loop) resurs sarflardi. Diagnostika (2026-09-15) buni
+  # tasdiqladi: bu ish yig'indiga (mijozlarga yetib borishga) ta'sir qilmagan
+  # edi — webhook allaqachon ishlab turgan edi, polling shunchaki foydasiz
+  # urinar edi — lekin konteyner keraksiz, chalg'ituvchi va resurs isrof
+  # qilardi, shuning uchun butunlay olib tashlandi.
   #
-  # WEBHOOK REJIMIGA O'TISH (domen + SSL bo'lgach — kod TAYYOR, PROD-2/PROD-6):
-  #   1. .env: TELEGRAM_WEBHOOK_SECRET (32+ belgi), TELEGRAM_MINI_APP_URL=https://...
-  #   2. php artisan telegram:webhook:set
-  #   3. bu `bot` xizmatini o'chiring:
-  #        docker compose -f docker-compose.prod.yml stop bot
-  #        docker compose -f docker-compose.prod.yml rm -f bot
-  #      (update lar endi POST /api/telegram/webhook/<secret> -> nginx -> app orqali keladi)
-  #   4. qaytish: php artisan telegram:webhook:delete + `bot` ni qayta ishga tushiring
-  bot:
-    <<: *app
-    command: php artisan nutgram:run --pollingTimeout=5
-    stop_grace_period: 15s
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      app:
-        condition: service_healthy
+  # Update'lar endi: Telegram -> POST /api/telegram/webhook/<secret> -> nginx
+  # -> app (TelegramWebhookController, PROD-2/PROD-6 — kod o'zgarishsiz,
+  # ilgaridan webhook uchun tayyor edi).
+  #
+  # QAYTISH (webhook butunlay ishlamay qolsa): avval docs/deploy.md 7-bo'limi
+  # "Qaytish" ko'rsatmasi bo'yicha webhook'ni o'chiring (`telegram:webhook:delete`),
+  # KEYIN pastdagi blokni izohdan chiqaring va ishga tushiring:
+  #     docker compose -f docker-compose.prod.yml up -d bot
+  #
+  # bot:
+  #   <<: *app
+  #   command: php artisan nutgram:run --pollingTimeout=5
+  #   stop_grace_period: 15s
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+  #     redis:
+  #       condition: service_healthy
+  #     app:
+  #       condition: service_healthy
 
   # --- PostgreSQL 16 + PostGIS ---
   postgres:

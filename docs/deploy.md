@@ -15,7 +15,11 @@ Server: Ubuntu 24.04, 4 GB RAM, `/opt/yetkaz`. Docker Engine + Compose plugin.
 | composer | dev bilan | `--no-dev` |
 
 Xizmatlar: `nginx` (:80) → `app` (Octane), `horizon`, `reverb`, `scheduler`,
-`bot` (long polling), `postgres`, `redis`.
+`postgres`, `redis`.
+
+> `bot` (long polling) xizmati 2026-09-15 da butunlay olib tashlandi — webhook
+> (7-bo'lim) ishga tushirilgach kerak emas edi. Tafsilot va qaytish yo'li:
+> `docker-compose.prod.yml` dagi izoh (avvalgi `bot:` bloki o'rnida).
 
 ---
 
@@ -201,9 +205,11 @@ curl -I https://yetqaz.uz/up                              # HTTP/2 200
 # 6. Webhook o'rnatish
 docker compose -f docker-compose.prod.yml exec app php artisan telegram:webhook:set
 
-# 7. Bot polling konteynerini o'chirish (update lar endi webhook -> nginx -> app)
-docker compose -f docker-compose.prod.yml stop bot
-docker compose -f docker-compose.prod.yml rm -f bot
+# 7. [BAJARILDI — 2026-09-15] Bot polling konteynerini o'chirish. `bot` xizmati
+# docker-compose.prod.yml dan butunlay olib tashlangan (yangi `up -d` uni qayta
+# yaratmaydi) — bu qadam endi shart emas. Faqat tarixiy/eski server uchun:
+#   docker compose -f docker-compose.prod.yml stop bot
+#   docker compose -f docker-compose.prod.yml rm -f bot
 
 # 8. Sertifikat renewal cron
 sudo cp docker/prod/yetkaz-cert-renew.cron /etc/cron.d/yetkaz-cert-renew
@@ -226,7 +232,11 @@ Telegram'da botga `/start` → "Ochish" tugmasi `https://yetqaz.uz/app` ni ochsi
 
 ```sh
 docker compose -f docker-compose.prod.yml exec app php artisan telegram:webhook:delete
-# .env: NGINX_CONF=prod.conf (ixtiyoriy — SSL qolsa ham bo'ladi), bot xizmatini qayta:
+# .env: NGINX_CONF=prod.conf (ixtiyoriy — SSL qolsa ham bo'ladi).
+#
+# `bot` xizmati docker-compose.prod.yml dan olib tashlangan (2026-09-15) — qayta
+# yoqish uchun avval o'sha fayldagi `bot:` bloki (izohdan chiqarilgan holda,
+# "POLLING'DAN WEBHOOK'GA O'TKAZILDI" izohi ostida saqlanadi) ni qaytaring, so'ng:
 docker compose -f docker-compose.prod.yml up -d bot
 ```
 
