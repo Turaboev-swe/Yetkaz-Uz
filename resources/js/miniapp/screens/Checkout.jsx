@@ -37,12 +37,17 @@ export default function Checkout() {
     const [error, setError] = useState(null);
     // Buyurtma berish uchun telefon kerak (mehmon / QR orqali kirgan) — botga qaytariladi.
     const [phoneRequired, setPhoneRequired] = useState(false);
+    // submit() muvaffaqiyatli tugagach true bo'ladi — cart clear() shu zahoti
+    // count'ni 0'ga tushiradi va quyidagi "savat bo'sh" guardi navigate(/order/:id)
+    // bilan RAQOBATLASHADI (Zustand clear() Checkout'ni navigate() ta'sir
+    // qilgunicha bir bor qayta render qiladi). Shu bayroq guardni o'chirib qo'yadi.
+    const justOrderedRef = useRef(false);
 
     useEffect(() => showBackButton(() => navigate(`/cart/${rid}`)), [navigate, rid]);
 
-    // Savat bo'sh bo'lsa — orqaga.
+    // Savat bo'sh bo'lsa — orqaga (lekin hozirgina buyurtma berilgan bo'lsa emas).
     useEffect(() => {
-        if (count === 0) navigate(`/r/${rid}`, { replace: true });
+        if (count === 0 && !justOrderedRef.current) navigate(`/r/${rid}`, { replace: true });
     }, [count, rid, navigate]);
 
     const data = useAsync(
@@ -76,6 +81,7 @@ export default function Checkout() {
                 items: cartItems(carts, rid),
             });
             notify('success');
+            justOrderedRef.current = true;
             clear(rid);
             navigate(`/order/${res.data.id}`, { replace: true });
         } catch (e) {
