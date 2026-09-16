@@ -5,6 +5,8 @@ namespace App\Providers;
 use App\Services\Telegram\InitDataValidator;
 use App\Telegram\RedactingBotClientHandler;
 use Closure;
+use Filament\Infolists\Components\TextEntry;
+use Filament\Tables\Columns\TextColumn;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -27,6 +29,22 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->configureRateLimiting();
         $this->configureTelegramClient();
+        $this->configureFilamentTimezone();
+    }
+
+    /**
+     * Baza UTC'da saqlanadi (APP_TIMEZONE=UTC, o'zgarmaydi) — Filament jadval/
+     * ko'rish sahifalaridagi barcha sana-vaqt ustunlari ko'rsatilganda
+     * Toshkent vaqtiga o'giriladi. Global standart: ikkala panel (admin,
+     * restaurant) va barcha resurs/sahifalarga birdan ta'sir qiladi — har
+     * joyda alohida `->timezone()` yozish shart emas.
+     */
+    private function configureFilamentTimezone(): void
+    {
+        $timezone = config('app.display_timezone');
+
+        TextColumn::configureUsing(fn (TextColumn $column) => $column->timezone($timezone));
+        TextEntry::configureUsing(fn (TextEntry $entry) => $entry->timezone($timezone));
     }
 
     /**
