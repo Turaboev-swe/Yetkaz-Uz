@@ -128,9 +128,6 @@ class SendOrderConfirmationToCustomer implements ShouldQueue
             if (filled($order->restaurant->district?->name)) {
                 $out[] = '   '.$esc($order->restaurant->district->name);
             }
-            if (filled($order->restaurant->phone)) {
-                $out[] = '   📞 '.$esc($order->restaurant->phone);
-            }
             $hours = $order->restaurant->workHours()->formatFor(now(config('app.display_timezone')));
             if ($hours !== null) {
                 $out[] = '   ⏱ '.$esc($t('work_hours')).': '.$esc($hours);
@@ -152,6 +149,12 @@ class SendOrderConfirmationToCustomer implements ShouldQueue
 
         $out[] = '';
         $out[] = $esc($t('footer'));
+
+        // --- Restoran nomi va telefoni (chekning eng pastida, savol tug'ilsa) ---
+        if (filled($order->restaurant->phone)) {
+            $out[] = '';
+            $out[] = $esc($order->restaurant->name).' - '.$esc($order->restaurant->phone);
+        }
 
         return implode("\n", $out);
     }

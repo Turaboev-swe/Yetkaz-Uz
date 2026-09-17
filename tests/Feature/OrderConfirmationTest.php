@@ -126,8 +126,19 @@ class OrderConfirmationTest extends TestCase
         $this->assertStringContainsString('daqiqa', $body);
         $this->assertStringContainsString('qabul qilindi', $body);
 
+        // Restoran nomi va telefoni — chekning eng pastida
+        $this->assertStringContainsString('Donix - +998901234567', $body);
+
         // Olib ketish emas — restoran ish vaqti chiqmaydi
         $this->assertStringNotContainsString('Ish vaqti', $body);
+    }
+
+    public function test_restaurant_phone_line_is_omitted_when_blank(): void
+    {
+        $order = $this->order(['phone' => null]);
+        $body = $this->send($order);
+
+        $this->assertStringNotContainsString('Donix -', $body);
     }
 
     public function test_pickup_receipt_shows_restaurant_hours_and_omits_delivery_fee(): void
