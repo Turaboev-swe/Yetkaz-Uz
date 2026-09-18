@@ -3,6 +3,7 @@
 namespace Tests\Feature\Api;
 
 use App\Models\Address;
+use App\Models\Order;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
@@ -92,6 +93,58 @@ class AddressApiTest extends TestCase
 
         $this->assertDatabaseMissing('addresses', ['id' => $home->id]);
         $this->assertTrue($work->fresh()->is_default);
+    }
+
+    public function test_patch_can_update_only_the_label(): void
+    {
+        $address = Address::factory()->for($this->user)->default()->create([
+            'label' => 'Uy',
+            'lat' => 41.311,
+            'lng' => 69.279,
+        ]);
+
+        $this->patchJson("/api/addresses/{$address->id}", ['label' => 'Onamning uyi'], $this->headers())
+            ->assertOk()
+            ->assertJsonPath('data.label', 'Onamning uyi');
+
+        $fresh = $address->fresh();
+        $this->assertSame('Onamning uyi', $fresh->label);
+        // Boshqa maydonlar tegilmagan.
+        $this->assertEqualsWithDelta(41.311, $fresh->lat, 0.0001);
+        $this->assertEqualsWithDelta(69.279, $fresh->lng, 0.0001);
+    }
+
+    public function test_deleting_the_only_address_succeeds(): void
+    {
+        $address = Address::factory()->for($this->user)->default()->create();
+
+        $this->deleteJson("/api/addresses/{$address->id}", [], $this->headers())->assertNoContent();
+
+        $this->assertDatabaseMissing('addresses', ['id' => $address->id]);
+        $this->assertSame(0, $this->user->addresses()->count());
+    }
+
+    /**
+     * `orders.address_id` `nullOnDelete()` va `address_snapshot` jsonb'da
+     * mustaqil saqlanadi (Claude.md: "manzil keyin o'chsa ham buyurtma
+     * buzilmaydi") — shuning uchun buyurtma tarixida ishlatilgan manzilni
+     * o'chirish CHEKLANMAYDI, faqat FK avtomatik NULL bo'ladi.
+     */
+    public function test_deleting_an_address_used_in_order_history_is_safe(): void
+    {
+        $address = Address::factory()->for($this->user)->default()->create();
+        $order = Order::factory()->create([
+            'user_id' => $this->user->id,
+            'address_id' => $address->id,
+            'address_snapshot' => ['address_text' => $address->address_text, 'label' => $address->label],
+        ]);
+
+        $this->deleteJson("/api/addresses/{$address->id}", [], $this->headers())->assertNoContent();
+
+        $this->assertDatabaseMissing('addresses', ['id' => $address->id]);
+        $fresh = $order->fresh();
+        $this->assertNull($fresh->address_id);
+        $this->assertSame($address->label, $fresh->address_snapshot['label']);
     }
 
     public function test_cannot_touch_another_users_address(): void

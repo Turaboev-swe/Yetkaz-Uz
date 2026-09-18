@@ -48,15 +48,44 @@ export default function RestaurantList() {
  * Oqim: manzil tasdiqlash/tanlash -> yetkazish/olib ketish rejimi -> ro'yxat.
  * Rejim har doim manzildan KEYIN, ro'yxatdan OLDIN so'raladi.
  */
-function Flow({ addresses, districts, justAddedAddressId }) {
-    const { addressId, mode, ready, setAddress, confirmDelivery, choosePickup } = useSession();
+function Flow({ addresses: initialAddresses, districts, justAddedAddressId }) {
+    const navigate = useNavigate();
+    const { addressId, mode, ready, setAddress, confirmDelivery, choosePickup, reset } = useSession();
     const [step, setStep] = useState(null); // null | 'confirm' | 'pick' | 'mode'
+    // Server ro'yxatidan boshlab olinadi, tahrirlash/o'chirishdan keyin lokal
+    // yangilanadi — har safar butun ekranni (me + districts) qayta yuklamaslik
+    // uchun (sheet ochiq turgan holda spinner miltillamasin).
+    const [addresses, setAddresses] = useState(initialAddresses);
 
     const current =
         addresses.find((a) => a.id === addressId) ||
         addresses.find((a) => a.is_default) ||
         addresses[0] ||
         null;
+
+    const updateAddress = async (id, patch) => {
+        const res = await api.updateAddress(id, patch);
+        setAddresses((list) => list.map((a) => (a.id === id ? res.data : a)));
+    };
+
+    const removeAddress = async (id) => {
+        await api.deleteAddress(id);
+        // Backend default'ni qayta tayinlagan bo'lishi mumkin (o'chirilgan
+        // manzil default edi) — haqiqiy holatni qayta so'raymiz.
+        const fresh = await api.addresses();
+        const nextList = fresh.data || [];
+        setAddresses(nextList);
+
+        if (addressId === id) {
+            const fallback = nextList.find((a) => a.is_default) || nextList[0] || null;
+            if (fallback) {
+                setAddress(fallback.id);
+            } else {
+                reset();
+                navigate('/address/new');
+            }
+        }
+    };
 
     useEffect(() => {
         // Yangi manzil hozirgina qo'shildi (NewAddress.jsx) — to'g'ridan-to'g'ri
@@ -72,8 +101,11 @@ function Flow({ addresses, districts, justAddedAddressId }) {
         } else {
             setStep(addresses.length === 0 ? 'pick' : 'confirm');
         }
+        // `addresses.length` emas, `initialAddresses.length` — sheet ichida
+        // tahrirlash/o'chirish paytida `addresses` lokal o'zgaradi, bu effekt
+        // shu tufayli qayta ishga tushib step'ni tasodifan yopib qo'ymasin.
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [ready, addresses.length, justAddedAddressId]);
+    }, [ready, initialAddresses.length, justAddedAddressId]);
 
     const goToMode = (addrId) => {
         setAddress(addrId);
@@ -112,6 +144,8 @@ function Flow({ addresses, districts, justAddedAddressId }) {
                 addresses={addresses}
                 currentId={addressId}
                 onPickAddress={pickAddress}
+                onUpdateAddress={updateAddress}
+                onDeleteAddress={removeAddress}
             />
 
             <DeliveryModeSheet

@@ -178,3 +178,18 @@ export function hideMainButton() {
 export function isInsideTelegram() {
     return Boolean(tg?.initData);
 }
+
+/** Tasdiqlash dialogi — Telegram showConfirm() bo'lsa shu, aks holda oddiy confirm(). */
+export function confirmDialog(message) {
+    return new Promise((resolve) => {
+        if (tg?.showConfirm) {
+            try {
+                tg.showConfirm(message, (ok) => resolve(Boolean(ok)));
+                return;
+            } catch {
+                /* eski klient — pastga tushamiz */
+            }
+        }
+        resolve(window.confirm(message));
+    });
+}
