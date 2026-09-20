@@ -81,6 +81,38 @@ class UserResourceTest extends TestCase
             ->assertCanNotSeeTableRecords([$other]);
     }
 
+    public function test_status_column_shows_completed_vs_start_only(): void
+    {
+        $admin = Staff::factory()->platformAdmin()->create();
+        $completed = User::factory()->create();
+        $startOnly = User::factory()->incomplete()->create();
+
+        Livewire::actingAs($admin, 'admin');
+
+        Livewire::test(ListUsers::class)
+            ->assertTableColumnStateSet('profile_completed', true, $completed)
+            ->assertTableColumnStateSet('profile_completed', false, $startOnly);
+    }
+
+    public function test_profile_completed_filter(): void
+    {
+        $admin = Staff::factory()->platformAdmin()->create();
+        $completed = User::factory()->create();
+        $startOnly = User::factory()->incomplete()->create();
+
+        Livewire::actingAs($admin, 'admin');
+
+        Livewire::test(ListUsers::class)
+            ->filterTable('profile_completed', '1')
+            ->assertCanSeeTableRecords([$completed])
+            ->assertCanNotSeeTableRecords([$startOnly]);
+
+        Livewire::test(ListUsers::class)
+            ->filterTable('profile_completed', '0')
+            ->assertCanSeeTableRecords([$startOnly])
+            ->assertCanNotSeeTableRecords([$completed]);
+    }
+
     public function test_language_filter(): void
     {
         $admin = Staff::factory()->platformAdmin()->create();
@@ -196,5 +228,20 @@ class UserResourceTest extends TestCase
         $this->assertSame('6', $values[2]); // shu oy: 4 (bugun) + 2
 
         Carbon::setTestNow();
+    }
+
+    public function test_users_overview_widget_shows_start_vs_completed_split(): void
+    {
+        User::factory()->count(3)->create();               // to'liq
+        User::factory()->count(2)->incomplete()->create();  // faqat /start
+
+        $method = new ReflectionMethod(UsersOverviewStats::class, 'getStats');
+        $method->setAccessible(true);
+        $stats = $method->invoke(new UsersOverviewStats);
+
+        $values = array_map(fn ($stat) => $stat->getValue(), $stats);
+
+        $this->assertSame('5', $values[3]); // jami /start bosganlar: 3 + 2
+        $this->assertSame('3', $values[4]); // to'liq ro'yxatdan o'tganlar
     }
 }

@@ -24,8 +24,11 @@ class UsersOverviewStats extends StatsOverviewWidget
             ->map(fn (Carbon $day) => User::query()->whereDate('created_at', $day)->count())
             ->all();
 
+        $total = User::query()->count();
+        $completed = User::query()->where('profile_completed', true)->count();
+
         return [
-            Stat::make('Jami mijozlar', number_format(User::query()->count(), 0, '.', ' '))
+            Stat::make('Jami mijozlar', number_format($total, 0, '.', ' '))
                 ->description('Oxirgi 30 kunlik ro\'yxatdan o\'tish')
                 ->chart($trend)
                 ->color('primary'),
@@ -37,6 +40,14 @@ class UsersOverviewStats extends StatsOverviewWidget
             Stat::make('Shu oy ro\'yxatdan o\'tgan', number_format(
                 User::query()->where('created_at', '>=', $monthStart)->count(), 0, '.', ' ',
             )),
+
+            Stat::make('Jami /start bosganlar', number_format($total, 0, '.', ' '))
+                ->description("Faqat bot bilan aloqa qilgan, profil to'liq emas ham")
+                ->color('gray'),
+
+            Stat::make("To'liq ro'yxatdan o'tganlar", number_format($completed, 0, '.', ' '))
+                ->description("{$total} dan {$completed} tasi to'liq (ism+telefon+lokatsiya)")
+                ->color('success'),
         ];
     }
 }

@@ -72,6 +72,12 @@ class UserResource extends Resource
                     ->badge()
                     ->formatStateUsing(fn (?string $state): string => $state ? __("messages.settings.lang_{$state}") : '—'),
 
+                Tables\Columns\TextColumn::make('profile_completed')
+                    ->label('Holati')
+                    ->badge()
+                    ->formatStateUsing(fn (bool $state): string => $state ? '✅ To\'liq' : '⏳ Faqat /start')
+                    ->color(fn (bool $state): string => $state ? 'success' : 'gray'),
+
                 Tables\Columns\TextColumn::make('orders_count')
                     ->label('Buyurtmalar')
                     ->state(fn (User $record): int => $record->orders_count ?? $record->orders()->count())
@@ -83,6 +89,17 @@ class UserResource extends Resource
                     ->sortable(),
             ])
             ->filters([
+                SelectFilter::make('profile_completed')
+                    ->label("Ro'yxatdan o'tish holati")
+                    ->options([
+                        '1' => "To'liq ro'yxatdan o'tganlar",
+                        '0' => "Faqat /start bosganlar",
+                    ])
+                    ->query(fn (Builder $query, array $data) => $query->when(
+                        $data['value'] !== null && $data['value'] !== '',
+                        fn (Builder $q) => $q->where('profile_completed', (bool) $data['value']),
+                    )),
+
                 SelectFilter::make('language')
                     ->label('Til')
                     ->options(collect(User::LANGUAGES)->mapWithKeys(
