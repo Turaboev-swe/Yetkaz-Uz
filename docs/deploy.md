@@ -111,6 +111,35 @@ docker image prune -f
 
 Migratsiyalar `app` qayta ishga tushganda avtomat bajariladi.
 
+### 4.1 Bazaviy image digest'larini yangilash
+
+`docker/php/Dockerfile`dagi bazaviy image'lar (`php:8.4-cli-bookworm`,
+`node:22-bookworm-slim`, `composer:2`, `ghcr.io/roadrunner-server/roadrunner`)
+digest'ga qadalgan — floating tag Debian/upstream xavfsizlik yamog'i chiqqanda
+o'zgarib, butun build keshini bekor qilib qo'yardi (2026-09-20 tahlili: shu
+sabab bir deploy 890s, keyingisi 1968s davom etgan — kesh o'zi buzilmagan
+edi, faqat qadalmagan tag digesti o'zgargani sababli apt-get/pecl/npm qayta
+bajarilgan). Shuning uchun avtomatik xavfsizlik yamog'i endi kelmaydi —
+vaqti-vaqti bilan (masalan oyiga bir marta) qo'lda yangilash kerak:
+
+```sh
+docker pull php:8.4-cli-bookworm
+docker inspect --format='{{index .RepoDigests 0}}' php:8.4-cli-bookworm
+
+docker pull node:22-bookworm-slim
+docker inspect --format='{{index .RepoDigests 0}}' node:22-bookworm-slim
+
+docker pull composer:2
+docker inspect --format='{{index .RepoDigests 0}}' composer:2
+
+docker pull ghcr.io/roadrunner-server/roadrunner:2025.1.15
+docker inspect --format='{{index .RepoDigests 0}}' ghcr.io/roadrunner-server/roadrunner:2025.1.15
+```
+
+Yangi digest'ni `docker/php/Dockerfile`dagi mos `FROM .../COPY --from=` qatoriga
+qo'yib, `docker compose -f docker-compose.prod.yml build --no-cache app` bilan
+sinab ko'ring, keyin oddiy commit qilib deploy qiling.
+
 ## 5. Operatsiyalar
 
 ```sh

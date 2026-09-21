@@ -1,9 +1,17 @@
 # syntax=docker/dockerfile:1
 
-# RoadRunner binari — rasmiy image'dan olamiz (GitHub API rate-limit'idan qochish uchun).
-FROM ghcr.io/roadrunner-server/roadrunner:2025.1.15 AS roadrunner
+# Bazaviy image'lar digest'ga qadalgan — bashorat qilinadigan build
+# vaqti uchun (floating tag Debian/upstream yamog'i chiqqanda o'zgarib,
+# butun keshni bekor qilib qo'yardi — 2026-09-20 tahlili shuni ko'rsatdi).
+# Xavfsizlik yamoqlarini olish uchun vaqti-vaqti bilan (masalan oyiga
+# bir marta) qo'lda yangilash kerak:
+#   docker pull php:8.4-cli-bookworm && docker inspect --format='{{index .RepoDigests 0}}' php:8.4-cli-bookworm
+# (node:22-bookworm-slim, composer:2 uchun ham xuddi shunday)
 
-FROM php:8.4-cli-bookworm AS base
+# RoadRunner binari — rasmiy image'dan olamiz (GitHub API rate-limit'idan qochish uchun).
+FROM ghcr.io/roadrunner-server/roadrunner:2025.1.15@sha256:18378c1313a71ce1c3cfc493c99e75c189ef5fb2eaf85290b8a99080fcb0f64f AS roadrunner
+
+FROM php:8.4-cli-bookworm@sha256:bafb189d08a8db0fcbf97aff7e362ada47b3bb2fc902468dc799e6ff8ab402b0 AS base
 
 # --- Tizim kutubxonalari va PHP kengaytmalari (eng barqaror qatlam — keshda qoladi) ---
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -17,7 +25,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 COPY docker/php/php.ini /usr/local/etc/php/conf.d/zz-yetkaz.ini
-COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+COPY --from=composer:2@sha256:a5f59b9fd2faf31218632be4809dc6491761085e8064c31dc3b84378c48c248b /usr/bin/composer /usr/bin/composer
 COPY --from=roadrunner /usr/bin/rr /usr/local/bin/rr
 
 # Host UID/GID bilan mos foydalanuvchi (bind-mount fayllar egaligini to'g'ri saqlash uchun)
@@ -52,7 +60,7 @@ CMD ["php", "artisan", "octane:start", "--server=roadrunner", "--host=0.0.0.0", 
 # Frontend (Vite / React) — FAQAT `prod` target uchun quriladi.
 # Dev build (`docker compose build`, target: base) bu bosqichlarga tegmaydi.
 # ==========================================================================
-FROM node:22-bookworm-slim AS frontend
+FROM node:22-bookworm-slim@sha256:48e4b67d85f87bd551df43704e24d252f56cc5f8e9718841aace50f19948f0f9 AS frontend
 WORKDIR /app
 
 # --- Vite build-vaqti o'zgaruvchilari ---

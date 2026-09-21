@@ -8,6 +8,10 @@ name: yetkaz-prod
 #   - portlar host'ga ochilmaydi — faqat nginx :80
 #   - Octane worker soni cheklangan (4 GB RAM)
 #
+# Bazaviy image digest'lari (docker/php/Dockerfile) qadalgan — build vaqti
+# endi barqaror, lekin xavfsizlik yamoqlari avtomatik kelmaydi. Yangilash
+# uchun docs/deploy.md dagi ko'rsatmaga qara.
+#
 # Ishga tushirish: docs/deploy.md
 
 x-app: &app
