@@ -111,6 +111,14 @@ docker image prune -f
 
 Migratsiyalar `app` qayta ishga tushganda avtomat bajariladi.
 
+**Nginx va Reverb IP'si.** `location /reverb/` Docker DNS (`resolver 127.0.0.11
+valid=10s`) + o'zgaruvchi orqali proxy qiladi, shuning uchun `up -d` reverb
+konteynerini qayta yaratib IP'sini o'zgartirsa ham nginx'ni reload qilish SHART
+EMAS (2026-09-21: `upstream reverb {}` IP'ni abadiy eslab qolib, `/kitchen`
+"uzilgan" bo'lgan edi). Lekin `docker/nginx/*.conf` ning O'ZI o'zgarganda nginx
+uni faqat reload'dan keyin ko'radi (`up -d` nginx'ni qayta yaratmaydi):
+`docker compose -f docker-compose.prod.yml exec nginx nginx -s reload`.
+
 ### 4.1 Bazaviy image digest'larini yangilash
 
 `docker/php/Dockerfile`dagi bazaviy image'lar (`php:8.4-cli-bookworm`,
