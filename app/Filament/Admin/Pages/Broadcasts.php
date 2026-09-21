@@ -85,6 +85,9 @@ class Broadcasts extends Page implements HasForms, HasTable
                         BroadcastAudience::All->value => BroadcastAudience::All->label(),
                         BroadcastAudience::District->value => BroadcastAudience::District->label(),
                     ])
+                    ->descriptions([
+                        BroadcastAudience::All->value => "Botga hech bo'lmaganda bir marta /start bosgan barchasi (ro'yxatdan to'liq o'tmaganlar ham kiradi).",
+                    ])
                     ->default(BroadcastAudience::All->value)
                     ->live()
                     ->required(),

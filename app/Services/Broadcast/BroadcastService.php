@@ -69,9 +69,11 @@ class BroadcastService
     private function resolveAudience(BroadcastAudience $audience, array $districtIds): Collection
     {
         if ($audience === BroadcastAudience::All) {
+            // profile_completed shart EMAS — botga hech bo'lmaganda bir marta
+            // /start bosgan (telegram_id bor) barcha foydalanuvchi kiradi,
+            // ro'yxatdan to'liq o'tmaganlar ham (2026-09-22: qaror).
             return User::query()
                 ->whereNotNull('telegram_id')
-                ->where('profile_completed', true)
                 ->pluck('id');
         }
 

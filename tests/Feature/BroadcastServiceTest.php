@@ -31,7 +31,12 @@ class BroadcastServiceTest extends TestCase
         return app(BroadcastService::class);
     }
 
-    public function test_all_audience_targets_every_registered_user_only(): void
+    /**
+     * 2026-09-22: profile_completed shart olib tashlandi — "Barcha
+     * foydalanuvchilar" endi botga /start bosgan (telegram_id bor) HAMMASINI
+     * qamrab oladi, ro'yxatdan to'liq o'tmaganlar ham.
+     */
+    public function test_all_audience_targets_every_user_with_a_telegram_id_regardless_of_registration(): void
     {
         $a = User::factory()->create(['telegram_id' => 111, 'profile_completed' => true]);
         $b = User::factory()->create(['telegram_id' => 222, 'profile_completed' => true]);
@@ -39,10 +44,10 @@ class BroadcastServiceTest extends TestCase
 
         $result = $this->service()->send('Salom!', null, BroadcastAudience::All, [], null);
 
-        $this->assertSame(2, $result['target_count']);
+        $this->assertSame(3, $result['target_count']);
         Queue::assertPushed(SendBroadcastMessage::class, fn ($job) => $job->userId === $a->id);
         Queue::assertPushed(SendBroadcastMessage::class, fn ($job) => $job->userId === $b->id);
-        Queue::assertNotPushed(SendBroadcastMessage::class, fn ($job) => $job->userId === $incomplete->id);
+        Queue::assertPushed(SendBroadcastMessage::class, fn ($job) => $job->userId === $incomplete->id);
     }
 
     public function test_district_audience_only_targets_users_with_an_address_there(): void
@@ -85,6 +90,20 @@ class BroadcastServiceTest extends TestCase
         Queue::assertPushed(SendBroadcastMessage::class, fn ($job) => $job->userId === $inA->id);
         Queue::assertPushed(SendBroadcastMessage::class, fn ($job) => $job->userId === $inC->id);
         Queue::assertNotPushed(SendBroadcastMessage::class, fn ($job) => $job->userId === $inB->id);
+    }
+
+    /** District auditoriyasi o'zgarmadi — profile_completed'ga bog'liq emas, faqat manzil bor-yo'qligiga. */
+    public function test_district_audience_is_unaffected_by_profile_completed(): void
+    {
+        $district = District::factory()->create();
+
+        $incomplete = User::factory()->create(['profile_completed' => false]);
+        Address::factory()->for($incomplete)->create(['district_id' => $district->id]);
+
+        $result = $this->service()->send('Xabar', null, BroadcastAudience::District, [$district->id], null);
+
+        $this->assertSame(1, $result['target_count']);
+        Queue::assertPushed(SendBroadcastMessage::class, fn ($job) => $job->userId === $incomplete->id);
     }
 
     public function test_a_user_with_several_addresses_in_the_target_district_is_targeted_only_once(): void
