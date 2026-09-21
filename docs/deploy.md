@@ -111,12 +111,20 @@ docker image prune -f
 
 Migratsiyalar `app` qayta ishga tushganda avtomat bajariladi.
 
-**Nginx va Reverb IP'si.** `location /reverb/` Docker DNS (`resolver 127.0.0.11
-valid=10s`) + o'zgaruvchi orqali proxy qiladi, shuning uchun `up -d` reverb
-konteynerini qayta yaratib IP'sini o'zgartirsa ham nginx'ni reload qilish SHART
-EMAS (2026-09-21: `upstream reverb {}` IP'ni abadiy eslab qolib, `/kitchen`
-"uzilgan" bo'lgan edi). Lekin `docker/nginx/*.conf` ning O'ZI o'zgarganda nginx
-uni faqat reload'dan keyin ko'radi (`up -d` nginx'ni qayta yaratmaydi):
+**Nginx va konteyner IP'lari.** Nginx nomni (`reverb`, `app`) odatda ishga
+tushganda BIR MARTA IP'ga aylantirib abadiy eslab qoladi; `up -d` konteynerni
+qayta yaratib IP'sini o'zgartirsa, nginx eski IP'ga ulanib 502 beradi
+(2026-09-21: `/kitchen` "uzilgan" bo'lgan edi). Shuning uchun ikkalasi ham Docker
+DNS (`resolver 127.0.0.11 valid=10s`) orqali har ~10s da qayta aniqlanadi —
+`up -d` dan keyin nginx'ni reload qilish SHART EMAS:
+- `reverb` — `location /reverb/` da o'zgaruvchali `proxy_pass` (+ `rewrite`);
+- `app` (octane) — `upstream octane { zone …; server app:8000 resolve; keepalive 32; }`.
+  O'zgaruvchali `proxy_pass` bu yerda ISHLATILMAGAN, chunki u upstream'ni chetlab
+  o'tib `keepalive`ni yo'qotadi (har so'rovga yangi TCP). `resolve` uchun nginx
+  ≥ 1.27.3 kerak (`nginx:1.27-alpine` = 1.27.5).
+
+Lekin `docker/nginx/*.conf` ning O'ZI o'zgarganda nginx uni faqat reload'dan
+keyin ko'radi (`up -d` nginx'ni qayta yaratmaydi):
 `docker compose -f docker-compose.prod.yml exec nginx nginx -s reload`.
 
 ### 4.1 Bazaviy image digest'larini yangilash
