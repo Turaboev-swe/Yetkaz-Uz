@@ -68,9 +68,18 @@ return [
         'added' => "✅ Yangi manzil qo‘shildi va asosiy qilib belgilandi:\n:address",
     ],
 
-    // Taklif va shikoyat — hali ishlamaydi
+    // Taklif va shikoyat
     'feedback' => [
-        'not_ready' => 'Bu bo‘lim hali ishlamaydi. Taklif va shikoyatlar tez orada shu yerda qabul qilinadi.',
+        'choose_type' => 'Qanday fikr bildirmoqchisiz?',
+        'ask_message' => 'Fikringizni batafsil yozing:',
+        'saved_suggestion' => "Rahmat! Taklifingiz ko‘rib chiqiladi va imkon qadar joriy qilishga harakat qilamiz.",
+        'saved_complaint' => "Kechirasiz! Shikoyatingiz qabul qilindi, tez orada aloqaga chiqamiz.",
+        'admin_notify' => "💬 Yangi :type_label\nFoydalanuvchi: :name (:phone)\n\n:message",
+    ],
+
+    'feedback_type' => [
+        'suggestion' => 'Taklif',
+        'complaint' => 'Shikoyat',
     ],
 
     'mini_app_unavailable' => 'Mini App hozircha sozlanmagan. Iltimos, birozdan so‘ng urinib ko‘ring.',

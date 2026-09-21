@@ -87,14 +87,16 @@ class MenuActionsTest extends TestCase
         $bot->assertRaw(fn ($request) => str_contains((string) $request->getBody(), 'screen=restaurants'));
     }
 
-    public function test_feedback_button_says_not_ready(): void
+    public function test_feedback_button_asks_for_the_type(): void
     {
         $this->registered();
         $bot = $this->bot();
 
         $this->tap($bot, __('messages.main_menu.feedback'));
 
-        $bot->assertReplyText(__('messages.feedback.not_ready'));
+        $bot->assertReplyText(__('messages.feedback.choose_type'));
+        $bot->assertRaw(fn ($request) => str_contains((string) $request->getBody(), 'feedback:suggestion')
+            && str_contains((string) $request->getBody(), 'feedback:complaint'));
     }
 
     public function test_addresses_button_lists_saved_addresses(): void

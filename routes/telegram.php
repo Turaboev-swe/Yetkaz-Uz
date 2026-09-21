@@ -2,6 +2,7 @@
 
 /** @var Nutgram $bot */
 
+use App\Telegram\Handlers\FeedbackTypeHandler;
 use App\Telegram\Handlers\IdHandler;
 use App\Telegram\Handlers\KitchenCallbackHandler;
 use App\Telegram\Handlers\KitchenCancelHandler;
@@ -70,6 +71,10 @@ $bot->group(function (Nutgram $bot) {
 
     // Sozlamalar: til tanlash.
     $bot->onCallbackQueryData('lang:{code}', LanguageCallbackHandler::class);
+
+    // "💬 Taklif va shikoyat" — tur tanlash (FeedbackHandler yuborgan inline tugma).
+    $bot->onCallbackQueryData('feedback:{type}', FeedbackTypeHandler::class)
+        ->where('type', '[a-z]+');
 
     // Menyu tugmalari (matn) — dispetcher.
     $bot->fallback(MenuHandler::class);

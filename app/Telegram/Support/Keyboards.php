@@ -2,6 +2,7 @@
 
 namespace App\Telegram\Support;
 
+use App\Enums\FeedbackType;
 use SergiX44\Nutgram\Telegram\Types\Keyboard\InlineKeyboardButton;
 use SergiX44\Nutgram\Telegram\Types\Keyboard\InlineKeyboardMarkup;
 use SergiX44\Nutgram\Telegram\Types\Keyboard\KeyboardButton;
@@ -57,6 +58,21 @@ final class Keyboards
                 KeyboardButton::make(__('messages.main_menu.feedback')),
                 KeyboardButton::make(__('messages.main_menu.settings')),
             );
+    }
+
+    /** "💬 Taklif va shikoyat" — tur tanlash (inline): [💡 Taklif] [⚠️ Shikoyat]. */
+    public static function feedbackType(): InlineKeyboardMarkup
+    {
+        return InlineKeyboardMarkup::make()->addRow(
+            InlineKeyboardButton::make(
+                FeedbackType::Suggestion->icon().' '.FeedbackType::Suggestion->label(),
+                callback_data: 'feedback:'.FeedbackType::Suggestion->value,
+            ),
+            InlineKeyboardButton::make(
+                FeedbackType::Complaint->icon().' '.FeedbackType::Complaint->label(),
+                callback_data: 'feedback:'.FeedbackType::Complaint->value,
+            ),
+        );
     }
 
     /** Til tanlash — Sozlamalar bo'limida (inline). */
