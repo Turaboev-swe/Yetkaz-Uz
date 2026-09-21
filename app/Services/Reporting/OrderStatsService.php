@@ -2,6 +2,7 @@
 
 namespace App\Services\Reporting;
 
+use App\Enums\OrderStatus;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -126,7 +127,9 @@ class OrderStatsService
     }
 
     /**
-     * Eng ko'p sotilgan taomlar — `orders.items` jsonb dan.
+     * Eng ko'p sotilgan taomlar — `orders.items` jsonb dan. Faqat `delivered`
+     * buyurtmalar — `summary()`/`topRestaurants()` bilan bir xil ta'rif
+     * (REPORT-2: bekor qilingan/yakunlanmagan buyurtma "sotilgan" hisoblanmaydi).
      *
      * @return Collection<int, array{product_id:int, name:string, qty:int, revenue_tiyin:int}>
      */
@@ -135,6 +138,7 @@ class OrderStatsService
         $q = DB::table('orders as o')
             ->crossJoin(DB::raw("LATERAL jsonb_array_elements(COALESCE(o.items, '[]'::jsonb)) AS e"))
             ->whereBetween('o.created_at', [$period->fromUtc(), $period->toUtc()])
+            ->where('o.status', OrderStatus::Delivered->value)
             ->groupByRaw("(e->>'product_id')")
             ->orderByDesc('qty')
             ->limit($limit)

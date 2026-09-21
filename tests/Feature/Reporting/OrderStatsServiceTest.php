@@ -101,11 +101,11 @@ class OrderStatsServiceTest extends TestCase
 
     public function test_top_products_aggregates_from_items_json(): void
     {
-        Order::factory()->forRestaurant($this->a)->placedAt('2026-09-15 10:00')->items([
+        Order::factory()->forRestaurant($this->a)->placedAt('2026-09-15 10:00')->delivered()->items([
             ['product_id' => 25, 'name' => 'Grill burger', 'price' => 34_000_00, 'qty' => 2],
             ['product_id' => 28, 'name' => 'Fri kartoshka', 'price' => 13_000_00, 'qty' => 1],
         ])->create();
-        Order::factory()->forRestaurant($this->a)->placedAt('2026-09-16 10:00')->items([
+        Order::factory()->forRestaurant($this->a)->placedAt('2026-09-16 10:00')->delivered()->items([
             ['product_id' => 25, 'name' => 'Grill burger', 'price' => 34_000_00, 'qty' => 3],
         ])->create();
 
@@ -116,6 +116,26 @@ class OrderStatsServiceTest extends TestCase
         $this->assertSame(5 * 34_000_00, $top[0]['revenue_tiyin']);
         $this->assertSame('Fri kartoshka', $top[1]['name']);
         $this->assertSame(1, $top[1]['qty']);
+    }
+
+    /** REPORT-2: bekor qilingan / yakunlanmagan buyurtma "sotilgan" hisoblanmaydi. */
+    public function test_top_products_excludes_cancelled_and_unfinished_orders(): void
+    {
+        Order::factory()->forRestaurant($this->a)->placedAt('2026-09-15 10:00')->delivered()->items([
+            ['product_id' => 25, 'name' => 'Grill burger', 'price' => 34_000_00, 'qty' => 2],
+        ])->create();
+        Order::factory()->forRestaurant($this->a)->placedAt('2026-09-16 10:00')->cancelled()->items([
+            ['product_id' => 25, 'name' => 'Grill burger', 'price' => 34_000_00, 'qty' => 10],
+        ])->create();
+        Order::factory()->forRestaurant($this->a)->placedAt('2026-09-17 10:00')->items([
+            ['product_id' => 25, 'name' => 'Grill burger', 'price' => 34_000_00, 'qty' => 7],
+        ])->create(['status' => OrderStatus::New]);
+
+        $top = $this->stats->topProducts($this->period(), $this->a->id);
+
+        $this->assertCount(1, $top);
+        $this->assertSame(2, $top[0]['qty']); // faqat yetkazilgan buyurtmadagi 2 dona
+        $this->assertSame(2 * 34_000_00, $top[0]['revenue_tiyin']);
     }
 
     public function test_orders_per_day_fills_empty_days_with_zero(): void
@@ -129,6 +149,54 @@ class OrderStatsServiceTest extends TestCase
             [['2026-09-03', 1], ['2026-09-04', 0], ['2026-09-05', 2], ['2026-09-06', 0]],
             $series->map(fn ($r) => [$r['date'], $r['orders']])->all(),
         );
+    }
+
+    /**
+     * REPORT-1 — integratsiya darajasida: "Bugun" (Toshkent) presetida
+     * ertalabki soatlarda (00:00-04:59) yaratilgan buyurtma to'g'ri
+     * hisoblanadi, kechagi/ertangi (Toshkent) buyurtmalar kirmaydi.
+     */
+    public function test_today_preset_counts_revenue_within_the_tashkent_calendar_day(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-09-21 12:00:00', 'Asia/Tashkent'));
+
+        // Toshkent 21-sentabr 02:00 (BUGUN) — eski (UTC) mantiq bo'yicha bu UTC
+        // 20-sentabr 21:00 bo'lganidan "kecha"ga tushib qolardi.
+        Order::factory()->forRestaurant($this->a)->delivered()
+            ->placedAt(Carbon::parse('2026-09-21 02:00:00', 'Asia/Tashkent')->utc())
+            ->create(['total' => 10_000_00]);
+
+        // Toshkent 22-sentabr 00:30 (ERTAGA) — eski mantiq bo'yicha UTC 21-sentabr
+        // 19:30 bo'lib, "bugun"ga noto'g'ri kirib qolardi.
+        Order::factory()->forRestaurant($this->a)->delivered()
+            ->placedAt(Carbon::parse('2026-09-22 00:30:00', 'Asia/Tashkent')->utc())
+            ->create(['total' => 20_000_00]);
+
+        // Toshkent 20-sentabr 23:30 (KECHA) — aniq "bugun" emas.
+        Order::factory()->forRestaurant($this->a)->delivered()
+            ->placedAt(Carbon::parse('2026-09-20 23:30:00', 'Asia/Tashkent')->utc())
+            ->create(['total' => 30_000_00]);
+
+        $s = $this->stats->summary(ReportPeriod::preset('today'), $this->a->id);
+
+        $this->assertSame(1, $s['orders']);
+        $this->assertSame(10_000_00, $s['revenue_tiyin']);
+
+        Carbon::setTestNow();
+    }
+
+    /** Regressiya: boshqa presetlar (custom bilan bir xil natija berishi kerak bo'lgan holatlar) xato bermaydi. */
+    public function test_all_time_and_other_presets_still_work(): void
+    {
+        Order::factory()->forRestaurant($this->a)->placedAt('2026-09-10 10:00')->delivered()->create(['total' => 5_000_00]);
+
+        foreach (['today', 'week', 'month', 'quarter', 'all'] as $key) {
+            $s = $this->stats->summary(ReportPeriod::preset($key), $this->a->id);
+            $this->assertIsInt($s['revenue_tiyin']);
+        }
+
+        $s = $this->stats->summary(ReportPeriod::preset('all'), $this->a->id);
+        $this->assertSame(5_000_00, $s['revenue_tiyin']);
     }
 
     public function test_restaurant_scope_excludes_other_restaurants(): void
