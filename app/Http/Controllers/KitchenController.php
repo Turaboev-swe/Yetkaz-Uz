@@ -27,6 +27,38 @@ class KitchenController extends Controller
         return view('kitchen', ['staff' => $this->staff()]);
     }
 
+    /**
+     * POST /kitchen/push/subscribe — brauzer `PushSubscription.toJSON()` ni
+     * saqlaydi (yoki yangilaydi). Bir xil `endpoint` boshqa xodimda bo'lsa,
+     * paket uni o'chirib shu xodimga qayta bog'laydi (`updatePushSubscription`).
+     */
+    public function subscribePush(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'endpoint' => ['required', 'string'],
+            'keys.p256dh' => ['required', 'string'],
+            'keys.auth' => ['required', 'string'],
+        ]);
+
+        $this->staff()->updatePushSubscription(
+            endpoint: $data['endpoint'],
+            key: $data['keys']['p256dh'],
+            token: $data['keys']['auth'],
+        );
+
+        return response()->json(['data' => ['subscribed' => true]], Response::HTTP_CREATED);
+    }
+
+    /** DELETE /kitchen/push/subscribe — "Bildirishnomani o'chirish". */
+    public function unsubscribePush(Request $request): JsonResponse
+    {
+        $data = $request->validate(['endpoint' => ['required', 'string']]);
+
+        $this->staff()->deletePushSubscription($data['endpoint']);
+
+        return response()->json(['data' => ['subscribed' => false]]);
+    }
+
     /** GET /kitchen/orders — faol buyurtmalar (eng eskisi birinchi). */
     public function orders(): AnonymousResourceCollection
     {

@@ -33,5 +33,7 @@ Route::middleware(['panel.session:yetkaz_staff_session', 'web'])->prefix('kitche
         Route::get('/couriers', [KitchenController::class, 'couriers']);
         Route::patch('/orders/{order}/advance', [KitchenController::class, 'advance']);
         Route::patch('/orders/{order}/cancel', [KitchenController::class, 'cancel']);
+        Route::post('/push/subscribe', [KitchenController::class, 'subscribePush']);
+        Route::delete('/push/subscribe', [KitchenController::class, 'unsubscribePush']);
     });
 });

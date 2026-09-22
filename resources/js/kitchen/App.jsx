@@ -2,9 +2,10 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { echo } from './lib/echo';
 import { api } from './lib/api';
 import { enableSound, soundReady, startAlarm, pauseAlarm, stopAlarm } from './lib/sound';
+import { pushSupported, enablePush, disablePush } from './lib/push';
 import OrderCard from './components/OrderCard';
 
-const { restaurantId, restaurantName, staffName, csrf } = window.__KITCHEN__;
+const { restaurantId, restaurantName, staffName, csrf, pushSubscribed } = window.__KITCHEN__;
 const DONE = new Set(['delivered', 'cancelled']);
 
 export default function App() {
@@ -16,7 +17,28 @@ export default function App() {
     const [muted, setMuted] = useState(false);
     const [busyId, setBusyId] = useState(null);
     const [couriers, setCouriers] = useState([]);
+    const [pushOn, setPushOn] = useState(pushSubscribed);
+    const [pushBusy, setPushBusy] = useState(false);
+    const [pushError, setPushError] = useState(null);
     const seen = useRef(new Set());
+
+    const togglePush = async () => {
+        setPushBusy(true);
+        setPushError(null);
+        try {
+            if (pushOn) {
+                await disablePush();
+                setPushOn(false);
+            } else {
+                await enablePush();
+                setPushOn(true);
+            }
+        } catch (e) {
+            setPushError(e.message);
+        } finally {
+            setPushBusy(false);
+        }
+    };
 
     useEffect(() => {
         api.couriers().then((r) => setCouriers(r.data || [])).catch(() => {});
@@ -135,6 +157,20 @@ export default function App() {
                     <p className="text-[12px] text-gray-500">{staffName}</p>
                 </div>
                 <div className="flex items-center gap-3">
+                    {pushSupported() && (
+                        <button
+                            onClick={togglePush}
+                            disabled={pushBusy}
+                            title={pushOn ? 'Bildirishnomani o‘chirish' : 'Planshet qulflangan/sahifa yopiq bo‘lsa ham xabar kelishi uchun yoqing'}
+                            className={
+                                pushOn
+                                    ? 'rounded-lg bg-gray-800 px-3 py-2 text-[13px] font-bold text-emerald-400 hover:bg-gray-700 disabled:opacity-60'
+                                    : 'rounded-lg bg-amber-600 px-3 py-2 text-[13px] font-bold text-white disabled:opacity-60'
+                            }
+                        >
+                            {pushBusy ? '…' : pushOn ? '🔔 Yoqilgan' : '🔔 Bildirishnomalarni yoqish'}
+                        </button>
+                    )}
                     {!soundOn && (
                         <button
                             onClick={() => setSoundOn(enableSound())}
@@ -169,6 +205,11 @@ export default function App() {
             </header>
 
             <main className="p-4">
+                {pushError && (
+                    <div className="mb-4 rounded-xl bg-red-950 p-3 text-[14px] text-red-300">
+                        {pushError}
+                    </div>
+                )}
                 {loading && <p className="p-8 text-center text-gray-500">Yuklanmoqda…</p>}
                 {error && (
                     <div className="mb-4 rounded-xl bg-red-950 p-3 text-[14px] text-red-300">

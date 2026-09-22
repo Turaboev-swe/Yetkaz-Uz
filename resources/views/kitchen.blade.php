@@ -11,6 +11,8 @@
             restaurantId: {{ (int) $staff->restaurant_id }},
             restaurantName: @json($staff->restaurant?->name),
             csrf: @json(csrf_token()),
+            vapidPublicKey: @json(config('webpush.vapid.public_key')),
+            pushSubscribed: {{ $staff->pushSubscriptions()->exists() ? 'true' : 'false' }},
         };
     </script>
     @vite('resources/js/kitchen/main.jsx')

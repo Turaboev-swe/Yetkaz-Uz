@@ -35,4 +35,6 @@ export const api = {
     couriers: () => request('/couriers'),
     advance: (id, fields = null) => request(`/orders/${id}/advance`, 'PATCH', fields),
     cancel: (id, reason) => request(`/orders/${id}/cancel`, 'PATCH', { reason }),
+    subscribePush: (subscription) => request('/push/subscribe', 'POST', subscription),
+    unsubscribePush: (endpoint) => request('/push/subscribe', 'DELETE', { endpoint }),
 };

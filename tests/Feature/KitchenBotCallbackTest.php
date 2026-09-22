@@ -164,13 +164,15 @@ class KitchenBotCallbackTest extends TestCase
         app(Nutgram::class)->assertCalled('sendMessage', 2);
     }
 
-    public function test_order_placed_has_exactly_one_kitchen_notify_listener(): void
+    public function test_order_placed_has_exactly_one_listener_per_channel(): void
     {
         // Ikki marta ro'yxatga olinsa (auto-discovery + Event::listen) — bitta
-        // buyurtma uchun ikkita xabar ketardi.
+        // buyurtma uchun ikkita xabar ketardi. Telegram (ovoz o'rnini bosmaydi)
+        // + Web Push (2026-09-22) — ikkalasi ham QO'SHIMCHA kanal, shuning
+        // uchun aynan 2 ta, bitta EMAS.
         $listeners = app('events')->getListeners(OrderPlaced::class);
 
-        $this->assertCount(1, $listeners);
+        $this->assertCount(2, $listeners);
     }
 
     public function test_message_shows_readable_address_not_raw_coordinates(): void
