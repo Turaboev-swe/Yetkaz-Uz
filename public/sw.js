@@ -15,8 +15,8 @@ self.addEventListener('push', (event) => {
     const title = payload.title || '🔔 Yangi buyurtma!';
     const options = {
         body: payload.body || '',
-        icon: payload.icon || '/favicon.ico',
-        badge: payload.badge,
+        icon: payload.icon || '/images/yetkaz-logo.png',
+        badge: payload.badge || '/images/yetkaz-badge.png',
         tag: payload.tag,
         data: payload.data || {},
         requireInteraction: payload.requireInteraction ?? true,

@@ -30,6 +30,11 @@ class NewKitchenOrderPushNotification extends Notification
         return (new WebPushMessage)
             ->title('🔔 Yangi buyurtma!')
             ->body("№{$this->orderNumber} — {$this->summary}")
+            ->icon('/images/yetkaz-logo.png')
+            // Android status panelidagi kichik belgi — monoxrom, shaffof fon
+            // (generatsiya: public/images/yetkaz-logo.png dagi "Y" belgisi,
+            // aylana fonisiz, 96x96).
+            ->badge('/images/yetkaz-badge.png')
             ->tag('kitchen-new-order')
             ->requireInteraction()
             ->data(['url' => '/kitchen']);

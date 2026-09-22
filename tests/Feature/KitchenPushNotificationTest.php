@@ -88,6 +88,19 @@ class KitchenPushNotificationTest extends TestCase
         $this->assertSame(1, $other->fresh()->pushSubscriptions()->count());
     }
 
+    // --- Payload tarkibi (logotip ikonkasi) -------------------------------
+
+    public function test_push_payload_includes_the_logo_icon_and_badge(): void
+    {
+        $message = (new NewKitchenOrderPushNotification('YT-100200', '2 ta taom, 45 000 so‘m'))
+            ->toWebPush($this->owner, new NewKitchenOrderPushNotification('YT-100200', '2 ta taom, 45 000 so‘m'));
+
+        $payload = $message->toArray();
+
+        $this->assertSame('/images/yetkaz-logo.png', $payload['icon']);
+        $this->assertSame('/images/yetkaz-badge.png', $payload['badge']);
+    }
+
     // --- Yangi buyurtmada push -------------------------------------------
 
     public function test_new_order_notifies_only_subscribed_kitchen_staff(): void
