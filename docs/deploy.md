@@ -123,9 +123,25 @@ DNS (`resolver 127.0.0.11 valid=10s`) orqali har ~10s da qayta aniqlanadi —
   o'tib `keepalive`ni yo'qotadi (har so'rovga yangi TCP). `resolve` uchun nginx
   ≥ 1.27.3 kerak (`nginx:1.27-alpine` = 1.27.5).
 
-Lekin `docker/nginx/*.conf` ning O'ZI o'zgarganda nginx uni faqat reload'dan
-keyin ko'radi (`up -d` nginx'ni qayta yaratmaydi):
-`docker compose -f docker-compose.prod.yml exec nginx nginx -s reload`.
+**`docker/nginx/*.conf` ning O'ZI o'zgarsa — reload YETARLI EMAS, konteyner
+QAYTA YARATILISHI kerak.** (2026-09-22: `/kitchen` yana "uzilgan" bo'lib
+qoldi — barcha restoranlarda birdan, chunki bitta umumiy nginx.) Sabab:
+Docker bitta faylni bind-mount qilganda konteyner ishga tushgan paytdagi
+**inode**ga bog'lanadi. `git pull` faylni yangilaganda eskisini o'chirib
+(`unlink`) yangi inode bilan yangi fayl yozadi — nginx konteyneri esa hali
+ham eski, endi hech qanday papka yozuviga bog'lanmagan ("osilib qolgan")
+inode'ni ko'rishda davom etadi, xost fayli necha marta yangilanishidan
+qat'i nazar. `nginx -s reload` buni TUZATMAYDI — u faqat konteyner ICHIDAGI
+(hali ham eski inode'ga bog'langan) faylni qayta o'qiydi. To'g'ri buyruq:
+
+```sh
+docker compose -f docker-compose.prod.yml up -d --force-recreate nginx
+```
+
+Tekshirish: `docker exec yetkaz-prod-nginx-1 stat /etc/nginx/conf.d/default.conf`
+dagi `Inode` raqami xostdagi `stat docker/nginx/prod-ssl.conf` bilan mos
+kelishi kerak (yoki eng bo'lmasa `Links: 0` bo'lmasligi — bu inode
+o'chirilganini bildiradi).
 
 ### 4.1 Bazaviy image digest'larini yangilash
 
