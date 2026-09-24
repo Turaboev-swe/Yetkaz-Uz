@@ -39,7 +39,7 @@ class OrderStatusService
             throw ValidationException::withMessages(['status' => 'Bu buyurtma allaqachon yakunlangan.']);
         }
 
-        $fill = array_intersect_key($fill, array_flip(['courier_name', 'courier_phone', 'courier_staff_id']));
+        $fill = array_intersect_key($fill, array_flip(['courier_name', 'courier_phone', 'courier_staff_id', 'courier_type']));
         if ($fill !== []) {
             $order->fill($fill);
         }

@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Enums\CourierType;
 use App\Enums\OrderStatus;
 use App\Jobs\NotifyCustomerOfStatusChange;
 use App\Jobs\NotifyRestaurantOfNewOrder;
@@ -130,5 +131,43 @@ class OrderNotificationTest extends TestCase
         $order->update(['status' => OrderStatus::OnTheWay]);
         (new NotifyCustomerOfStatusChange($order->id))->handle($bot);
         $bot->assertRaw(fn ($request) => str_contains((string) $request->getBody(), 'lga chiqdi'), 1);
+    }
+
+    public function test_on_the_way_message_for_own_staff_courier_says_kuryer(): void
+    {
+        $order = $this->order();
+        $order->user->update(['telegram_id' => 700200, 'language' => 'uz']);
+        $order->update([
+            'status' => OrderStatus::OnTheWay,
+            'courier_type' => CourierType::OwnStaff,
+            'courier_name' => 'Alisher',
+            'courier_phone' => '+998901112233',
+        ]);
+
+        $bot = app(Nutgram::class);
+        (new NotifyCustomerOfStatusChange($order->id))->handle($bot);
+
+        $bot->assertRaw(fn ($r) => str_contains((string) $r->getBody(), 'Kuryer: Alisher')
+            && str_contains((string) $r->getBody(), '+998901112233')
+            && ! str_contains((string) $r->getBody(), 'Royal Taxi'));
+    }
+
+    public function test_on_the_way_message_for_taxi_courier_says_royal_taxi_not_kuryer(): void
+    {
+        $order = $this->order();
+        $order->user->update(['telegram_id' => 700201, 'language' => 'uz']);
+        $order->update([
+            'status' => OrderStatus::OnTheWay,
+            'courier_type' => CourierType::Taxi,
+            'courier_name' => 'Royal Taxi',
+            'courier_phone' => '+998901112233',
+        ]);
+
+        $bot = app(Nutgram::class);
+        (new NotifyCustomerOfStatusChange($order->id))->handle($bot);
+
+        $bot->assertRaw(fn ($r) => str_contains((string) $r->getBody(), 'Royal Taxi orqali')
+            && str_contains((string) $r->getBody(), 'Royal Taxi: +998901112233')
+            && ! str_contains((string) $r->getBody(), 'Kuryer:'));
     }
 }

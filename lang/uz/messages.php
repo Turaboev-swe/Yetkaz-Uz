@@ -100,6 +100,8 @@ return [
         'accepted' => '✅ Buyurtmangiz (:n) qabul qilindi. Tez orada tayyorlashga kirishamiz.',
         'preparing' => '👨‍🍳 Buyurtmangiz (:n) tayyorlanmoqda.',
         'on_the_way' => '🛵 Buyurtmangiz (:n) yo‘lga chiqdi.',
+        'on_the_way_taxi' => '🚕 Buyurtmangiz (:n) Royal Taxi orqali yo‘lga chiqdi.',
+        'royal_taxi' => 'Royal Taxi',
         'courier' => 'Kuryer',
         'restaurant' => 'Restoran',
         'delivered' => '🎉 Buyurtmangiz (:n) yetkazildi. Yoqimli ishtaha!',
@@ -165,6 +167,13 @@ return [
         'reason_other' => 'Boshqa sabab',
         'cancel_ask_reason' => 'Bekor qilish sababini yozing:',
         'cancel_done' => 'Buyurtma bekor qilindi',
+        'courier_ask_type' => "Kuryer turini tanlang:",
+        'courier_own' => "🛵 O'z kuryer bilan",
+        'courier_taxi' => '🚕 Royal Taxi orqali',
+        'courier_pick_staff' => 'Xodimni tanlang:',
+        'courier_no_staff' => 'Kuryersiz davom etish',
+        'courier_ask_phone' => "Royal Taxi haydovchisining telefon raqamini kiriting:",
+        'courier_invalid_phone' => "Telefon raqami +998 bilan boshlanib, to'g'ri uzunlikda bo'lishi kerak. Qaytadan kiriting:",
     ],
 
     // Savat / restoran
@@ -193,6 +202,10 @@ return [
     'delivery_type' => [
         'delivery' => 'Yetkazib berish',
         'pickup' => 'Olib ketish',
+    ],
+    'courier_type' => [
+        'own_staff' => "O'z kuryer",
+        'taxi' => 'Royal Taxi',
     ],
     'order_status' => [
         'new' => 'Qabul qilindi',

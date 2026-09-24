@@ -7,6 +7,10 @@ use App\Telegram\Handlers\IdHandler;
 use App\Telegram\Handlers\KitchenCallbackHandler;
 use App\Telegram\Handlers\KitchenCancelHandler;
 use App\Telegram\Handlers\KitchenCancelReasonHandler;
+use App\Telegram\Handlers\KitchenCourierOwnHandler;
+use App\Telegram\Handlers\KitchenCourierPickHandler;
+use App\Telegram\Handlers\KitchenCourierTaxiHandler;
+use App\Telegram\Handlers\KitchenCourierTypeHandler;
 use App\Telegram\Handlers\LanguageCallbackHandler;
 use App\Telegram\Handlers\MenuHandler;
 use App\Telegram\Handlers\NewAddressHandler;
@@ -56,6 +60,24 @@ $bot->onCallbackQueryData('kcancel:{orderId}:{expected}', KitchenCancelHandler::
 $bot->onCallbackQueryData('kcreason:{orderId}:{code}', KitchenCancelReasonHandler::class)
     ->where('orderId', '\d+')
     ->where('code', '[a-z]+');
+
+// "Yo'lga chiqdi" — kuryer turi (o'z xodimi yoki Royal Taxi).
+$bot->onCallbackQueryData('kcourier:{orderId}:{expected}', KitchenCourierTypeHandler::class)
+    ->where('orderId', '\d+')
+    ->where('expected', '[a-z_]+');
+
+$bot->onCallbackQueryData('kcourierown:{orderId}:{expected}', KitchenCourierOwnHandler::class)
+    ->where('orderId', '\d+')
+    ->where('expected', '[a-z_]+');
+
+$bot->onCallbackQueryData('kcouriertaxi:{orderId}:{expected}', KitchenCourierTaxiHandler::class)
+    ->where('orderId', '\d+')
+    ->where('expected', '[a-z_]+');
+
+$bot->onCallbackQueryData('kcourierpick:{orderId}:{expected}:{staffId}', KitchenCourierPickHandler::class)
+    ->where('orderId', '\d+')
+    ->where('expected', '[a-z_]+')
+    ->where('staffId', '\d+');
 
 // Mijoz baholovi — yulduzcha (RequireRegistration'dan TASHQARIDA, egalik
 // `order.user` bo'yicha tekshiriladi). Izoh esa oddiy matn bilan yoziladi va

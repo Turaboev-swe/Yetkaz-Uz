@@ -89,9 +89,15 @@ class KitchenOrderMessage
 
         $next = $this->status->nextStatus($order);
         if ($next !== null) {
+            // "Yo'lga chiqdi" — avval kuryer turi so'raladi (KitchenCourierTypeHandler),
+            // to'g'ridan-to'g'ri statusga o'tilmaydi. Boshqa bosqichlar — bir bosishда.
+            $callback = $next === OrderStatus::OnTheWay
+                ? "kcourier:{$order->id}:{$order->status->value}"
+                : self::callbackData($order);
+
             $keyboard->addRow(InlineKeyboardButton::make(
                 $this->buttonLabel($next, $order),
-                callback_data: self::callbackData($order),
+                callback_data: $callback,
             ));
         }
 

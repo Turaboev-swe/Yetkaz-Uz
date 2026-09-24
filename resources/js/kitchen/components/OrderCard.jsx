@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { som, agoLabel, nextActionLabel } from '../lib/format';
+import { som, agoLabel, nextActionLabel, isValidUzPhone } from '../lib/format';
 
 const CANCEL_PRESETS = ['Taom tugab qoldi', 'Restoran hozir band'];
 
@@ -21,10 +21,14 @@ export default function OrderCard({ order, onAdvance, onCancel, busy, couriers =
     const actionLabel = nextActionLabel(order.status, order.delivery_type);
     const addr = order.address;
 
-    // "Yo‘lga chiqdi" (yetkazish) — statusdan oldin kuryerni tanlaymiz.
+    // "Yo‘lga chiqdi" (yetkazish) — statusdan oldin kuryer turini so‘raymiz:
+    // avval 🛵 o‘z kuryer / 🚕 Royal Taxi, keyin tafsilot ('type' -> 'own' | 'taxi').
     const asksCourier = order.status === 'preparing' && order.delivery_type === 'delivery';
     const [askOpen, setAskOpen] = useState(false);
+    const [askStep, setAskStep] = useState('type');
     const [courierId, setCourierId] = useState('');
+    const [taxiPhone, setTaxiPhone] = useState('');
+    const taxiPhoneValid = isValidUzPhone(taxiPhone);
 
     // Bekor qilish modali
     const [cancelOpen, setCancelOpen] = useState(false);
@@ -41,6 +45,8 @@ export default function OrderCard({ order, onAdvance, onCancel, busy, couriers =
     const handleAction = () => {
         if (asksCourier) {
             setCourierId('');
+            setTaxiPhone('');
+            setAskStep('type');
             setAskOpen(true);
             return;
         }
@@ -49,12 +55,21 @@ export default function OrderCard({ order, onAdvance, onCancel, busy, couriers =
 
     const withCourier = () => {
         setAskOpen(false);
-        onAdvance(order.id, courierId ? { courier_staff_id: Number(courierId) } : null);
+        onAdvance(order.id, {
+            courier_type: 'own_staff',
+            ...(courierId ? { courier_staff_id: Number(courierId) } : {}),
+        });
     };
 
     const withoutCourier = () => {
         setAskOpen(false);
-        onAdvance(order.id);
+        onAdvance(order.id, { courier_type: 'own_staff' });
+    };
+
+    const withTaxi = () => {
+        if (!taxiPhoneValid) return;
+        setAskOpen(false);
+        onAdvance(order.id, { courier_type: 'taxi', courier_phone: taxiPhone.trim() });
     };
 
     return (
@@ -133,7 +148,7 @@ export default function OrderCard({ order, onAdvance, onCancel, busy, couriers =
 
             {(order.courier_name || order.courier_phone) && (
                 <div className="mt-2 text-[13px] text-gray-400">
-                    🚴 {[order.courier_name, order.courier_phone].filter(Boolean).join(' · ')}
+                    {order.courier_type === 'taxi' ? '🚕' : '🛵'} {[order.courier_name, order.courier_phone].filter(Boolean).join(' · ')}
                 </div>
             )}
 
@@ -226,43 +241,115 @@ export default function OrderCard({ order, onAdvance, onCancel, busy, couriers =
                         className="w-full max-w-sm rounded-2xl border border-gray-700 bg-[#1b1f27] p-5"
                         onClick={(e) => e.stopPropagation()}
                     >
-                        <div className="text-[17px] font-bold">Kuryerni tanlang</div>
-                        <div className="mt-1 text-[13px] text-gray-400">Mijozga kuryer ismi va telefoni yuboriladi.</div>
+                        {askStep === 'type' && (
+                            <>
+                                <div className="text-[17px] font-bold">Kuryer turini tanlang</div>
+                                <div className="mt-1 text-[13px] text-gray-400">{order.order_number}</div>
 
-                        <select
-                            value={courierId}
-                            onChange={(e) => setCourierId(e.target.value)}
-                            className="mt-4 h-12 w-full rounded-lg border border-gray-700 bg-[#0f1115] px-3 text-[15px] text-gray-100"
-                        >
-                            <option value="">— tanlanmagan —</option>
-                            {couriers.map((c) => (
-                                <option key={c.id} value={c.id}>
-                                    {c.name}{c.phone ? ` (${c.phone})` : ''}
-                                </option>
-                            ))}
-                        </select>
-                        {couriers.length === 0 && (
-                            <div className="mt-2 text-[13px] text-amber-400">
-                                Xodimlar ro‘yxati bo‘sh — admin panelda qo‘shing.
-                            </div>
+                                <div className="mt-5 flex flex-col gap-2">
+                                    <button
+                                        onClick={() => setAskStep('own')}
+                                        className="h-14 w-full rounded-xl text-[16px] font-bold text-white"
+                                        style={{ background: STATUS_COLOR.preparing }}
+                                    >
+                                        🛵 O‘z kuryer bilan
+                                    </button>
+                                    <button
+                                        onClick={() => setAskStep('taxi')}
+                                        className="h-14 w-full rounded-xl text-[16px] font-bold text-white"
+                                        style={{ background: '#ca8a04' }}
+                                    >
+                                        🚕 Royal Taxi orqali
+                                    </button>
+                                </div>
+                            </>
                         )}
 
-                        <div className="mt-5 flex flex-col gap-2">
-                            <button
-                                onClick={withCourier}
-                                disabled={!courierId}
-                                className="h-12 w-full rounded-xl text-[15px] font-bold text-white disabled:opacity-40"
-                                style={{ background: STATUS_COLOR.preparing }}
-                            >
-                                Davom etish
-                            </button>
-                            <button
-                                onClick={withoutCourier}
-                                className="h-12 w-full rounded-xl bg-gray-800 text-[15px] font-bold text-gray-300"
-                            >
-                                Kuryersiz davom etish
-                            </button>
-                        </div>
+                        {askStep === 'own' && (
+                            <>
+                                <div className="text-[17px] font-bold">Xodimni tanlang</div>
+                                <div className="mt-1 text-[13px] text-gray-400">Mijozga kuryer ismi va telefoni yuboriladi.</div>
+
+                                <select
+                                    value={courierId}
+                                    onChange={(e) => setCourierId(e.target.value)}
+                                    className="mt-4 h-12 w-full rounded-lg border border-gray-700 bg-[#0f1115] px-3 text-[15px] text-gray-100"
+                                >
+                                    <option value="">— tanlanmagan —</option>
+                                    {couriers.map((c) => (
+                                        <option key={c.id} value={c.id}>
+                                            {c.name}{c.phone ? ` (${c.phone})` : ''}
+                                        </option>
+                                    ))}
+                                </select>
+                                {couriers.length === 0 && (
+                                    <div className="mt-2 text-[13px] text-amber-400">
+                                        Xodimlar ro‘yxati bo‘sh — admin panelda qo‘shing.
+                                    </div>
+                                )}
+
+                                <div className="mt-5 flex flex-col gap-2">
+                                    <button
+                                        onClick={withCourier}
+                                        disabled={!courierId}
+                                        className="h-12 w-full rounded-xl text-[15px] font-bold text-white disabled:opacity-40"
+                                        style={{ background: STATUS_COLOR.preparing }}
+                                    >
+                                        Davom etish
+                                    </button>
+                                    <button
+                                        onClick={withoutCourier}
+                                        className="h-12 w-full rounded-xl bg-gray-800 text-[15px] font-bold text-gray-300"
+                                    >
+                                        Kuryersiz davom etish
+                                    </button>
+                                    <button
+                                        onClick={() => setAskStep('type')}
+                                        className="h-10 w-full text-[14px] font-medium text-gray-400"
+                                    >
+                                        ‹ Orqaga
+                                    </button>
+                                </div>
+                            </>
+                        )}
+
+                        {askStep === 'taxi' && (
+                            <>
+                                <div className="text-[17px] font-bold">Royal Taxi</div>
+                                <div className="mt-1 text-[13px] text-gray-400">Haydovchining telefon raqamini kiriting.</div>
+
+                                <input
+                                    type="tel"
+                                    inputMode="tel"
+                                    value={taxiPhone}
+                                    onChange={(e) => setTaxiPhone(e.target.value)}
+                                    placeholder="+998901234567"
+                                    className="mt-4 h-12 w-full rounded-lg border border-gray-700 bg-[#0f1115] px-3 text-[15px] text-gray-100"
+                                />
+                                {taxiPhone && !taxiPhoneValid && (
+                                    <div className="mt-2 text-[13px] text-red-400">
+                                        Raqam +998 bilan boshlanib, to‘g‘ri uzunlikda bo‘lishi kerak.
+                                    </div>
+                                )}
+
+                                <div className="mt-5 flex flex-col gap-2">
+                                    <button
+                                        onClick={withTaxi}
+                                        disabled={!taxiPhoneValid}
+                                        className="h-12 w-full rounded-xl text-[15px] font-bold text-white disabled:opacity-40"
+                                        style={{ background: '#ca8a04' }}
+                                    >
+                                        Tasdiqlash
+                                    </button>
+                                    <button
+                                        onClick={() => setAskStep('type')}
+                                        className="h-10 w-full text-[14px] font-medium text-gray-400"
+                                    >
+                                        ‹ Orqaga
+                                    </button>
+                                </div>
+                            </>
+                        )}
                     </div>
                 </div>
             )}

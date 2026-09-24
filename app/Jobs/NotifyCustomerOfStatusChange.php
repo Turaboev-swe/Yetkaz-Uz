@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Enums\CourierType;
 use App\Enums\OrderStatus;
 use App\Models\Order;
 use Illuminate\Bus\Queueable;
@@ -76,11 +77,22 @@ class NotifyCustomerOfStatusChange implements ShouldQueue
     }
 
     /**
-     * "Yo'lga chiqdi" + aloqa: kuryer ismi/telefoni (kiritilgan bo'lsa),
-     * aks holда restoran telefoni.
+     * "Yo'lga chiqdi" + aloqa — kuryer turiga qarab farqlanadi:
+     *   - taxi: "Royal Taxi orqali" matni + "Royal Taxi: {telefon}" ("Kuryer:"
+     *     EMAS — mijoz bu oddiy kuryer emas, taksi ekanini bilishi kerak).
+     *   - own_staff (yoki eski, courier_type kiritilishidan oldingi buyurtmalar):
+     *     avvalgi xatti-harakat — kuryer ismi/telefoni (kiritilgan bo'lsa),
+     *     aks holda restoran telefoni.
      */
     private function onTheWayText(Order $order, string $num): string
     {
+        if ($order->courier_type === CourierType::Taxi) {
+            $base = __('messages.order_notify.on_the_way_taxi', ['n' => $num]);
+            $phone = trim((string) $order->courier_phone);
+
+            return $phone === '' ? $base : $base."\n\n".'📞 '.__('messages.order_notify.royal_taxi').': '.$phone;
+        }
+
         $base = __('messages.order_notify.on_the_way', ['n' => $num]);
 
         $name = trim((string) $order->courier_name);

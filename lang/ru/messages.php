@@ -99,6 +99,8 @@ return [
         'accepted' => '✅ Ваш заказ (:n) принят. Скоро начнём готовить.',
         'preparing' => '👨‍🍳 Ваш заказ (:n) готовится.',
         'on_the_way' => '🛵 Ваш заказ (:n) в пути.',
+        'on_the_way_taxi' => '🚕 Ваш заказ (:n) в пути через Royal Taxi.',
+        'royal_taxi' => 'Royal Taxi',
         'courier' => 'Курьер',
         'restaurant' => 'Ресторан',
         'delivered' => '🎉 Ваш заказ (:n) доставлен. Приятного аппетита!',
@@ -164,6 +166,13 @@ return [
         'reason_other' => 'Другая причина',
         'cancel_ask_reason' => 'Напишите причину отмены:',
         'cancel_done' => 'Заказ отменён',
+        'courier_ask_type' => 'Выберите тип курьера:',
+        'courier_own' => '🛵 Свой курьер',
+        'courier_taxi' => '🚕 Через Royal Taxi',
+        'courier_pick_staff' => 'Выберите сотрудника:',
+        'courier_no_staff' => 'Продолжить без курьера',
+        'courier_ask_phone' => 'Введите номер телефона водителя Royal Taxi:',
+        'courier_invalid_phone' => 'Номер телефона должен начинаться с +998 и быть правильной длины. Введите заново:',
     ],
 
     // Корзина / ресторан
@@ -192,6 +201,10 @@ return [
     'delivery_type' => [
         'delivery' => 'Доставка',
         'pickup' => 'Самовывоз',
+    ],
+    'courier_type' => [
+        'own_staff' => 'Свой курьер',
+        'taxi' => 'Royal Taxi',
     ],
     'order_status' => [
         'new' => 'Принят',

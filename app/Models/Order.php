@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\CourierType;
 use App\Enums\DeliveryType;
 use App\Enums\OrderStatus;
 use App\Enums\PaymentMethod;
@@ -33,6 +34,7 @@ class Order extends Model
         'courier_name',
         'courier_phone',
         'courier_staff_id',
+        'courier_type',
         'subtotal',
         'delivery_fee',
         'total',
@@ -62,6 +64,7 @@ class Order extends Model
             'delivery_fee' => 'integer',
             'total' => 'integer',
             'status' => OrderStatus::class,
+            'courier_type' => CourierType::class,
             'payment_method' => PaymentMethod::class,
             'payment_status' => PaymentStatus::class,
             'eta_minutes' => 'integer',

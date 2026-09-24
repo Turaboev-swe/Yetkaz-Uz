@@ -2,6 +2,7 @@
 
 namespace App\Filament\Admin\Resources;
 
+use App\Enums\CourierType;
 use App\Enums\OrderStatus;
 use App\Enums\PaymentStatus;
 use App\Filament\Admin\Resources\OrderResource\Pages;
@@ -41,6 +42,8 @@ class OrderResource extends Resource
                     ->formatStateUsing(fn (OrderStatus $state) => $state->label()),
                 Tables\Columns\TextColumn::make('payment_status')->label('To`lov')->badge()
                     ->formatStateUsing(fn (PaymentStatus $state) => $state->label()),
+                Tables\Columns\TextColumn::make('courier_type')->label('Kuryer')
+                    ->formatStateUsing(fn (?CourierType $state): string => $state ? $state->icon().' '.$state->label() : '—'),
                 Tables\Columns\TextColumn::make('total')->label('Summa')
                     ->formatStateUsing(fn (int $state): string => number_format(intdiv($state, 100), 0, '.', ' ')." so'm")
                     ->sortable(),
@@ -71,6 +74,10 @@ class OrderResource extends Resource
                 ->formatStateUsing(fn (OrderStatus $state) => $state->label()),
             Infolists\Components\TextEntry::make('total')->label('Summa')
                 ->formatStateUsing(fn (int $state): string => number_format(intdiv($state, 100), 0, '.', ' ')." so'm"),
+            Infolists\Components\TextEntry::make('courier_type')->label('Kuryer')
+                ->formatStateUsing(fn (?CourierType $state): string => $state ? $state->icon().' '.$state->label() : '—'),
+            Infolists\Components\TextEntry::make('courier_name')->label('Kuryer ismi')->placeholder('—'),
+            Infolists\Components\TextEntry::make('courier_phone')->label('Kuryer telefoni')->placeholder('—'),
             Infolists\Components\KeyValueEntry::make('address_snapshot')->label('Manzil')->columnSpanFull(),
             Infolists\Components\RepeatableEntry::make('items')->label('Taomlar')
                 ->schema([

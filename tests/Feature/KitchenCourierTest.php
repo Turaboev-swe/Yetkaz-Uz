@@ -85,6 +85,83 @@ class KitchenCourierTest extends TestCase
         Queue::assertPushed(NotifyCustomerOfStatusChange::class);
     }
 
+    /** Eski frontend courier_type yubormaydi — courier_staff_id borligidan o'zi xulosa chiqariladi. */
+    public function test_courier_type_is_inferred_as_own_staff_when_only_staff_id_is_sent(): void
+    {
+        $courier = Staff::factory()->kitchenStaff($this->restaurant)->create();
+        $order = $this->order();
+
+        $this->actingAs($this->owner, 'staff')
+            ->patchJson("/kitchen/orders/{$order->id}/advance", ['courier_staff_id' => $courier->id])
+            ->assertOk();
+
+        $this->assertSame('own_staff', $order->fresh()->courier_type->value);
+    }
+
+    public function test_explicit_own_staff_type_without_a_staff_id_is_courierless_but_typed(): void
+    {
+        $order = $this->order();
+
+        $this->actingAs($this->owner, 'staff')
+            ->patchJson("/kitchen/orders/{$order->id}/advance", ['courier_type' => 'own_staff'])
+            ->assertOk()
+            ->assertJsonPath('data.status', 'on_the_way');
+
+        $order->refresh();
+        $this->assertSame('own_staff', $order->courier_type->value);
+        $this->assertNull($order->courier_staff_id);
+        $this->assertNull($order->courier_name);
+        $this->assertNull($order->courier_phone);
+    }
+
+    // --- PATCH advance — Royal Taxi ---
+
+    public function test_taxi_courier_hardcodes_the_name_and_normalizes_the_phone(): void
+    {
+        $order = $this->order();
+
+        $this->actingAs($this->owner, 'staff')
+            ->patchJson("/kitchen/orders/{$order->id}/advance", [
+                'courier_type' => 'taxi',
+                'courier_phone' => '+998 90 111 22 33',
+                // Frontend courier_name yubormaydi, lekin xatarga qarshi — yuborilsa ham e'tiborsiz qoldiriladi.
+                'courier_name' => 'Boshqa nom',
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.status', 'on_the_way');
+
+        $order->refresh();
+        $this->assertSame('taxi', $order->courier_type->value);
+        $this->assertSame('Royal Taxi', $order->courier_name);
+        $this->assertSame('+998901112233', $order->courier_phone);
+        $this->assertNull($order->courier_staff_id);
+    }
+
+    public function test_taxi_courier_without_a_valid_phone_is_rejected(): void
+    {
+        $order = $this->order();
+
+        $this->actingAs($this->owner, 'staff')
+            ->patchJson("/kitchen/orders/{$order->id}/advance", [
+                'courier_type' => 'taxi',
+                'courier_phone' => '90 111 22 33', // +998 yo'q
+            ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrorFor('courier_phone');
+
+        $this->assertSame('preparing', $order->fresh()->status->value);
+    }
+
+    public function test_taxi_courier_without_any_phone_is_rejected(): void
+    {
+        $order = $this->order();
+
+        $this->actingAs($this->owner, 'staff')
+            ->patchJson("/kitchen/orders/{$order->id}/advance", ['courier_type' => 'taxi'])
+            ->assertStatus(422)
+            ->assertJsonValidationErrorFor('courier_phone');
+    }
+
     public function test_courier_snapshot_is_kept_when_staff_details_change_later(): void
     {
         $courier = Staff::factory()->kitchenStaff($this->restaurant)

@@ -25,3 +25,9 @@ export function nextActionLabel(status, deliveryType) {
     if (status === 'preparing') return NEXT_LABEL[`preparing_${deliveryType}`];
     return NEXT_LABEL[status] || null;
 }
+
+/** O'zbekiston raqami — +998 bilan boshlanib, jami 12 ta raqamdan iborat. */
+export function isValidUzPhone(raw) {
+    const digits = String(raw || '').replace(/\D/g, '');
+    return digits.startsWith('998') && digits.length === 12;
+}

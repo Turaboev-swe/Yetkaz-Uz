@@ -2,6 +2,7 @@
 
 namespace App\Filament\Restaurant\Resources;
 
+use App\Enums\CourierType;
 use App\Enums\OrderStatus;
 use App\Filament\Restaurant\Resources\OrderResource\Pages;
 use App\Models\Order;
@@ -53,6 +54,10 @@ class OrderResource extends Resource
                     ->suffix(' min')
                     ->placeholder('—'),
 
+                Tables\Columns\TextColumn::make('courier_type')
+                    ->label('Kuryer')
+                    ->formatStateUsing(fn (?CourierType $state): string => $state ? $state->icon().' '.$state->label() : '—'),
+
                 Tables\Columns\TextColumn::make('created_at')
                     ->label('Kelgan vaqti')
                     ->dateTime('d.m.Y H:i')
@@ -79,6 +84,10 @@ class OrderResource extends Resource
                 ->label('Summa')
                 ->formatStateUsing(fn (int $state): string => number_format(intdiv($state, 100), 0, '.', ' ')." so'm"),
             Infolists\Components\TextEntry::make('created_at')->label('Kelgan vaqti')->dateTime('d.m.Y H:i'),
+            Infolists\Components\TextEntry::make('courier_type')->label('Kuryer')
+                ->formatStateUsing(fn (?CourierType $state): string => $state ? $state->icon().' '.$state->label() : '—'),
+            Infolists\Components\TextEntry::make('courier_name')->label('Kuryer ismi')->placeholder('—'),
+            Infolists\Components\TextEntry::make('courier_phone')->label('Kuryer telefoni')->placeholder('—'),
             Infolists\Components\KeyValueEntry::make('address_snapshot')->label('Manzil')->columnSpanFull(),
             Infolists\Components\RepeatableEntry::make('items')
                 ->label('Taomlar')
