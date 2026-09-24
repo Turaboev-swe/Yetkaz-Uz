@@ -26,8 +26,21 @@ export function nextActionLabel(status, deliveryType) {
     return NEXT_LABEL[status] || null;
 }
 
-/** O'zbekiston raqami — +998 bilan boshlanib, jami 12 ta raqamdan iborat. */
+/**
+ * Backend `App\Support\Phone::normalizeUzbek()` QABUL QILADIGAN formatlar
+ * bilan bir xil — bu yerda faqat TEKSHIRUV (tugmani yoqish/o'chirish uchun),
+ * "+998" qo'shish mantig'i takrorlanmaydi: haqiqiy normallashtirish
+ * serverda bo'ladi, javobdagi courier_phone allaqachon to'liq formatda keladi.
+ *   - "+998901112233" / "998901112233" — kod bilan (12 raqam)
+ *   - "0901112233"    — mahalliy format, boshida 0 (10 raqam)
+ *   - "901112233"     — kodsiz, 9 ta raqam
+ */
 export function isValidUzPhone(raw) {
     const digits = String(raw || '').replace(/\D/g, '');
-    return digits.startsWith('998') && digits.length === 12;
+
+    if (digits.startsWith('998') && digits.length === 12) return true;
+    if (digits.startsWith('0') && digits.length === 10) return true;
+    if (digits.length === 9) return true;
+
+    return false;
 }

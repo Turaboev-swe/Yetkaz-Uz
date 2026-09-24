@@ -316,19 +316,21 @@ export default function OrderCard({ order, onAdvance, onCancel, busy, couriers =
                         {askStep === 'taxi' && (
                             <>
                                 <div className="text-[17px] font-bold">Royal Taxi</div>
-                                <div className="mt-1 text-[13px] text-gray-400">Haydovchining telefon raqamini kiriting.</div>
+                                <div className="mt-1 text-[13px] text-gray-400">
+                                    Haydovchining telefon raqamini kiriting — +998 shart emas, o‘zi qo‘shiladi.
+                                </div>
 
                                 <input
                                     type="tel"
                                     inputMode="tel"
                                     value={taxiPhone}
                                     onChange={(e) => setTaxiPhone(e.target.value)}
-                                    placeholder="+998901234567"
+                                    placeholder="901112233 yoki +998901112233"
                                     className="mt-4 h-12 w-full rounded-lg border border-gray-700 bg-[#0f1115] px-3 text-[15px] text-gray-100"
                                 />
                                 {taxiPhone && !taxiPhoneValid && (
                                     <div className="mt-2 text-[13px] text-red-400">
-                                        Raqam +998 bilan boshlanib, to‘g‘ri uzunlikda bo‘lishi kerak.
+                                        Raqam noto‘g‘ri — masalan 901112233 yoki +998901112233 kabi yozing.
                                     </div>
                                 )}
 

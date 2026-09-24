@@ -133,7 +133,7 @@ class KitchenController extends Controller
 
             if ($phone === null) {
                 throw ValidationException::withMessages([
-                    'courier_phone' => "Telefon raqami +998 bilan boshlanib, to'g'ri uzunlikda bo'lishi kerak.",
+                    'courier_phone' => "Telefon raqami noto'g'ri — masalan 901112233 yoki +998901112233 kabi kiriting.",
                 ]);
             }
 

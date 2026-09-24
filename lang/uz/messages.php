@@ -173,7 +173,7 @@ return [
         'courier_pick_staff' => 'Xodimni tanlang:',
         'courier_no_staff' => 'Kuryersiz davom etish',
         'courier_ask_phone' => "Royal Taxi haydovchisining telefon raqamini kiriting:",
-        'courier_invalid_phone' => "Telefon raqami +998 bilan boshlanib, to'g'ri uzunlikda bo'lishi kerak. Qaytadan kiriting:",
+        'courier_invalid_phone' => "Telefon raqami noto'g'ri — masalan 901112233 yoki +998901112233 kabi yozing. Qaytadan kiriting:",
     ],
 
     // Savat / restoran

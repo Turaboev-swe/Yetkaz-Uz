@@ -152,6 +152,21 @@ class KitchenBotCourierTest extends TestCase
         $bot->assertNoConversation();
     }
 
+    /** Prefikssiz mahalliy raqam ("901112233") ham botda avtomatik +998 bilan to'ldiriladi. */
+    public function test_bare_nine_digit_phone_is_auto_completed_with_998(): void
+    {
+        $order = $this->order();
+
+        $bot = app(Nutgram::class);
+        $bot->willStartConversation();
+        $this->click(self::CHAT_ID, "kcouriertaxi:{$order->id}:preparing", $bot);
+        $bot->hearMessage(['from' => ['id' => self::CHAT_ID, 'first_name' => 'X'], 'text' => '901112233'])->reply();
+
+        $order->refresh();
+        $this->assertSame('on_the_way', $order->status->value);
+        $this->assertSame('+998901112233', $order->courier_phone);
+    }
+
     public function test_invalid_phone_is_rejected_and_asked_again(): void
     {
         $order = $this->order();
@@ -159,9 +174,9 @@ class KitchenBotCourierTest extends TestCase
         $bot = app(Nutgram::class);
         $bot->willStartConversation();
         $this->click(self::CHAT_ID, "kcouriertaxi:{$order->id}:preparing", $bot);
-        $bot->hearMessage(['from' => ['id' => self::CHAT_ID, 'first_name' => 'X'], 'text' => '90 111 22 33'])->reply(); // +998 yo'q
+        $bot->hearMessage(['from' => ['id' => self::CHAT_ID, 'first_name' => 'X'], 'text' => '12345'])->reply(); // juda qisqa
 
-        $bot->assertRaw(fn ($r) => str_contains((string) $r->getBody(), "to'g'ri uzunlikda"));
+        $bot->assertRaw(fn ($r) => str_contains((string) $r->getBody(), "noto'g'ri"));
         $this->assertSame('preparing', $order->fresh()->status->value); // hali o'zgarmagan
 
         // Qayta, to'g'ri raqam bilan — davom etadi.

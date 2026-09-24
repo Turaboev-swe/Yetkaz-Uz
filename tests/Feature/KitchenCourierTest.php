@@ -137,6 +137,39 @@ class KitchenCourierTest extends TestCase
         $this->assertNull($order->courier_staff_id);
     }
 
+    /**
+     * Prefikssiz mahalliy raqam ("901112233", 9 xonali) — App\Support\Phone
+     * qoidasi bo'yicha ENDI to'g'ri hisoblanadi, avtomatik +998 qo'shiladi.
+     */
+    public function test_taxi_courier_phone_without_998_prefix_is_auto_completed(): void
+    {
+        $order = $this->order();
+
+        $this->actingAs($this->owner, 'staff')
+            ->patchJson("/kitchen/orders/{$order->id}/advance", [
+                'courier_type' => 'taxi',
+                'courier_phone' => '901112233',
+            ])
+            ->assertOk();
+
+        $this->assertSame('+998901112233', $order->fresh()->courier_phone);
+    }
+
+    /** "0" bilan boshlanadigan mahalliy format ham avtomatik to'g'irlanadi. */
+    public function test_taxi_courier_phone_with_leading_zero_is_auto_completed(): void
+    {
+        $order = $this->order();
+
+        $this->actingAs($this->owner, 'staff')
+            ->patchJson("/kitchen/orders/{$order->id}/advance", [
+                'courier_type' => 'taxi',
+                'courier_phone' => '0901112233',
+            ])
+            ->assertOk();
+
+        $this->assertSame('+998901112233', $order->fresh()->courier_phone);
+    }
+
     public function test_taxi_courier_without_a_valid_phone_is_rejected(): void
     {
         $order = $this->order();
@@ -144,7 +177,7 @@ class KitchenCourierTest extends TestCase
         $this->actingAs($this->owner, 'staff')
             ->patchJson("/kitchen/orders/{$order->id}/advance", [
                 'courier_type' => 'taxi',
-                'courier_phone' => '90 111 22 33', // +998 yo'q
+                'courier_phone' => '12345', // juda qisqa
             ])
             ->assertStatus(422)
             ->assertJsonValidationErrorFor('courier_phone');
