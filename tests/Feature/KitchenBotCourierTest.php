@@ -17,6 +17,7 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
 use SergiX44\Nutgram\Nutgram;
 use SergiX44\Nutgram\Telegram\Properties\UpdateType;
+use SergiX44\Nutgram\Testing\FakeNutgram;
 use Tests\TestCase;
 
 /**
@@ -183,6 +184,75 @@ class KitchenBotCourierTest extends TestCase
         $bot->hearMessage(['from' => ['id' => self::CHAT_ID, 'first_name' => 'X'], 'text' => '+998901112233'])->reply();
         $this->assertSame('on_the_way', $order->fresh()->status->value);
         $bot->assertNoConversation();
+    }
+
+    /**
+     * Oxirgi `$method` so'rovi (editMessageText / sendMessage): matni va
+     * inline tugmalari ([text, callback_data] ro'yxati).
+     *
+     * @return array{text: string, buttons: list<array{text: string, callback_data: string}>}
+     */
+    private function lastKeyboardMessage(Nutgram $bot, string $method): array
+    {
+        $requests = array_filter(
+            $bot->getRequestHistory(),
+            fn (array $reqRes) => $reqRes['request']->getUri()->getPath() === $method,
+        );
+        $this->assertNotEmpty($requests, "$method chaqirilmadi");
+
+        $data = FakeNutgram::getActualData(end($requests)['request']);
+        $markup = is_string($data['reply_markup'] ?? null)
+            ? json_decode($data['reply_markup'], true)
+            : ($data['reply_markup'] ?? []);
+
+        return [
+            'text' => (string) ($data['text'] ?? ''),
+            'buttons' => array_merge(...($markup['inline_keyboard'] ?? [[]])),
+        ];
+    }
+
+    private function assertDeliveredButton(array $message, Order $order): void
+    {
+        $this->assertContains(
+            ['text' => '✅ Yetkazildi', 'callback_data' => "kadv:{$order->id}:on_the_way"],
+            array_map(fn (array $b) => ['text' => $b['text'], 'callback_data' => $b['callback_data'] ?? null], $message['buttons']),
+            'Advance\'dan keyin "✅ Yetkazildi" tugmasi chiqmadi',
+        );
+    }
+
+    public function test_own_courier_flow_shows_delivered_button_after_advancing(): void
+    {
+        $courier = Staff::factory()->kitchenStaff($this->restaurant)->create(['name' => 'Alisher']);
+        $order = $this->order();
+
+        $bot = $this->click(self::CHAT_ID, "kcourierpick:{$order->id}:preparing:{$courier->id}");
+
+        // Xodim tanlash xabari joyida yangilanadi — matn + "Yetkazildi" tugmasi.
+        $message = $this->lastKeyboardMessage($bot, 'editMessageText');
+        $this->assertSame("🛵 Yo'lga chiqdi — {$order->order_number}. Kuryer: Alisher", $message['text']);
+        $this->assertDeliveredButton($message, $order);
+
+        // Tugma haqiqatan ishlaydi: bosilsa buyurtma yetkazildi.
+        $this->click(self::CHAT_ID, "kadv:{$order->id}:on_the_way");
+        $this->assertSame('delivered', $order->fresh()->status->value);
+    }
+
+    public function test_royal_taxi_flow_shows_delivered_button_after_advancing(): void
+    {
+        $order = $this->order();
+
+        $bot = app(Nutgram::class);
+        $bot->willStartConversation();
+        $this->click(self::CHAT_ID, "kcouriertaxi:{$order->id}:preparing", $bot);
+        $bot->hearMessage(['from' => ['id' => self::CHAT_ID, 'first_name' => 'X'], 'text' => '901112233'])->reply();
+
+        // Telefon — matn xabari, tahrirlanmaydi: tugma yangi xabarda keladi.
+        $message = $this->lastKeyboardMessage($bot, 'sendMessage');
+        $this->assertSame("🚕 Yo'lga chiqdi — {$order->order_number}. Royal Taxi: +998901112233", $message['text']);
+        $this->assertDeliveredButton($message, $order);
+
+        $this->click(self::CHAT_ID, "kadv:{$order->id}:on_the_way");
+        $this->assertSame('delivered', $order->fresh()->status->value);
     }
 
     public function test_foreign_restaurant_staff_cannot_pick_a_courier(): void

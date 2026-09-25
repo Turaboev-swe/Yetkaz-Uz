@@ -174,6 +174,9 @@ return [
         'courier_no_staff' => 'Kuryersiz davom etish',
         'courier_ask_phone' => "Royal Taxi haydovchisining telefon raqamini kiriting:",
         'courier_invalid_phone' => "Telefon raqami noto'g'ri — masalan 901112233 yoki +998901112233 kabi yozing. Qaytadan kiriting:",
+        'courier_dispatched_own' => "🛵 Yo'lga chiqdi — :order. Kuryer: :name",
+        'courier_dispatched_own_none' => "🛵 Yo'lga chiqdi — :order.",
+        'courier_dispatched_taxi' => "🚕 Yo'lga chiqdi — :order. Royal Taxi: :phone",
     ],
 
     // Savat / restoran

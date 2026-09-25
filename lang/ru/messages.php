@@ -173,6 +173,9 @@ return [
         'courier_no_staff' => 'Продолжить без курьера',
         'courier_ask_phone' => 'Введите номер телефона водителя Royal Taxi:',
         'courier_invalid_phone' => 'Неверный номер — например, 901112233 или +998901112233. Введите заново:',
+        'courier_dispatched_own' => '🛵 В пути — :order. Курьер: :name',
+        'courier_dispatched_own_none' => '🛵 В пути — :order.',
+        'courier_dispatched_taxi' => '🚕 В пути — :order. Royal Taxi: :phone',
     ],
 
     // Корзина / ресторан

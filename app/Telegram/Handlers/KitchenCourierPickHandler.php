@@ -7,8 +7,11 @@ use App\Models\Order;
 use App\Models\Staff;
 use App\Services\Ordering\OrderStatusService;
 use App\Telegram\Handlers\Concerns\ResolvesKitchenStaff;
+use App\Telegram\Support\KitchenOrderMessage;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 use SergiX44\Nutgram\Nutgram;
+use SergiX44\Nutgram\Telegram\Exceptions\TelegramException;
 
 /**
  * `kcourierpick:{orderId}:{expected}:{staffId}` — xodim tanlandi (yoki
@@ -18,7 +21,10 @@ class KitchenCourierPickHandler
 {
     use ResolvesKitchenStaff;
 
-    public function __construct(private readonly OrderStatusService $status) {}
+    public function __construct(
+        private readonly OrderStatusService $status,
+        private readonly KitchenOrderMessage $message,
+    ) {}
 
     public function __invoke(Nutgram $bot, string $orderId, string $expected, string $staffId): void
     {
@@ -59,10 +65,34 @@ class KitchenCourierPickHandler
 
         try {
             $this->status->advance($order, "kitchen:{$staff->id}", $fill);
-            $bot->answerCallbackQuery(text: $t('btn_on_the_way'));
-            $bot->sendMessage('✅ '.$t('btn_on_the_way').' — '.$order->order_number);
         } catch (ValidationException) {
             $bot->answerCallbackQuery(text: $t('cb_final'), show_alert: true);
+
+            return;
+        }
+
+        $bot->answerCallbackQuery(text: $t('btn_on_the_way'));
+        $this->showDeliveredButton($bot, $order);
+    }
+
+    /**
+     * Xodim tanlash xabarini "Yo'lga chiqdi" + "✅ Yetkazildi" tugmasi bilan
+     * almashtiradi (kadv: oqimidagi refresh() bilan bir xil klaviatura).
+     * Tahrirlab bo'lmasa — tugma yo'qolmasin, yangi xabar sifatida yuboriladi.
+     */
+    private function showDeliveredButton(Nutgram $bot, Order $order): void
+    {
+        $text = $this->message->courierDispatchedText($order);
+        $keyboard = $this->message->keyboard($order);
+
+        try {
+            $bot->editMessageText(text: $text, reply_markup: $keyboard);
+        } catch (TelegramException $e) {
+            Log::info('[kitchen-courier] editMessageText o\'tkazib yuborildi, yangi xabar yuboriladi', [
+                'order' => $order->order_number,
+                'reason' => $e->getMessage(),
+            ]);
+            $bot->sendMessage(text: $text, reply_markup: $keyboard);
         }
     }
 }

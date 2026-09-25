@@ -2,6 +2,7 @@
 
 namespace App\Telegram\Support;
 
+use App\Enums\CourierType;
 use App\Enums\OrderStatus;
 use App\Models\Order;
 use App\Services\Ordering\OrderStatusService;
@@ -109,6 +110,24 @@ class KitchenOrderMessage
         }
 
         return $keyboard;
+    }
+
+    /**
+     * Kuryer tanlanib "Yo'lga chiqdi"ga o'tilgandan keyingi qisqa xabar
+     * (`keyboard()` bilan birga — "Yetkazildi" tugmasi shu yerda chiqadi).
+     * Oddiy matn (parse_mode yo'q) — kuryer ismi/telefoni escape talab qilmaydi.
+     */
+    public function courierDispatchedText(Order $order): string
+    {
+        $r = ['order' => $order->order_number, 'name' => $order->courier_name, 'phone' => $order->courier_phone];
+
+        $key = match (true) {
+            $order->courier_type === CourierType::Taxi => 'courier_dispatched_taxi',
+            filled($order->courier_name) => 'courier_dispatched_own',
+            default => 'courier_dispatched_own_none',
+        };
+
+        return (string) __("messages.kitchen_bot.$key", $r, $this->locale);
     }
 
     private function buttonLabel(OrderStatus $next, Order $order): string

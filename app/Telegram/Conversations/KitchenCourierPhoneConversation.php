@@ -7,6 +7,7 @@ use App\Models\Order;
 use App\Services\Ordering\OrderStatusService;
 use App\Support\Phone;
 use App\Telegram\Handlers\Concerns\ResolvesKitchenStaff;
+use App\Telegram\Support\KitchenOrderMessage;
 use Illuminate\Validation\ValidationException;
 use SergiX44\Nutgram\Conversations\Conversation;
 use SergiX44\Nutgram\Nutgram;
@@ -67,7 +68,13 @@ class KitchenCourierPhoneConversation extends Conversation
                     'courier_name' => 'Royal Taxi',
                     'courier_phone' => $phone,
                 ]);
-                $bot->sendMessage('✅ '.__('messages.kitchen_bot.btn_on_the_way', [], 'uz').' — '.$order->order_number);
+                // Telefon — xodim yozgan matn xabari, uni tahrirlab bo'lmaydi: "Yetkazildi"
+                // tugmasi (kadv: oqimi bilan bir xil klaviatura) yangi xabarda chiqadi.
+                $message = app(KitchenOrderMessage::class);
+                $bot->sendMessage(
+                    text: $message->courierDispatchedText($order),
+                    reply_markup: $message->keyboard($order),
+                );
             } catch (ValidationException) {
                 $bot->sendMessage(__('messages.kitchen_bot.cb_final', [], 'uz'));
             }
