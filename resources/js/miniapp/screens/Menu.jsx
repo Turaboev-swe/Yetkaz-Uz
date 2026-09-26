@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { api } from '../lib/api';
 import { useAsync } from '../hooks/useAsync';
@@ -8,6 +8,7 @@ import { useCart, cartQty, cartCount, cartTotal } from '../store/cart';
 import { somLabel } from '../lib/format';
 import CategoryTabs from '../components/CategoryTabs';
 import DishCard from '../components/DishCard';
+import DishDetailSheet from '../components/DishDetailSheet';
 import CartBar from '../components/CartBar';
 import { Spinner, ErrorState, EmptyState } from '../components/States';
 
@@ -17,8 +18,15 @@ export default function Menu() {
     const navigate = useNavigate();
     const location = useLocation();
 
-    // Menyudan orqaga -> restoranlar ro'yxati (ilova yopilmaydi).
-    useEffect(() => showBackButton(() => navigate('/')), [navigate]);
+    // Tafsilot oynasidagi taom (rasm/nom bosilganda).
+    const [detail, setDetail] = useState(null);
+
+    // Orqaga: tafsilot ochiq bo'lsa — faqat uni yopadi; aks holda menyudan
+    // restoranlar ro'yxatiga (ilova yopilmaydi). Bir vaqtda bitta handler.
+    useEffect(
+        () => showBackButton(detail ? () => setDetail(null) : () => navigate('/')),
+        [detail, navigate],
+    );
 
     const preload = location.state?.restaurant;
     const info = useAsync(() => api.restaurant(rid), [rid]);
@@ -98,6 +106,7 @@ export default function Menu() {
                                                 qty={cartQty(carts, rid, p.id)}
                                                 onAdd={() => add(rid, p)}
                                                 onRemove={() => remove(rid, p.id)}
+                                                onOpen={() => setDetail(p)}
                                             />
                                         ))}
                                     </div>
@@ -107,6 +116,14 @@ export default function Menu() {
                     </>
                 )}
             </div>
+
+            <DishDetailSheet
+                product={detail}
+                qty={detail ? cartQty(carts, rid, detail.id) : 0}
+                onAdd={() => add(rid, detail)}
+                onRemove={() => remove(rid, detail.id)}
+                onClose={() => setDetail(null)}
+            />
 
             {/* Telegram'da savat vazifasini MainButton bajaradi — panel faqat brauzerda. */}
             {count > 0 && !isInsideTelegram() && (
