@@ -20,6 +20,7 @@ class Broadcast extends Model
     protected $fillable = [
         'message',
         'image_path',
+        'telegram_file_id',
         'audience_type',
         'district_ids',
         'sent_count',
