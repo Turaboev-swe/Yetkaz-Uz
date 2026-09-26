@@ -52,6 +52,23 @@ export default function DishDetailSheet({ product, qty, onAdd, onRemove, onClose
                         </p>
                     )}
 
+                    {/* API faqat restoran tasdiqlagan kaloriyani qaytaradi — aks holda maydon yo'q. */}
+                    {product.calories != null && (
+                        <div className="mt-2 flex flex-wrap items-center gap-2 text-[13px]">
+                            <span className="tabular-nums" style={{ color: 'var(--tg-hint)' }}>
+                                ~{product.calories} kkal · taxminiy
+                            </span>
+                            {product.is_light && (
+                                <span
+                                    className="rounded-full px-2 py-0.5 text-[12px] font-medium"
+                                    style={{ background: 'var(--tg-section-bg)', color: 'var(--tg-text)' }}
+                                >
+                                    🥗 Yengil taom
+                                </span>
+                            )}
+                        </div>
+                    )}
+
                     {description && (
                         <p className="mt-3 whitespace-pre-line text-[14px] leading-relaxed" style={{ color: 'var(--tg-text)' }}>
                             {description}

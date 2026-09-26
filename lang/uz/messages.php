@@ -247,5 +247,11 @@ return [
         'district' => 'Tanlangan tuman(lar)',
     ],
 
+    'nutrition_status' => [
+        'pending' => 'Tasdiq kutmoqda',
+        'approved' => 'Tasdiqlangan',
+        'hidden' => 'Yashirilgan',
+    ],
+
     'eta_range' => 'Taxminiy yetkazib berish: :from–:to daqiqa.',
 ];

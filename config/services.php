@@ -14,6 +14,12 @@ return [
     |
     */
 
+    // Taom kaloriyasini taxminlash (EstimateProductNutrition). Kalit bo'lmasa — o'chiq.
+    'anthropic' => [
+        'key' => env('ANTHROPIC_API_KEY'),
+        'nutrition_model' => env('ANTHROPIC_NUTRITION_MODEL', 'claude-haiku-4-5-20251001'),
+    ],
+
     'postmark' => [
         'key' => env('POSTMARK_API_KEY'),
     ],

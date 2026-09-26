@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Api;
 
+use App\Enums\NutritionStatus;
 use App\Models\Address;
 use App\Models\Category;
 use App\Models\District;
@@ -253,6 +254,43 @@ class RestaurantApiTest extends TestCase
         $this->assertSame(3_000_000, $products[0]['old_price']);
         $this->assertArrayNotHasKey('old_price', $products[1]); // chegirmasiz
         $this->assertArrayNotHasKey('old_price', $products[2]); // old_price <= price
+    }
+
+    public function test_menu_hides_nutrition_unless_approved_by_the_restaurant(): void
+    {
+        $restaurant = $this->restaurant(['lat' => 41.311, 'lng' => 69.280]);
+        $cat = Category::factory()->for($restaurant)->create(['is_active' => true]);
+
+        Product::factory()->for($cat)->create(['name' => 'Kutmoqda', 'sort_order' => 0,
+            'calories_estimate' => 650, 'is_light' => false, 'nutrition_status' => NutritionStatus::Pending]);
+        Product::factory()->for($cat)->create(['name' => 'Yashirin', 'sort_order' => 1,
+            'calories_estimate' => 300, 'is_light' => true, 'nutrition_status' => NutritionStatus::Hidden]);
+        Product::factory()->for($cat)->create(['name' => 'Taxminsiz', 'sort_order' => 2]);
+
+        $products = $this->getJson("/api/restaurants/{$restaurant->id}/menu", $this->headers())
+            ->assertOk()
+            ->json('data.0.products');
+
+        foreach ($products as $product) {
+            $this->assertArrayNotHasKey('calories', $product, $product['name']);
+            $this->assertArrayNotHasKey('is_light', $product, $product['name']);
+        }
+    }
+
+    public function test_menu_shows_nutrition_once_approved(): void
+    {
+        $restaurant = $this->restaurant(['lat' => 41.311, 'lng' => 69.280]);
+        $cat = Category::factory()->for($restaurant)->create(['is_active' => true]);
+        $product = Product::factory()->for($cat)->create([
+            'calories_estimate' => 180, 'is_light' => true, 'nutrition_status' => NutritionStatus::Pending,
+        ]);
+
+        $product->update(['nutrition_status' => NutritionStatus::Approved]);
+
+        $this->getJson("/api/restaurants/{$restaurant->id}/menu", $this->headers())
+            ->assertOk()
+            ->assertJsonPath('data.0.products.0.calories', 180)
+            ->assertJsonPath('data.0.products.0.is_light', true);
     }
 
     public function test_endpoints_require_authentication(): void

@@ -2,14 +2,17 @@
 
 namespace App\Filament\Restaurant\Resources;
 
+use App\Enums\NutritionStatus;
 use App\Filament\Restaurant\Resources\ProductResource\Pages;
 use App\Filament\Restaurant\Resources\ProductResource\RelationManagers\PriceHistoryRelationManager;
 use App\Models\Product;
 use Filament\Forms;
 use Filament\Forms\Form;
+use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 
 class ProductResource extends Resource
 {
@@ -95,7 +98,75 @@ class ProductResource extends Resource
             Forms\Components\Toggle::make('is_available')
                 ->label('Mavjud')
                 ->default(true),
+
+            self::nutritionSection(),
         ]);
+    }
+
+    /**
+     * Kaloriya (AI taxmini). Mijozga faqat egasi tasdiqlagach chiqadi.
+     * Egasi qiymatni o'zi o'zgartirib saqlasa — avtomatik tasdiqlanadi
+     * (EditProduct / CreateProduct::mutateFormDataBefore*).
+     */
+    private static function nutritionSection(): Forms\Components\Section
+    {
+        return Forms\Components\Section::make('Kaloriya')
+            ->description('AI taxmini — iltimos haqiqiy porsiyangizga qarab tekshiring. Mijozga faqat tasdiqlangandan keyin "taxminiy" belgisi bilan ko\'rsatiladi.')
+            ->columns(2)
+            ->schema([
+                Forms\Components\Placeholder::make('nutrition_status_label')
+                    ->label('Holat')
+                    ->content(fn (?Product $record): string => $record?->nutrition_status
+                        ? $record->nutrition_status->emoji().' '.$record->nutrition_status->label()
+                        : ($record ? 'AI taxmini hali yo\'q' : 'Saqlangach AI taxmin qiladi'))
+                    ->columnSpanFull(),
+
+                Forms\Components\TextInput::make('calories_estimate')
+                    ->label('Kaloriya (1 porsiya)')
+                    ->numeric()
+                    ->minValue(1)
+                    ->maxValue(5000)
+                    ->suffix('kkal'),
+
+                Forms\Components\Toggle::make('is_light')
+                    ->label('🥗 Yengil taom')
+                    ->inline(false),
+
+                Forms\Components\Actions::make([
+                    Forms\Components\Actions\Action::make('approveNutrition')
+                        ->label('Tasdiqlash')
+                        ->icon('heroicon-o-check-circle')
+                        ->color('success')
+                        ->action(function (Product $record, Forms\Get $get, Forms\Set $set): void {
+                            if (blank($get('calories_estimate'))) {
+                                Notification::make()->title('Avval kaloriyani kiriting')->danger()->send();
+
+                                return;
+                            }
+
+                            $record->update([
+                                'calories_estimate' => (int) $get('calories_estimate'),
+                                'is_light' => (bool) $get('is_light'),
+                                'nutrition_status' => NutritionStatus::Approved,
+                            ]);
+                            $set('calories_estimate', $record->calories_estimate);
+
+                            Notification::make()->title('Kaloriya tasdiqlandi — mijozga ko\'rinadi')->success()->send();
+                        }),
+
+                    Forms\Components\Actions\Action::make('hideNutrition')
+                        ->label('Ko\'rsatmaslik')
+                        ->icon('heroicon-o-eye-slash')
+                        ->color('gray')
+                        ->action(function (Product $record): void {
+                            $record->update(['nutrition_status' => NutritionStatus::Hidden]);
+
+                            Notification::make()->title('Kaloriya mijozga ko\'rsatilmaydi')->success()->send();
+                        }),
+                ])
+                    ->visible(fn (?Product $record): bool => $record !== null)
+                    ->columnSpanFull(),
+            ]);
     }
 
     public static function table(Table $table): Table
@@ -135,6 +206,14 @@ class ProductResource extends Resource
                     ->sortable()
                     ->toggleable(),
 
+                Tables\Columns\TextColumn::make('calories_estimate')
+                    ->label('Kaloriya')
+                    ->state(fn (Product $record): string => $record->nutrition_status
+                        ? $record->nutrition_status->emoji().' '.($record->calories_estimate !== null ? $record->calories_estimate.' kkal' : '')
+                        : '—')
+                    ->tooltip(fn (Product $record): ?string => $record->nutrition_status?->label())
+                    ->sortable(),
+
                 Tables\Columns\TextColumn::make('updated_at')
                     ->label('Yangilangan')
                     ->since()
@@ -147,6 +226,10 @@ class ProductResource extends Resource
                     ->relationship('category', 'name'),
                 Tables\Filters\TernaryFilter::make('is_available')
                     ->label('Mavjudlik'),
+                Tables\Filters\Filter::make('nutrition_pending')
+                    ->label('Tasdiq kutayotganlar')
+                    ->toggle()
+                    ->query(fn (Builder $query): Builder => $query->where('nutrition_status', NutritionStatus::Pending->value)),
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),

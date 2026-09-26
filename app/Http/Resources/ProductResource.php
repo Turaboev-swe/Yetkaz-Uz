@@ -22,6 +22,10 @@ class ProductResource extends JsonResource
             'old_price' => $this->when($this->resource->isOnSale(), fn () => $this->old_price),
             'photo_url' => Media::url($this->photo_url),
             'prep_time_min' => $this->prep_time_min,
+            // Kaloriya — FAQAT restoran egasi tasdiqlagan bo'lsa; aks holda
+            // kalitlar umuman yo'q (pending AI taxmini mijozga chiqmaydi).
+            'calories' => $this->when($this->resource->hasApprovedNutrition(), fn () => $this->calories_estimate),
+            'is_light' => $this->when($this->resource->hasApprovedNutrition(), fn () => (bool) $this->is_light),
         ];
     }
 }

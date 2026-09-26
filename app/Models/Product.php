@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\NutritionStatus;
 use App\Models\Concerns\ScopedToRestaurant;
 use App\Observers\ProductObserver;
 use Database\Factories\ProductFactory;
@@ -30,6 +31,10 @@ class Product extends Model
         'prep_time_min',
         'is_available',
         'sort_order',
+        'calories_estimate',
+        'is_light',
+        'nutrition_status',
+        'nutrition_generated_at',
     ];
 
     protected function casts(): array
@@ -40,6 +45,10 @@ class Product extends Model
             'prep_time_min' => 'integer',
             'is_available' => 'boolean',
             'sort_order' => 'integer',
+            'calories_estimate' => 'integer',
+            'is_light' => 'boolean',
+            'nutrition_status' => NutritionStatus::class,
+            'nutrition_generated_at' => 'datetime',
         ];
     }
 
@@ -47,6 +56,12 @@ class Product extends Model
     public function isOnSale(): bool
     {
         return $this->old_price !== null && $this->old_price > $this->price;
+    }
+
+    /** Kaloriya mijozga ko'rsatiladimi — faqat restoran egasi tasdiqlagan bo'lsa. */
+    public function hasApprovedNutrition(): bool
+    {
+        return $this->nutrition_status === NutritionStatus::Approved && $this->calories_estimate !== null;
     }
 
     /** @return BelongsTo<Category, Product> */
