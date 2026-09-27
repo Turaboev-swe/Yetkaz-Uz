@@ -65,4 +65,24 @@ class ReportPeriodTest extends TestCase
         $this->assertSame('2026-08-31 19:00:00', $period->fromUtc()->format('Y-m-d H:i:s'));
         $this->assertSame('2026-09-01 18:59:59', $period->toUtc()->format('Y-m-d H:i:s'));
     }
+
+    public function test_trailing_is_a_rolling_window_ending_now_not_a_calendar_boundary(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-09-21 08:00:00', 'Asia/Tashkent'));
+
+        $period = ReportPeriod::trailing(30);
+
+        $this->assertSame('2026-08-22 08:00:00', $period->from->format('Y-m-d H:i:s'));
+        $this->assertSame('2026-09-21 08:00:00', $period->to->format('Y-m-d H:i:s'));
+        $this->assertSame('trailing', $period->key);
+    }
+
+    public function test_trailing_converts_the_lower_bound_to_utc_correctly(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-09-21 03:00:00', 'Asia/Tashkent')); // = 2026-09-20 22:00 UTC
+
+        $period = ReportPeriod::trailing(7);
+
+        $this->assertSame('2026-09-13 22:00:00', $period->fromUtc()->format('Y-m-d H:i:s'));
+    }
 }

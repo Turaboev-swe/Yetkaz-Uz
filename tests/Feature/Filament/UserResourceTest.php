@@ -62,6 +62,97 @@ class UserResourceTest extends TestCase
             ->assertTableColumnStateSet('orders_count', 0, $other);
     }
 
+    public function test_last_delivered_at_and_total_spent_columns_count_only_delivered_orders(): void
+    {
+        Carbon::setTestNow('2026-09-21 12:00:00');
+        $admin = Staff::factory()->platformAdmin()->create();
+        $customer = User::factory()->create();
+        Order::factory()->for($customer)->delivered('2026-09-18 10:00:00')->create(['total' => 30_000_00]);
+        Order::factory()->for($customer)->delivered('2026-09-20 10:00:00')->create(['total' => 50_000_00]);
+        Order::factory()->for($customer)->cancelled('2026-09-21 09:00:00')->create(['total' => 999_000_00]);
+
+        $neverOrdered = User::factory()->create();
+
+        Livewire::actingAs($admin, 'admin');
+
+        Livewire::test(ListUsers::class)
+            ->assertTableColumnStateSet('last_delivered_at', '2026-09-20 10:00:00', $customer)
+            ->assertTableColumnStateSet('delivered_total_tiyin', 80_000_00, $customer)
+            ->assertTableColumnStateSet('last_delivered_at', null, $neverOrdered)
+            ->assertTableColumnFormattedStateSet('delivered_total_tiyin', '0 so\'m', $neverOrdered);
+
+        Carbon::setTestNow();
+    }
+
+    public function test_orders_count_column_is_sortable(): void
+    {
+        $admin = Staff::factory()->platformAdmin()->create();
+        $few = User::factory()->create();
+        Order::factory()->count(1)->for($few)->create();
+        $many = User::factory()->create();
+        Order::factory()->count(5)->for($many)->create();
+
+        Livewire::actingAs($admin, 'admin');
+
+        Livewire::test(ListUsers::class)
+            ->sortTable('orders_count')
+            ->assertCanSeeTableRecords([$few, $many], inOrder: true)
+            ->sortTable('orders_count', 'desc')
+            ->assertCanSeeTableRecords([$many, $few], inOrder: true);
+    }
+
+    public function test_last_delivered_at_column_is_sortable(): void
+    {
+        $admin = Staff::factory()->platformAdmin()->create();
+        $olderBuyer = $this->customerWithDeliveredOrder(now()->subDays(10));
+        $recentBuyer = $this->customerWithDeliveredOrder(now()->subDay());
+
+        Livewire::actingAs($admin, 'admin');
+
+        Livewire::test(ListUsers::class)
+            ->sortTable('last_delivered_at')
+            ->assertCanSeeTableRecords([$olderBuyer, $recentBuyer], inOrder: true);
+    }
+
+    // --- Faollik filtri ---
+
+    private function customerWithDeliveredOrder(Carbon|string $deliveredAt): User
+    {
+        $user = User::factory()->create();
+        Order::factory()->for($user)->delivered($deliveredAt)->create();
+
+        return $user;
+    }
+
+    public function test_activity_filter_active_30_days(): void
+    {
+        $admin = Staff::factory()->platformAdmin()->create();
+        $active = $this->customerWithDeliveredOrder(now()->subDays(10));
+        $inactive = $this->customerWithDeliveredOrder(now()->subDays(60));
+
+        Livewire::actingAs($admin, 'admin');
+
+        Livewire::test(ListUsers::class)
+            ->filterTable('activity', 'active_30')
+            ->assertCanSeeTableRecords([$active])
+            ->assertCanNotSeeTableRecords([$inactive]);
+    }
+
+    public function test_activity_filter_inactive(): void
+    {
+        $admin = Staff::factory()->platformAdmin()->create();
+        $wentQuiet = $this->customerWithDeliveredOrder(now()->subDays(45));
+        $stillActive = $this->customerWithDeliveredOrder(now()->subDays(5));
+        $neverOrdered = User::factory()->create();
+
+        Livewire::actingAs($admin, 'admin');
+
+        Livewire::test(ListUsers::class)
+            ->filterTable('activity', 'inactive')
+            ->assertCanSeeTableRecords([$wentQuiet])
+            ->assertCanNotSeeTableRecords([$stillActive, $neverOrdered]);
+    }
+
     public function test_search_by_name_or_phone(): void
     {
         $admin = Staff::factory()->platformAdmin()->create();
@@ -243,5 +334,67 @@ class UserResourceTest extends TestCase
 
         $this->assertSame('5', $values[3]); // jami /start bosganlar: 3 + 2
         $this->assertSame('3', $values[4]); // to'liq ro'yxatdan o'tganlar
+    }
+
+    // --- Dashboard: faol / qaytgan mijozlar ------------------------------
+
+    public function test_active_customers_stat_counts_only_delivered_within_30_days(): void
+    {
+        Carbon::setTestNow('2026-09-21 12:00:00');
+
+        $active = User::factory()->create();
+        Order::factory()->for($active)->delivered(now()->subDays(10))->create();
+
+        $inactive = User::factory()->create();
+        Order::factory()->for($inactive)->delivered(now()->subDays(40))->create();
+
+        $cancelledOnly = User::factory()->create();
+        Order::factory()->for($cancelledOnly)->cancelled(now()->subDay())->create();
+
+        $method = new ReflectionMethod(UsersOverviewStats::class, 'getStats');
+        $method->setAccessible(true);
+        $stats = $method->invoke(new UsersOverviewStats);
+
+        $this->assertSame('1', $stats[5]->getValue()); // Faol mijozlar (30 kun)
+
+        Carbon::setTestNow();
+    }
+
+    public function test_active_customers_stat_shows_change_versus_previous_30_days(): void
+    {
+        Carbon::setTestNow('2026-09-21 12:00:00');
+
+        // Joriy 30 kun: 2 faol mijoz.
+        User::factory()->count(2)->create()->each(
+            fn (User $u) => Order::factory()->for($u)->delivered(now()->subDays(5))->create(),
+        );
+        // Oldingi 30 kun (31-60 kun oldin): 1 faol mijoz edi.
+        $u = User::factory()->create();
+        Order::factory()->for($u)->delivered(now()->subDays(45))->create();
+
+        $method = new ReflectionMethod(UsersOverviewStats::class, 'getStats');
+        $method->setAccessible(true);
+        $stat = $method->invoke(new UsersOverviewStats)[5];
+
+        $this->assertSame('2', $stat->getValue());
+        $this->assertSame('+1 oldingi 30 kunga nisbatan', $stat->getDescription());
+
+        Carbon::setTestNow();
+    }
+
+    public function test_returning_customers_stat_requires_two_or_more_delivered_orders(): void
+    {
+        $returning = User::factory()->create();
+        Order::factory()->for($returning)->delivered(now()->subDays(10))->create();
+        Order::factory()->for($returning)->delivered(now()->subDays(2))->create();
+
+        $oneTime = User::factory()->create();
+        Order::factory()->for($oneTime)->delivered(now()->subDays(2))->create();
+
+        $method = new ReflectionMethod(UsersOverviewStats::class, 'getStats');
+        $method->setAccessible(true);
+        $stats = $method->invoke(new UsersOverviewStats);
+
+        $this->assertSame('1', $stats[6]->getValue()); // Qaytgan mijozlar
     }
 }

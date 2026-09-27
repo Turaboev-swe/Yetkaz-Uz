@@ -53,6 +53,20 @@ final class ReportPeriod
         );
     }
 
+    /**
+     * So'nggi N kun — kalendar kuni emas, "hozir"dan orqaga harakatlanuvchi
+     * oyna (`to` doim joriy vaqt). "Faol mijoz" kabi "so'nggi N kun ichida"
+     * ta'riflar uchun — presetlar (bugun/hafta/oy) kalendar chegarasi bilan
+     * ishlaydi, bu esa aniq 24*N soat oldin.
+     */
+    public static function trailing(int $days): self
+    {
+        $tz = config('app.display_timezone');
+        $now = CarbonImmutable::now($tz);
+
+        return new self($now->subDays($days), $now, 'trailing');
+    }
+
     public function fromUtc(): CarbonImmutable
     {
         return $this->from->utc();
@@ -77,6 +91,7 @@ final class ReportPeriod
             'quarter' => 'Shu chorak',
             'all' => 'Butun davr',
             'custom' => $this->from->format('d.m.Y').' – '.$this->to->format('d.m.Y'),
+            'trailing' => 'So\'nggi '.$this->from->diffInDays($this->to).' kun',
             default => 'Shu oy',
         };
     }

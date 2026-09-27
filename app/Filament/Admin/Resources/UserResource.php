@@ -2,8 +2,10 @@
 
 namespace App\Filament\Admin\Resources;
 
+use App\Enums\OrderStatus;
 use App\Filament\Admin\Resources\UserResource\Pages;
 use App\Models\User;
+use App\Support\Money;
 use Filament\Forms\Components\DatePicker;
 use Filament\Infolists;
 use Filament\Infolists\Infolist;
@@ -45,7 +47,13 @@ class UserResource extends Resource
 
     public static function getEloquentQuery(): Builder
     {
-        return parent::getEloquentQuery()->withCount('orders');
+        return parent::getEloquentQuery()
+            ->withCount('orders')
+            // "Oxirgi buyurtma" / "Jami xarid" — faqat yetkazilgan buyurtmalardan,
+            // bitta so'rovda (N+1 yo'q). withSum null qaytaradi (delivered
+            // buyurtma bo'lmasa) — ustunda shuni 0 so'мга aylantiramiz.
+            ->withMax(['orders as last_delivered_at' => fn (Builder $q) => $q->where('status', OrderStatus::Delivered->value)], 'delivered_at')
+            ->withSum(['orders as delivered_total_tiyin' => fn (Builder $q) => $q->where('status', OrderStatus::Delivered->value)], 'total');
     }
 
     public static function table(Table $table): Table
@@ -83,6 +91,23 @@ class UserResource extends Resource
                     ->state(fn (User $record): int => $record->orders_count ?? $record->orders()->count())
                     ->sortable(),
 
+                Tables\Columns\TextColumn::make('last_delivered_at')
+                    ->label('Oxirgi buyurtma')
+                    // orders_count'dagi kabi zaxira — aggregat yuklanmagan
+                    // (masalan getEloquentQuery() dan tashqari) holatda ham to'g'ri.
+                    ->state(fn (User $record) => $record->last_delivered_at
+                        ?? $record->orders()->where('status', OrderStatus::Delivered->value)->max('delivered_at'))
+                    ->since()
+                    ->placeholder('—')
+                    ->sortable(),
+
+                Tables\Columns\TextColumn::make('delivered_total_tiyin')
+                    ->label('Jami xarid')
+                    ->state(fn (User $record) => $record->delivered_total_tiyin
+                        ?? $record->orders()->where('status', OrderStatus::Delivered->value)->sum('total'))
+                    ->formatStateUsing(fn (?int $state): string => Money::soms($state ?? 0))
+                    ->sortable(),
+
                 Tables\Columns\TextColumn::make('created_at')
                     ->label("Ro'yxatdan o'tgan")
                     ->dateTime('d.m.Y H:i')
@@ -93,12 +118,28 @@ class UserResource extends Resource
                     ->label("Ro'yxatdan o'tish holati")
                     ->options([
                         '1' => "To'liq ro'yxatdan o'tganlar",
-                        '0' => "Faqat /start bosganlar",
+                        '0' => 'Faqat /start bosganlar',
                     ])
                     ->query(fn (Builder $query, array $data) => $query->when(
                         $data['value'] !== null && $data['value'] !== '',
                         fn (Builder $q) => $q->where('profile_completed', (bool) $data['value']),
                     )),
+
+                SelectFilter::make('activity')
+                    ->label('Faollik')
+                    ->options([
+                        'active_7' => 'Faol — 7 kun',
+                        'active_30' => 'Faol — 30 kun',
+                        'active_90' => 'Faol — 90 kun',
+                        'inactive' => "Nofaol (30+ kun buyurtma yo'q)",
+                    ])
+                    ->query(fn (Builder $query, array $data): Builder => match ($data['value'] ?? null) {
+                        'active_7' => $query->activeSince(7),
+                        'active_30' => $query->activeSince(30),
+                        'active_90' => $query->activeSince(90),
+                        'inactive' => $query->inactiveFor(30),
+                        default => $query,
+                    }),
 
                 SelectFilter::make('language')
                     ->label('Til')
