@@ -177,9 +177,7 @@ return [
         'courier_dispatched_own' => "🛵 Yo'lga chiqdi — :order. Kuryer: :name",
         'courier_dispatched_own_none' => "🛵 Yo'lga chiqdi — :order.",
         'courier_dispatched_taxi' => "🚕 Yo'lga chiqdi — :order. Royal Taxi: :phone",
-        // Qabul qilinmagan buyurtma eslatmalari (EscalateUnacceptedOrder)
-        'escalation_reminder' => '⏰ :order — :minutes daqiqadan beri qabul qilinmadi!',
-        'escalation_owner' => "🚨 <b>DIQQAT, restoran egasi!</b>\n\n⏰ :order — :minutes daqiqadan beri qabul qilinmadi!\nMijoz kutmoqda — iltimos, oshxona bilan darhol bog'laning yoki buyurtmani o'zingiz qabul qiling.",
+        // Qabul qilinmagan buyurtma — platforma adminiga (AlertAdminOfUnacceptedOrder)
         'escalation_admin' => "🆘 <b>Qabul qilinmagan buyurtma</b>\n\n🏪 Restoran: :restaurant\n🧾 Buyurtma: :order\n⏱ Kutmoqda: :minutes daqiqa\n☎️ Restoran: :restaurant_phone\n📞 Mijoz: :customer_phone",
     ],
 

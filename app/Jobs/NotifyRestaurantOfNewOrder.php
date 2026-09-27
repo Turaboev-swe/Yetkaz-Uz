@@ -3,7 +3,9 @@
 namespace App\Jobs;
 
 use App\Enums\DeliveryType;
+use App\Enums\StaffRole;
 use App\Models\Order;
+use App\Models\Staff;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -45,6 +47,13 @@ class NotifyRestaurantOfNewOrder implements ShouldQueue
 
         $chatId = $order->restaurant->notify_chat_id;
 
+        // Shu chat allaqachon oshxona xabarini oladi (NotifyKitchenStaffOfNewOrder —
+        // manzil, xarita havolasi va "Qabul qilish" tugmasi bilan) — bitta
+        // buyurtma uchun bitta chatga ikkinchi xabar yubormaymiz.
+        if ($this->receivesKitchenMessage($order, (int) $chatId)) {
+            return;
+        }
+
         try {
             $bot->sendMessage(
                 text: $this->message($order),
@@ -75,6 +84,17 @@ class NotifyRestaurantOfNewOrder implements ShouldQueue
 
             throw $e; // vaqtinchalik — qayta urinsin
         }
+    }
+
+    /** NotifyKitchenStaffOfNewOrder bilan bir xil qabul qiluvchilar sharti. */
+    private function receivesKitchenMessage(Order $order, int $chatId): bool
+    {
+        return Staff::query()
+            ->where('restaurant_id', $order->restaurant_id)
+            ->where('is_active', true)
+            ->whereIn('role', [StaffRole::KitchenStaff->value, StaffRole::RestaurantOwner->value])
+            ->where('telegram_chat_id', $chatId)
+            ->exists();
     }
 
     private function isPermanent(TelegramException $e): bool

@@ -12,7 +12,7 @@ use NotificationChannels\WebPush\WebPushMessage;
  * sahifa ochiq turganda ishlaydi). Ikkalasi ham OrderPlaced'ga QO'SHIMCHA
  * — biri ikkinchisini almashtirmaydi.
  *
- * `$waitingMinutes` berilsa — eslatma (EscalateUnacceptedOrder): buyurtma
+ * `$waitingMinutes` berilsa — takroriy eslatma (RepeatKitchenPush): buyurtma
  * N daqiqadan beri qabul qilinmagan.
  *
  * Bir buyurtmaning barcha push'lari bitta `tag` da (buyurtma raqami) —

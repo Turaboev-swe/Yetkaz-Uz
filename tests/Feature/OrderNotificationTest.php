@@ -4,14 +4,17 @@ namespace Tests\Feature;
 
 use App\Enums\CourierType;
 use App\Enums\OrderStatus;
+use App\Jobs\AlertAdminOfUnacceptedOrder;
 use App\Jobs\NotifyCustomerOfStatusChange;
 use App\Jobs\NotifyRestaurantOfNewOrder;
+use App\Jobs\RepeatKitchenPush;
 use App\Models\Address;
 use App\Models\Category;
 use App\Models\District;
 use App\Models\Order;
 use App\Models\Product;
 use App\Models\Restaurant;
+use App\Models\Staff;
 use App\Models\User;
 use App\Services\Ordering\OrderService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -92,6 +95,39 @@ class OrderNotificationTest extends TestCase
                 && str_contains($body, '555111222');
         });
         $bot->assertCalled('sendLocation'); // yetkazish -> lokatsiya pin
+    }
+
+    public function test_owner_dm_is_skipped_when_that_chat_already_gets_the_kitchen_message(): void
+    {
+        $order = $this->order(['notify_chat_id' => '555111222']);
+        Staff::factory()->owner($order->restaurant_id)->create(['telegram_chat_id' => 555111222]);
+
+        $bot = app(Nutgram::class);
+        (new NotifyRestaurantOfNewOrder($order->id))->handle($bot);
+
+        $bot->assertCalled('sendMessage', 0);
+        $bot->assertCalled('sendLocation', 0);
+    }
+
+    public function test_owner_dm_is_still_sent_when_the_chat_belongs_to_an_inactive_staff(): void
+    {
+        $order = $this->order(['notify_chat_id' => '555111222']);
+        Staff::factory()->owner($order->restaurant_id)->create(['telegram_chat_id' => 555111222, 'is_active' => false]);
+
+        $bot = app(Nutgram::class);
+        (new NotifyRestaurantOfNewOrder($order->id))->handle($bot);
+
+        $bot->assertCalled('sendMessage', 1);
+    }
+
+    public function test_placing_an_order_starts_push_repeats_and_the_admin_alert(): void
+    {
+        $order = $this->order();
+
+        Queue::assertPushed(RepeatKitchenPush::class, fn ($job) => $job->orderId === $order->id
+            && $job->dueAt === $order->created_at->copy()->addSeconds(60)->getTimestamp());
+        Queue::assertPushed(AlertAdminOfUnacceptedOrder::class, fn ($job) => $job->orderId === $order->id
+            && $job->dueAt === $order->created_at->copy()->addMinutes(7)->getTimestamp());
     }
 
     public function test_job_is_noop_without_chat_id(): void

@@ -176,9 +176,7 @@ return [
         'courier_dispatched_own' => '🛵 В пути — :order. Курьер: :name',
         'courier_dispatched_own_none' => '🛵 В пути — :order.',
         'courier_dispatched_taxi' => '🚕 В пути — :order. Royal Taxi: :phone',
-        // Напоминания о непринятом заказе (EscalateUnacceptedOrder)
-        'escalation_reminder' => '⏰ :order — не принят уже :minutes мин!',
-        'escalation_owner' => "🚨 <b>ВНИМАНИЕ, владелец ресторана!</b>\n\n⏰ :order — не принят уже :minutes мин!\nКлиент ждёт — пожалуйста, срочно свяжитесь с кухней или примите заказ сами.",
+        // Непринятый заказ — платформенному админу (AlertAdminOfUnacceptedOrder)
         'escalation_admin' => "🆘 <b>Непринятый заказ</b>\n\n🏪 Ресторан: :restaurant\n🧾 Заказ: :order\n⏱ Ждёт: :minutes мин\n☎️ Ресторан: :restaurant_phone\n📞 Клиент: :customer_phone",
     ],
 

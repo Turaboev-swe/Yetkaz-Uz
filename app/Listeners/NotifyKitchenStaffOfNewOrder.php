@@ -39,7 +39,10 @@ class NotifyKitchenStaffOfNewOrder implements ShouldQueue
             ->where('is_active', true)
             ->whereIn('role', [StaffRole::KitchenStaff->value, StaffRole::RestaurantOwner->value])
             ->whereNotNull('telegram_chat_id')
-            ->pluck('telegram_chat_id');
+            ->pluck('telegram_chat_id')
+            // Bir chat — bir xabar: bir odam ikki xodim yozuvida (masalan egasi
+            // ham oshxona xodimi sifatida) bo'lsa ham ikki marta kelmasin.
+            ->unique();
 
         if ($recipients->isEmpty()) {
             return;

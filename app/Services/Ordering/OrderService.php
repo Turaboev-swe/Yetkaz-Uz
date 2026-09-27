@@ -8,9 +8,10 @@ use App\Enums\PaymentMethod;
 use App\Enums\PaymentStatus;
 use App\Events\OrderPlaced;
 use App\Exceptions\PhoneRequiredException;
+use App\Jobs\AlertAdminOfUnacceptedOrder;
 use App\Jobs\DispatchOrderJob;
-use App\Jobs\EscalateUnacceptedOrder;
 use App\Jobs\NotifyRestaurantOfNewOrder;
+use App\Jobs\RepeatKitchenPush;
 use App\Jobs\SendOrderConfirmationToCustomer;
 use App\Models\Order;
 use App\Models\OrderStatusHistory;
@@ -124,8 +125,10 @@ class OrderService
         DispatchOrderJob::dispatch($order->id);
         NotifyRestaurantOfNewOrder::dispatch($order->id);
         SendOrderConfirmationToCustomer::dispatch($order->id);
-        // Qabul qilinmasa — 2/4/7 daqiqada eslatma, oxirida platforma adminiga.
-        EscalateUnacceptedOrder::schedule($order);
+        // Qabul qilinmaguncha push takrorlanadi (har 60s, ≤30 daq); 7 daqiqada
+        // platforma adminiga bir martalik Telegram. Ikkalasi mustaqil.
+        RepeatKitchenPush::start($order);
+        AlertAdminOfUnacceptedOrder::schedule($order);
 
         return $order;
     }
