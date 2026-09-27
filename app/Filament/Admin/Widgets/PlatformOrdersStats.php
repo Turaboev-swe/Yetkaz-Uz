@@ -28,8 +28,8 @@ class PlatformOrdersStats extends StatsOverviewWidget
                 ->color('primary'),
             Stat::make('Daromad (30 kun)', Money::soms($s['revenue_tiyin']))
                 ->description("O'rtacha chek: ".Money::soms($s['avg_check_tiyin'])),
-            Stat::make('Faol mijozlar', number_format($s['customers'], 0, '.', ' '))
-                ->description('Buyurtma bergan noyob foydalanuvchilar'),
+            Stat::make('Buyurtma berganlar (30 kun)', number_format($s['customers'], 0, '.', ' '))
+                ->description('Buyurtma bergan noyob foydalanuvchilar — bekor qilinganlar ham hisobga olingan'),
         ];
     }
 }
