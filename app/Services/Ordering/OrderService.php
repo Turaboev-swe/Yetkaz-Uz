@@ -9,6 +9,7 @@ use App\Enums\PaymentStatus;
 use App\Events\OrderPlaced;
 use App\Exceptions\PhoneRequiredException;
 use App\Jobs\DispatchOrderJob;
+use App\Jobs\EscalateUnacceptedOrder;
 use App\Jobs\NotifyRestaurantOfNewOrder;
 use App\Jobs\SendOrderConfirmationToCustomer;
 use App\Models\Order;
@@ -123,6 +124,8 @@ class OrderService
         DispatchOrderJob::dispatch($order->id);
         NotifyRestaurantOfNewOrder::dispatch($order->id);
         SendOrderConfirmationToCustomer::dispatch($order->id);
+        // Qabul qilinmasa — 2/4/7 daqiqada eslatma, oxirida platforma adminiga.
+        EscalateUnacceptedOrder::schedule($order);
 
         return $order;
     }

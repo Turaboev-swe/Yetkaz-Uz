@@ -35,7 +35,15 @@ return [
     /**
      * The HTTP client options used to deliver push notifications.
      */
-    'client_options' => [],
+    //
+    // Paket standarti: faqat 'timeout' => 30, connect_timeout yo'q, so'rovlar
+    // ketma-ket. Push xizmati (FCM) javob bermasa har obuna 30 soniya band
+    // qiladi va natija jim "rejected" bo'ladi (2026-09-27: 30 soniyalik job).
+    // Ulanish 5s, butun so'rov 10s — sog'lom push xizmati <1s javob beradi.
+    'client_options' => [
+        'connect_timeout' => (float) env('WEBPUSH_CONNECT_TIMEOUT', 5),
+        'timeout' => (float) env('WEBPUSH_TIMEOUT', 10),
+    ],
 
     /**
      * The automatic padding in bytes used by Minishlink\WebPush.

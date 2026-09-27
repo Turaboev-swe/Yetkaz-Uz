@@ -18,10 +18,19 @@ self.addEventListener('push', (event) => {
         icon: payload.icon || '/images/yetkaz-logo.png',
         badge: payload.badge || '/images/yetkaz-badge.png',
         tag: payload.tag,
-        data: payload.data || {},
+        // Xodim bosmaguncha ekranda qoladi.
         requireInteraction: payload.requireInteraction ?? true,
+        // Kuchli vibratsiya (Android; iOS e'tiborsiz qoldiradi).
+        vibrate: payload.vibrate || [500, 200, 500, 200, 800],
+        data: payload.data || {},
         actions: payload.actions || [],
     };
+    // Bir xil tag (buyurtma raqami) — eslatma eskisini almashtiradi, renotify
+    // esa QAYTA ovoz/vibratsiya beradi. renotify faqat tag bilan ruxsat etilgan
+    // (tag'siz berilsa showNotification TypeError tashlaydi).
+    if (options.tag) {
+        options.renotify = payload.renotify ?? true;
+    }
 
     event.waitUntil(self.registration.showNotification(title, options));
 });
