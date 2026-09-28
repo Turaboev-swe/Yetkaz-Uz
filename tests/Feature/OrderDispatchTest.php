@@ -11,6 +11,7 @@ use App\Models\District;
 use App\Models\Order;
 use App\Models\Restaurant;
 use App\Models\User;
+use App\Services\Dispatch\EscPos;
 use App\Services\Dispatch\OrderDispatcher;
 use App\Services\Dispatch\ReceiptFormatter;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -110,6 +111,49 @@ class OrderDispatchTest extends TestCase
         $this->assertStringNotContainsString('YETKAZISH', $receipt['text']);
         $this->assertStringContainsString('60 000 som', $receipt['text']);
         $this->assertStringContainsString('IZOH', $receipt['text']);
+    }
+
+    public function test_receipt_shows_the_amount_to_collect_instead_of_jami(): void
+    {
+        $text = app(ReceiptFormatter::class)->format($this->order())['text'];
+
+        $this->assertMatchesRegularExpression('/MIJOZDAN OLINADI:\s+60 000 som/', $text);
+        $this->assertStringNotContainsString('JAMI', $text);
+        $this->assertStringNotContainsString('Chegirma', $text);
+    }
+
+    public function test_receipt_shows_the_discount_split_for_a_discounted_order(): void
+    {
+        $text = app(ReceiptFormatter::class)->format($this->discountedOrder())['text'];
+
+        $this->assertMatchesRegularExpression('/Chegirma:\s+-13 800 som/', $text);
+        $this->assertMatchesRegularExpression('/restoran:\s+3 400 som/', $text);
+        $this->assertMatchesRegularExpression('/platforma qoplaydi:\s+10 400 som/', $text);
+        $this->assertMatchesRegularExpression('/MIJOZDAN OLINADI:\s+65 200 som/', $text);
+    }
+
+    /** Printer WPC1252 — emoji (💵) yoki "−" (U+2212) chekka tushsa buzuq belgi chiqardi. */
+    public function test_receipt_text_is_printer_safe_ascii(): void
+    {
+        $receipt = app(ReceiptFormatter::class)->format($this->discountedOrder());
+
+        $this->assertDoesNotMatchRegularExpression('/[^\x00-\x7F]/', $receipt['text']);
+        foreach (explode("\n", rtrim($receipt['text'])) as $line) {
+            $this->assertLessThanOrEqual(EscPos::WIDTH, mb_strlen($line), "qator 42 belgidan uzun: {$line}");
+        }
+    }
+
+    private function discountedOrder(): Order
+    {
+        $order = $this->order();
+        $order->update([
+            'discount_amount' => 13_800_00,
+            'discount_restaurant_amount' => 3_400_00,
+            'discount_platform_amount' => 10_400_00,
+            'total' => 65_200_00,
+        ]);
+
+        return $order->fresh();
     }
 
     public function test_agent_broadcast_auth_requires_matching_token_and_channel(): void

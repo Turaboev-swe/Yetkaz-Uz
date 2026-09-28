@@ -147,7 +147,10 @@ return [
         'address' => 'Manzil',
         'map' => 'Xaritada ko‘rish',
         'note' => 'Izoh',
-        'total' => 'Jami',
+        // Egasi DM'i va /kitchen kartasi bilan bir xil matn.
+        'to_collect' => '💵 Mijozdan olinadi',
+        'cash' => 'naqd',
+        'discount_split' => 'Chegirma: −:amount (restoran: :restaurant, platforma qoplaydi: :platform)',
         'som' => "so'm",
         'status' => 'Holat',
         'done' => '✅ Yakunlandi',

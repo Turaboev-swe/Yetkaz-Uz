@@ -68,7 +68,15 @@ class ReceiptFormatter
             $p->rule();
         }
 
-        $p->bold(true)->size(0, 1)->columns('JAMI:', $som($order->total))->size(0, 0)->bold(false);
+        // Egasi DM'i / oshxona xabari / kartasi bilan bir xil ma'no. Printer WPC1252 —
+        // emoji (💵) va "−" chiqmaydi, shuning uchun matn emojisiz, ASCII minus bilan;
+        // qator 42 belgi — taqsimot bir qatorga sig'maydi, ustunlarda.
+        if ($order->hasDiscount()) {
+            $p->columns('Chegirma:', '-'.$som($order->discount_amount));
+            $p->columns('  restoran:', $som($order->discount_restaurant_amount));
+            $p->columns('  platforma qoplaydi:', $som($order->discount_platform_amount));
+        }
+        $p->bold(true)->size(0, 1)->columns('MIJOZDAN OLINADI:', $som($order->total))->size(0, 0)->bold(false);
         $p->text('Tolov: naqd');
         $p->feed(1)->align('center')->text('yetkaz.uz')->feed(3)->cut();
 

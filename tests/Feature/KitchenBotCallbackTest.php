@@ -13,6 +13,7 @@ use App\Models\Order;
 use App\Models\Restaurant;
 use App\Models\Staff;
 use App\Models\User;
+use App\Telegram\Support\KitchenOrderMessage;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Http;
@@ -162,6 +163,33 @@ class KitchenBotCallbackTest extends TestCase
 
         // self::staff (kitchen, chat 700700) + owner (chat 500500) = 2 ta
         app(Nutgram::class)->assertCalled('sendMessage', 2);
+    }
+
+    // --- "💵 Mijozdan olinadi" (Jami o'rniga), chegirmada taqsimot qatori ---
+
+    public function test_kitchen_message_shows_the_amount_to_collect_instead_of_jami(): void
+    {
+        $text = app(KitchenOrderMessage::class)->text($this->order(['total' => 60_000_00]));
+
+        $this->assertStringContainsString("<b>💵 Mijozdan olinadi: 60 000 so'm</b> · naqd", $text);
+        $this->assertStringNotContainsString('Jami', $text);
+        $this->assertStringNotContainsString('Chegirma', $text);
+    }
+
+    public function test_kitchen_message_shows_the_discount_split_like_the_owner_dm(): void
+    {
+        $text = app(KitchenOrderMessage::class)->text($this->order([
+            'discount_amount' => 13_800_00,
+            'discount_restaurant_amount' => 3_400_00,
+            'discount_platform_amount' => 10_400_00,
+            'total' => 65_200_00,
+        ]));
+
+        $this->assertStringContainsString(
+            "Chegirma: −13 800 so'm (restoran: 3 400 so'm, platforma qoplaydi: 10 400 so'm)",
+            $text,
+        );
+        $this->assertStringContainsString("💵 Mijozdan olinadi: 65 200 so'm", $text);
     }
 
     public function test_order_placed_has_exactly_one_listener_per_channel(): void
