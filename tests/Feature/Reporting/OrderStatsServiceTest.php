@@ -5,6 +5,7 @@ namespace Tests\Feature\Reporting;
 use App\Enums\OrderStatus;
 use App\Models\Order;
 use App\Models\OrderStatusHistory;
+use App\Models\PromoCode;
 use App\Models\Restaurant;
 use App\Models\User;
 use App\Services\Reporting\OrderStatsService;
@@ -207,5 +208,75 @@ class OrderStatsServiceTest extends TestCase
         $this->assertSame(2, $this->stats->summary($this->period(), $this->a->id)['orders']);
         $this->assertSame(9, $this->stats->summary($this->period(), $this->b->id)['orders']);
         $this->assertSame(11, $this->stats->summary($this->period(), null)['orders']);
+    }
+
+    // --- promoCodeUsage — restoranlar bilan hisob-kitob uchun -------------
+
+    public function test_promo_code_usage_aggregates_per_restaurant(): void
+    {
+        $promo = PromoCode::factory()->create();
+
+        Order::factory()->forRestaurant($this->a)->placedAt('2026-09-05 10:00')->delivered('2026-09-05 11:00')->create([
+            'promo_code_id' => $promo->id, 'discount_amount' => 1_000_00, 'discount_restaurant_share' => 500_00, 'discount_platform_share' => 500_00,
+        ]);
+        Order::factory()->forRestaurant($this->a)->placedAt('2026-09-06 10:00')->delivered('2026-09-06 11:00')->create([
+            'promo_code_id' => $promo->id, 'discount_amount' => 2_000_00, 'discount_restaurant_share' => 1_000_00, 'discount_platform_share' => 1_000_00,
+        ]);
+        Order::factory()->forRestaurant($this->b)->placedAt('2026-09-07 10:00')->delivered('2026-09-07 11:00')->create([
+            'promo_code_id' => $promo->id, 'discount_amount' => 500_00, 'discount_restaurant_share' => 250_00, 'discount_platform_share' => 250_00,
+        ]);
+
+        $usage = $this->stats->promoCodeUsage($this->period())->keyBy('name');
+
+        $this->assertSame(2, $usage['Alfa']['orders']);
+        $this->assertSame(3_000_00, $usage['Alfa']['discount_tiyin']);
+        $this->assertSame(1_500_00, $usage['Alfa']['restaurant_share_tiyin']);
+        $this->assertSame(1_500_00, $usage['Alfa']['platform_share_tiyin']);
+        $this->assertSame(1, $usage['Beta']['orders']);
+        $this->assertSame(500_00, $usage['Beta']['discount_tiyin']);
+    }
+
+    public function test_promo_code_usage_excludes_orders_without_a_code(): void
+    {
+        Order::factory()->forRestaurant($this->a)->placedAt('2026-09-05 10:00')->delivered()->create();
+
+        $this->assertCount(0, $this->stats->promoCodeUsage($this->period()));
+    }
+
+    /** Bekor qilingan buyurtmada chegirma xarajati haqiqatda sodir bo'lmagan — hisob-kitobga kirmaydi. */
+    public function test_promo_code_usage_excludes_cancelled_and_unfinished_orders(): void
+    {
+        $promo = PromoCode::factory()->create();
+
+        Order::factory()->forRestaurant($this->a)->placedAt('2026-09-05 10:00')->delivered('2026-09-05 11:00')->create([
+            'promo_code_id' => $promo->id, 'discount_amount' => 1_000_00,
+        ]);
+        Order::factory()->forRestaurant($this->a)->placedAt('2026-09-06 10:00')->cancelled()->create([
+            'promo_code_id' => $promo->id, 'discount_amount' => 9_999_00,
+        ]);
+        Order::factory()->forRestaurant($this->a)->placedAt('2026-09-07 10:00')->create([
+            'promo_code_id' => $promo->id, 'discount_amount' => 9_999_00, 'status' => OrderStatus::New,
+        ]);
+
+        $usage = $this->stats->promoCodeUsage($this->period());
+
+        $this->assertCount(1, $usage);
+        $this->assertSame(1, $usage[0]['orders']);
+        $this->assertSame(1_000_00, $usage[0]['discount_tiyin']);
+    }
+
+    public function test_promo_code_usage_respects_the_period_and_restaurant_filter(): void
+    {
+        $promo = PromoCode::factory()->create();
+
+        Order::factory()->forRestaurant($this->a)->placedAt('2026-09-10 10:00')->delivered('2026-09-10 11:00')
+            ->create(['promo_code_id' => $promo->id, 'discount_amount' => 1_000_00]);
+        // Oraliqdan tashqarida — hisobga olinmaydi.
+        Order::factory()->forRestaurant($this->a)->placedAt('2026-08-01 10:00')->delivered('2026-08-01 11:00')
+            ->create(['promo_code_id' => $promo->id, 'discount_amount' => 9_999_00]);
+
+        $this->assertCount(1, $this->stats->promoCodeUsage($this->period()));
+        $this->assertCount(1, $this->stats->promoCodeUsage($this->period(), $this->a->id));
+        $this->assertCount(0, $this->stats->promoCodeUsage($this->period(), $this->b->id));
     }
 }

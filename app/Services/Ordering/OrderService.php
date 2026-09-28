@@ -38,11 +38,12 @@ class OrderService
         private readonly EtaEstimator $eta,
         private readonly OrderNumberGenerator $orderNumbers,
         private readonly DeliveryFeeCalculator $feeCalculator,
+        private readonly PromoCodeService $promoCodes,
     ) {}
 
     /**
      * @param  array{restaurant_id:int, delivery_type:string, address_id?:int|null,
-     *               payment_method?:string, note?:string|null,
+     *               payment_method?:string, note?:string|null, promo_code?:string|null,
      *               items:array<int, array{product_id:int, qty:int}>}  $data
      */
     public function place(User $user, array $data): Order
@@ -89,7 +90,13 @@ class OrderService
         $maxPrep = max(array_map(fn ($l) => $l['prep'], $lines) ?: [(int) $restaurant->avg_prep_time_min]);
         $eta = $this->eta->estimate($restaurant, $type, $distanceKm, $maxPrep)->minutes;
 
-        $order = DB::transaction(function () use ($user, $restaurant, $address, $type, $lines, $subtotal, $deliveryFee, $eta, $distanceKm, $data) {
+        // Promokod — faqat taomlar summasidan (subtotal), yetkazish narxidan emas:
+        // restoran chegirma xarajatini taomlar bo'yicha ulashadi, yetkazish
+        // platforma/kuryer xarajati, restoranga aloqasi yo'q. Kod noto'g'ri/muddati
+        // o'tgan bo'lsa — butun buyurtma rad etiladi (jimgina to'liq narx olinmaydi).
+        $promo = $this->promoCodes->apply($data['promo_code'] ?? null, $restaurant, $subtotal);
+
+        $order = DB::transaction(function () use ($user, $restaurant, $address, $type, $lines, $subtotal, $deliveryFee, $eta, $distanceKm, $data, $promo) {
             $order = Order::create([
                 'order_number' => $this->orderNumbers->generate(),
                 'user_id' => $user->id,
@@ -101,7 +108,8 @@ class OrderService
                 'note' => $data['note'] ?? null,
                 'subtotal' => $subtotal,
                 'delivery_fee' => $deliveryFee,
-                'total' => $subtotal + $deliveryFee,
+                'total' => $subtotal + $deliveryFee - $promo->discountAmount,
+                ...$promo->toOrderAttributes(),
                 'payment_method' => PaymentMethod::from($data['payment_method'] ?? 'cash'),
                 'payment_status' => PaymentStatus::Pending,
                 'status' => OrderStatus::New,

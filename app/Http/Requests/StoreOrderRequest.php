@@ -23,6 +23,7 @@ class StoreOrderRequest extends FormRequest
             // Hozircha faqat naqd.
             'payment_method' => ['nullable', Rule::in(['cash'])],
             'note' => ['nullable', 'string', 'max:500'],
+            'promo_code' => ['nullable', 'string', 'max:32'],
             'items' => ['required', 'array', 'min:1'],
             'items.*.product_id' => ['required', 'integer'],
             'items.*.qty' => ['required', 'integer', 'min:1', 'max:50'],

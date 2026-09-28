@@ -25,9 +25,10 @@ class OrderResource extends JsonResource
             'items' => $this->items, // [{product_id, name, price(tiyin), qty, note}]
             'note' => $this->note,
 
-            // Pul — tiyinda.
+            // Pul — tiyinda. `total` chegirma AYIRILGAN holda.
             'subtotal' => $this->subtotal,
             'delivery_fee' => $this->delivery_fee,
+            'discount_amount' => $this->discount_amount,
             'total' => $this->total,
 
             // Mijozga aniq raqam emas, oraliq: minutes-5 … minutes+10 (5 ga yaxlit).

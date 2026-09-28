@@ -99,6 +99,12 @@ class Restaurant extends Model
         return $this->hasMany(Order::class);
     }
 
+    /** @return HasMany<PromoCode> Faqat shu restoranga bog'langan kodlar — restaurant_id=null (hammaga ochiq) kodlar bu yerda emas. */
+    public function promoCodes(): HasMany
+    {
+        return $this->hasMany(PromoCode::class);
+    }
+
     /** @return HasMany<Staff> */
     public function staff(): HasMany
     {

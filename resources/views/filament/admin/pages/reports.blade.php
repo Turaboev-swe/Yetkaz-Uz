@@ -60,4 +60,17 @@
             :rows="$topProducts"
             empty="Bu davrda sotuv yo'q" />
     </x-filament::section>
+
+    <x-filament::section>
+        <x-slot name="heading">Promokodlar</x-slot>
+        <x-slot name="description">Restoran bo'yicha chegirma va uning ulushlari — restoranlar bilan hisob-kitob uchun. Faqat yetkazilgan buyurtmalar.</x-slot>
+        <x-slot name="headerEnd">
+            <x-filament::button size="sm" color="gray" icon="heroicon-o-arrow-down-tray" wire:click="exportPromoCodes">CSV</x-filament::button>
+        </x-slot>
+
+        <x-report-table
+            :head="['Restoran', 'Buyurtmalar', 'Jami chegirma', 'Restoran ulushi', 'Platforma ulushi']"
+            :rows="$promoCodes"
+            empty="Bu davrda promokod ishlatilmagan" />
+    </x-filament::section>
 </x-filament-panels::page>

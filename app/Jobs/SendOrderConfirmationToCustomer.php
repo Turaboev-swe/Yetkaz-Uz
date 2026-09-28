@@ -117,6 +117,9 @@ class SendOrderConfirmationToCustomer implements ShouldQueue
                 $order->delivery_fee > 0 ? $som((int) $order->delivery_fee) : $t('free'),
             );
         }
+        if ($order->hasDiscount()) {
+            $rows[] = $this->leader($t('discount'), '-'.$som((int) $order->discount_amount));
+        }
         $rows[] = $sep;
         $rows[] = $this->leader($t('total'), $som((int) $order->total).' '.$t('som'));
         $out[] = '<pre>'.$esc(implode("\n", $rows)).'</pre>';

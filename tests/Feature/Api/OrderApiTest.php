@@ -6,6 +6,7 @@ use App\Models\Address;
 use App\Models\Category;
 use App\Models\District;
 use App\Models\Product;
+use App\Models\PromoCode;
 use App\Models\Restaurant;
 use App\Models\User;
 use App\Services\Delivery\RestaurantFinder;
@@ -218,6 +219,64 @@ class OrderApiTest extends TestCase
         $stranger = User::factory()->create(['telegram_id' => 111333]);
         $this->getJson("/api/orders/{$id}", $this->initDataHeaders($this->signedInitData(['id' => 111333])))
             ->assertStatus(404);
+    }
+
+    // --- Promokod ---
+
+    public function test_a_valid_promo_code_reduces_the_total_and_is_recorded_on_the_order(): void
+    {
+        $promo = PromoCode::factory()->percent(20)->restaurantShare(50)->create(['code' => 'OSON50']);
+
+        $res = $this->postJson('/api/orders', $this->payload(['promo_code' => 'oson50']), $this->headers())
+            ->assertCreated()
+            ->assertJsonPath('data.subtotal', 6_900_000)
+            ->assertJsonPath('data.discount_amount', 1_380_000) // 20% of 6.9M
+            ->assertJsonPath('data.total', 6_520_000);           // 6.9M + 1M - 1.38M
+
+        $this->assertDatabaseHas('orders', [
+            'id' => $res->json('data.id'),
+            'promo_code_id' => $promo->id,
+            'discount_amount' => 1_380_000,
+            'discount_restaurant_share' => 690_000,
+            'discount_platform_share' => 690_000,
+        ]);
+    }
+
+    public function test_discount_only_applies_to_the_food_subtotal_not_the_delivery_fee(): void
+    {
+        PromoCode::factory()->percent(100)->create(['code' => 'FREEFOOD']);
+
+        $this->postJson('/api/orders', $this->payload(['promo_code' => 'FREEFOOD']), $this->headers())
+            ->assertCreated()
+            ->assertJsonPath('data.discount_amount', 6_900_000) // butun subtotal, yetkazish emas
+            ->assertJsonPath('data.total', 1_000_000);           // faqat yetkazish narxi qoladi
+    }
+
+    public function test_unknown_promo_code_rejects_the_whole_order(): void
+    {
+        $this->postJson('/api/orders', $this->payload(['promo_code' => 'YOQ-BUNDAY']), $this->headers())
+            ->assertStatus(422)
+            ->assertJsonValidationErrorFor('promo_code');
+
+        $this->assertDatabaseCount('orders', 0);
+    }
+
+    public function test_promo_code_restricted_to_another_restaurant_is_rejected(): void
+    {
+        $otherRestaurant = Restaurant::factory()->create();
+        PromoCode::factory()->create(['code' => 'FAQATB', 'restaurant_id' => $otherRestaurant->id]);
+
+        $this->postJson('/api/orders', $this->payload(['promo_code' => 'FAQATB']), $this->headers())
+            ->assertStatus(422)
+            ->assertJsonValidationErrorFor('promo_code');
+    }
+
+    public function test_order_without_a_promo_code_has_zeroed_discount_fields(): void
+    {
+        $this->postJson('/api/orders', $this->payload(), $this->headers())
+            ->assertCreated()
+            ->assertJsonPath('data.discount_amount', 0)
+            ->assertJsonPath('data.total', 7_900_000);
     }
 
     public function test_requires_authentication(): void

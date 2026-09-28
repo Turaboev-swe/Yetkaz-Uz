@@ -114,6 +114,13 @@ class Reports extends Page implements HasForms
                 number_format($r['qty'], 0, '.', ' ').' dona',
                 Money::soms($r['revenue_tiyin']),
             ])->all(),
+            'promoCodes' => $stats->promoCodeUsage($period)->map(fn ($r) => [
+                $r['name'],
+                number_format($r['orders'], 0, '.', ' '),
+                Money::soms($r['discount_tiyin']),
+                Money::soms($r['restaurant_share_tiyin']),
+                Money::soms($r['platform_share_tiyin']),
+            ])->all(),
         ];
     }
 
@@ -145,5 +152,19 @@ class Reports extends Page implements HasForms
         ]);
 
         return CsvResponse::stream('top-taomlar.csv', ['Taom', 'Sotildi', "Daromad (so'm)"], $rows);
+    }
+
+    /** Restoranlar bilan hisob-kitob uchun — jami chegirma va uning ulushlari. */
+    public function exportPromoCodes(): StreamedResponse
+    {
+        $rows = $this->stats()->promoCodeUsage($this->period())->map(fn ($r) => [
+            $r['name'], $r['orders'],
+            Money::toSoms($r['discount_tiyin']),
+            Money::toSoms($r['restaurant_share_tiyin']),
+            Money::toSoms($r['platform_share_tiyin']),
+        ]);
+
+        return CsvResponse::stream('promokodlar.csv',
+            ['Restoran', 'Buyurtmalar', "Jami chegirma (so'm)", "Restoran ulushi (so'm)", "Platforma ulushi (so'm)"], $rows);
     }
 }

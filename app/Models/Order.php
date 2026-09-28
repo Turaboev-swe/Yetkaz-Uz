@@ -52,6 +52,10 @@ class Order extends Model
         'delivered_at',
         'cancelled_at',
         'cancellation_reason',
+        'promo_code_id',
+        'discount_amount',
+        'discount_restaurant_share',
+        'discount_platform_share',
     ];
 
     protected function casts(): array
@@ -63,6 +67,9 @@ class Order extends Model
             'subtotal' => 'integer',
             'delivery_fee' => 'integer',
             'total' => 'integer',
+            'discount_amount' => 'integer',
+            'discount_restaurant_share' => 'integer',
+            'discount_platform_share' => 'integer',
             'status' => OrderStatus::class,
             'courier_type' => CourierType::class,
             'payment_method' => PaymentMethod::class,
@@ -89,6 +96,18 @@ class Order extends Model
     public function restaurant(): BelongsTo
     {
         return $this->belongsTo(Restaurant::class);
+    }
+
+    /** @return BelongsTo<PromoCode, Order> */
+    public function promoCode(): BelongsTo
+    {
+        return $this->belongsTo(PromoCode::class);
+    }
+
+    /** Chegirma qo'llanganmi (restoran/admin panelida shartli ko'rsatish uchun). */
+    public function hasDiscount(): bool
+    {
+        return $this->discount_amount > 0;
     }
 
     /** @return BelongsTo<Address, Order> */

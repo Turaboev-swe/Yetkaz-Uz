@@ -116,6 +116,7 @@ return [
         'subtotal' => 'Taomlar',
         'delivery' => 'Yetkazish',
         'free' => 'bepul',
+        'discount' => 'Chegirma',
         'total' => 'Jami',
         'som' => "so'm",
         'address' => 'Manzil',
@@ -185,6 +186,7 @@ return [
     'cart_kept' => 'Savatingiz saqlanadi.',
     'min_order_not_met' => "Minimal buyurtma summasi: :amount so'm.",
     'restaurant_closed' => 'Restoran hozir yopiq.',
+    'promo_code_invalid' => "Promokod noto'g'ri yoki muddati o'tgan.",
     'out_of_radius' => 'Afsuski, bu manzilga yetkazib bera olmaymiz.',
     'cart_item_unavailable' => "Savatdagi ba'zi taomlar endi mavjud emas. Savatni yangilang.",
 
@@ -237,6 +239,10 @@ return [
         'iiko' => 'iiko',
         'escpos' => 'ESC/POS printer',
         'manual' => "Qo'lda (panel)",
+    ],
+    'discount_type' => [
+        'percent' => 'Foiz (%)',
+        'fixed' => "Belgilangan summa (so'm)",
     ],
     'staff_role' => [
         'platform_admin' => 'Platforma admini',

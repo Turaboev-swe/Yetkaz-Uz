@@ -6,6 +6,7 @@ use App\Enums\CourierType;
 use App\Enums\OrderStatus;
 use App\Filament\Restaurant\Resources\OrderResource\Pages;
 use App\Models\Order;
+use App\Support\Money;
 use Filament\Infolists;
 use Filament\Infolists\Infolist;
 use Filament\Resources\Resource;
@@ -83,6 +84,13 @@ class OrderResource extends Resource
             Infolists\Components\TextEntry::make('total')
                 ->label('Summa')
                 ->formatStateUsing(fn (int $state): string => number_format(intdiv($state, 100), 0, '.', ' ')." so'm"),
+            // Faqat promokod qo'llangan buyurtmada — restoran o'z ulushini ko'rishi
+            // uchun (hisob-kitob). `total` allaqachon chegirma ayirilgan holda.
+            Infolists\Components\TextEntry::make('discount_amount')
+                ->label('Chegirma')
+                ->visible(fn (Order $record): bool => $record->hasDiscount())
+                ->formatStateUsing(fn (Order $record): string => Money::soms($record->discount_amount)
+                    .' (sizning ulushingiz: '.Money::soms($record->discount_restaurant_share).')'),
             Infolists\Components\TextEntry::make('created_at')->label('Kelgan vaqti')->dateTime('d.m.Y H:i'),
             Infolists\Components\TextEntry::make('courier_type')->label('Kuryer')
                 ->formatStateUsing(fn (?CourierType $state): string => $state ? $state->icon().' '.$state->label() : '—'),

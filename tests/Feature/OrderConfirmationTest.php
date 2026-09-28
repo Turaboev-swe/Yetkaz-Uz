@@ -8,6 +8,7 @@ use App\Models\Category;
 use App\Models\District;
 use App\Models\Order;
 use App\Models\Product;
+use App\Models\PromoCode;
 use App\Models\Restaurant;
 use App\Models\User;
 use App\Services\Ordering\OrderService;
@@ -39,7 +40,7 @@ class OrderConfirmationTest extends TestCase
     /**
      * @param  array<string, mixed>  $restaurantAttrs
      */
-    private function order(array $restaurantAttrs = [], string $type = 'delivery', string $language = 'uz', ?string $note = null): Order
+    private function order(array $restaurantAttrs = [], string $type = 'delivery', string $language = 'uz', ?string $note = null, ?string $promoCode = null): Order
     {
         $always = array_fill_keys(['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'], [['08:00', '23:00']]);
 
@@ -69,6 +70,7 @@ class OrderConfirmationTest extends TestCase
                 ['product_id' => $cola->id, 'qty' => 1],
             ],
             'note' => $note,
+            'promo_code' => $promoCode,
         ]);
     }
 
@@ -131,6 +133,25 @@ class OrderConfirmationTest extends TestCase
 
         // Olib ketish emas — restoran ish vaqti chiqmaydi
         $this->assertStringNotContainsString('Ish vaqti', $body);
+    }
+
+    public function test_receipt_shows_a_discount_line_when_a_promo_code_was_applied(): void
+    {
+        PromoCode::factory()->fixed(500_000)->create(['code' => 'AKSIYA']); // 5 000 so'm
+
+        $order = $this->order(promoCode: 'AKSIYA');
+        $body = $this->send($order);
+
+        $this->assertStringContainsString('Chegirma', $body);
+        $this->assertStringContainsString('-5 000', $body);
+        $this->assertStringContainsString('73 000', $body); // 68 000 + 10 000 - 5 000
+    }
+
+    public function test_receipt_has_no_discount_line_without_a_promo_code(): void
+    {
+        $body = $this->send($this->order());
+
+        $this->assertStringNotContainsString('Chegirma', $body);
     }
 
     public function test_restaurant_phone_line_is_omitted_when_blank(): void

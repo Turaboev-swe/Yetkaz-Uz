@@ -5,6 +5,8 @@ namespace Tests\Feature\Filament;
 use App\Filament\Admin\Pages\Broadcasts;
 use App\Filament\Admin\Pages\Reports as AdminReports;
 use App\Filament\Admin\Resources\OrderResource\Pages\ListOrders as AdminListOrders;
+use App\Filament\Admin\Resources\PromoCodeResource\Pages\CreatePromoCode;
+use App\Filament\Admin\Resources\PromoCodeResource\Pages\ListPromoCodes;
 use App\Filament\Admin\Resources\RestaurantResource\Pages\CreateRestaurant;
 use App\Filament\Admin\Resources\RestaurantResource\Pages\ListRestaurants;
 use App\Filament\Admin\Resources\StaffResource\Pages\CreateStaff;
@@ -43,6 +45,8 @@ class PanelPagesRenderTest extends TestCase
         Livewire::test(CreateStaff::class)->assertOk();
         Livewire::test(AdminListOrders::class)->assertOk();
         Livewire::test(AdminListUsers::class)->assertOk();
+        Livewire::test(ListPromoCodes::class)->assertOk();
+        Livewire::test(CreatePromoCode::class)->assertOk();
         Livewire::test(Broadcasts::class)->assertOk();
         Livewire::test(AdminReports::class)->assertOk();
         Livewire::test(PlatformOrdersStats::class)->assertOk();

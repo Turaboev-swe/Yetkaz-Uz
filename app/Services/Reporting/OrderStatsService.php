@@ -81,6 +81,48 @@ class OrderStatsService
     }
 
     /**
+     * Promokod ishlatilishi — restoran bo'yicha (restoranlar bilan hisob-kitob
+     * uchun: buyurtmalar soni, jami chegirma, restoran ulushi, platforma ulushi).
+     *
+     * Faqat `delivered` buyurtmalar — bekor qilinganда chegirma xarajati
+     * haqiqatda sodir bo'lmagan (boshqa metodlar bilan bir xil qoida: daromad
+     * ham faqat yetkazilgandan hisoblanadi).
+     *
+     * @return Collection<int, array{restaurant_id:int, name:string, orders:int, discount_tiyin:int, restaurant_share_tiyin:int, platform_share_tiyin:int}>
+     */
+    public function promoCodeUsage(ReportPeriod $period, ?int $restaurantId = null): Collection
+    {
+        $q = DB::table('orders as o')
+            ->join('restaurants as r', 'r.id', '=', 'o.restaurant_id')
+            ->whereNotNull('o.promo_code_id')
+            ->where('o.status', OrderStatus::Delivered->value)
+            ->whereBetween('o.created_at', [$period->fromUtc(), $period->toUtc()])
+            ->groupBy('o.restaurant_id', 'r.name')
+            ->orderByDesc('discount_tiyin')
+            ->selectRaw('
+                o.restaurant_id,
+                r.name,
+                COUNT(*) AS orders,
+                SUM(o.discount_amount) AS discount_tiyin,
+                SUM(o.discount_restaurant_share) AS restaurant_share_tiyin,
+                SUM(o.discount_platform_share) AS platform_share_tiyin
+            ');
+
+        if ($restaurantId !== null) {
+            $q->where('o.restaurant_id', $restaurantId);
+        }
+
+        return $q->get()->map(fn ($r) => [
+            'restaurant_id' => (int) $r->restaurant_id,
+            'name' => (string) $r->name,
+            'orders' => (int) $r->orders,
+            'discount_tiyin' => (int) $r->discount_tiyin,
+            'restaurant_share_tiyin' => (int) $r->restaurant_share_tiyin,
+            'platform_share_tiyin' => (int) $r->platform_share_tiyin,
+        ]);
+    }
+
+    /**
      * Oshxona tezligi — restoran bo'yicha. Vaqtlar daqiqада (1 kasr).
      *
      * @return Collection<int, array{restaurant_id:int, name:string, orders:int, avg_accept_min:?float, avg_prep_min:?float, avg_fulfilment_min:?float, cancelled_pct:float, print_failed_pct:float}>
