@@ -9,12 +9,16 @@ use Illuminate\Validation\ValidationException;
 /**
  * Promokodni tekshiradi va chegirmani platforma/restoran o'rtasida bo'ladi.
  *
- * YAXLITLASH QOIDASI (aniq belgilangan, o'zgarmas): restoran ulushi PASTGA
- * yaxlitlanadi (floor), TOQ QOLDIQ PLATFORMAGA ketadi. Masalan 1005 tiyin
- * chegirma, ulush 50% bo'lsa: restoran = floor(1005*50/100) = 502,
- * platforma = 1005 - 502 = 503. Bu ikkalasining yig'indisi HAR DOIM
- * `discount_amount` ga teng bo'lishini kafolatlaydi (float xatosi yo'q,
- * bir tiyin ham yo'qolmaydi/ortiqcha hosil bo'lmaydi).
+ * YAXLITLASH QOIDASI (aniq belgilangan, o'zgarmas) — BUTUN SO'M darajasida:
+ *   - chegirma butun so'mgacha pastga (PromoCode::discountFor);
+ *   - restoran ulushi butun so'mgacha PASTGA (floor), TOQ SO'M QOLDIG'I
+ *     PLATFORMAGA. Masalan 15 005 so'm chegirma, ulush 50%:
+ *     restoran = floor(15 005 * 50 / 100) = 7 502 so'm, platforma = 7 503 so'm.
+ *
+ * Ikkala ulush ham butun so'm va yig'indisi HAR DOIM `discount_amount` ga
+ * teng — hisobot/CSV'da (so'mда ko'rsatiladi) ham aniq mos keladi. Tiyin
+ * darajasida bo'linsa 15 005 so'm 7 502,50 + 7 502,50 bo'lib, ekranda
+ * 7 502 + 7 502 = 15 004 chiqardi (1 so'm yo'qolardi).
  */
 class PromoCodeService
 {
@@ -40,10 +44,15 @@ class PromoCodeService
         return new PromoCodeApplication($promo->id, $discount, $restaurantShare, $platformShare);
     }
 
-    /** @return array{0: int, 1: int} [restoran ulushi, platforma ulushi] */
+    /**
+     * `$discountAmount` — butun so'm (tiyinда, 100 ga karrali). Restoran ulushi
+     * so'mда hisoblanib pastga yaxlitlanadi, qolgani platformaga.
+     *
+     * @return array{0: int, 1: int} [restoran ulushi, platforma ulushi] — tiyinда
+     */
     private function split(int $discountAmount, int $restaurantSharePercent): array
     {
-        $restaurantShare = intdiv($discountAmount * $restaurantSharePercent, 100);
+        $restaurantShare = intdiv($discountAmount * $restaurantSharePercent, 100 * 100) * 100;
         $platformShare = $discountAmount - $restaurantShare;
 
         return [$restaurantShare, $platformShare];

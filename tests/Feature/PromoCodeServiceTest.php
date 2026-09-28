@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\PromoCode;
 use App\Models\Restaurant;
 use App\Services\Ordering\PromoCodeService;
+use App\Support\Money;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Validation\ValidationException;
@@ -59,14 +60,24 @@ class PromoCodeServiceTest extends TestCase
         $this->assertSame(2_000_00, $result->discountAmount); // 20 000 so'm
     }
 
-    public function test_percent_discount_rounds_down(): void
+    public function test_percent_discount_rounds_down_to_a_whole_som(): void
     {
-        $promo = PromoCode::factory()->percent(33)->create();
+        $promo = PromoCode::factory()->percent(15)->create();
 
-        // 999 tiyin * 33 / 100 = 329.67 -> 329 (floor)
-        $result = $this->service->apply($promo->code, $this->restaurant, 999);
+        // 12 345 so'm * 15% = 1 851,75 so'm -> 1 851 so'm (kasrli so'm total'ni
+        // kasrli qilib, Mini App va panellarда turli summa ko'rsatardi).
+        $result = $this->service->apply($promo->code, $this->restaurant, 12_345_00);
 
-        $this->assertSame(329, $result->discountAmount);
+        $this->assertSame(1_851_00, $result->discountAmount);
+    }
+
+    public function test_fixed_discount_with_a_fraction_of_a_som_rounds_down(): void
+    {
+        $promo = PromoCode::factory()->fixed(5_000_50)->create(); // 5 000,50 so'm
+
+        $result = $this->service->apply($promo->code, $this->restaurant, 50_000_00);
+
+        $this->assertSame(5_000_00, $result->discountAmount);
     }
 
     public function test_fixed_discount_uses_the_configured_tiyin_amount(): void
@@ -87,55 +98,71 @@ class PromoCodeServiceTest extends TestCase
         $this->assertSame(10_000_00, $this->service->apply('HUGE', $this->restaurant, 10_000_00)->discountAmount);
     }
 
-    // --- YAXLITLASH QOIDASI: restoran ulushi floor, toq qoldiq platformaga ---
+    // --- YAXLITLASH QOIDASI: so'm darajasida, restoran floor, toq so'm platformaga ---
 
-    public function test_odd_split_remainder_goes_to_the_platform(): void
+    public function test_odd_som_remainder_goes_to_the_platform(): void
     {
-        // 1005 tiyin, 50%: 1005*50/100 = 502.5 -> restoran 502 (floor), platforma 503.
-        $promo = PromoCode::factory()->fixed(1005)->restaurantShare(50)->create();
+        // 15 005 so'm, 50%: restoran floor(7 502,5) = 7 502 so'm, platforma 7 503 so'm.
+        $promo = PromoCode::factory()->fixed(15_005_00)->restaurantShare(50)->create();
 
-        $result = $this->service->apply($promo->code, $this->restaurant, 1_000_000);
+        $result = $this->service->apply($promo->code, $this->restaurant, 100_000_00);
 
-        $this->assertSame(1005, $result->discountAmount);
-        $this->assertSame(502, $result->restaurantShare);
-        $this->assertSame(503, $result->platformShare);
-        $this->assertSame($result->discountAmount, $result->restaurantShare + $result->platformShare);
+        $this->assertSame(15_005_00, $result->discountAmount);
+        $this->assertSame(7_502_00, $result->restaurantShare);
+        $this->assertSame(7_503_00, $result->platformShare);
     }
 
-    public function test_split_sums_exactly_to_the_discount_for_many_amounts_and_percentages(): void
+    /**
+     * Regressiya: tiyin darajasida bo'linganда 15 005 so'm -> 7 502,50 + 7 502,50
+     * bo'lib, hisobot/CSV (so'mда) 7 502 + 7 502 = 15 004 ko'rsatardi.
+     */
+    public function test_shares_shown_in_som_add_up_to_the_discount_shown_in_som(): void
     {
-        foreach ([1, 2, 3, 7, 33, 50, 66, 99, 100] as $percent) {
-            foreach ([1, 2, 3, 7, 10, 999, 1_234_567] as $discount) {
+        $promo = PromoCode::factory()->fixed(15_005_00)->restaurantShare(50)->create();
+
+        $result = $this->service->apply($promo->code, $this->restaurant, 100_000_00);
+
+        $this->assertSame(
+            Money::toSoms($result->discountAmount),
+            Money::toSoms($result->restaurantShare) + Money::toSoms($result->platformShare),
+        );
+    }
+
+    public function test_split_is_whole_som_and_sums_exactly_for_many_amounts_and_percentages(): void
+    {
+        foreach ([1, 3, 7, 33, 50, 66, 99, 100] as $percent) {
+            foreach ([1, 3, 7, 101, 15_005, 1_234_567] as $discountSom) {
+                $discount = $discountSom * 100;
                 $promo = PromoCode::factory()->fixed($discount)->restaurantShare($percent)->create();
 
                 $result = $this->service->apply($promo->code, $this->restaurant, $discount * 10);
+                $label = "discount={$discountSom} so'm percent={$percent}";
 
-                $this->assertSame(
-                    $discount,
-                    $result->restaurantShare + $result->platformShare,
-                    "discount={$discount} percent={$percent}",
-                );
+                $this->assertSame($discount, $result->restaurantShare + $result->platformShare, $label);
+                $this->assertSame(0, $result->restaurantShare % 100, $label);
+                $this->assertSame(0, $result->platformShare % 100, $label);
+                $this->assertSame(intdiv($discountSom * $percent, 100) * 100, $result->restaurantShare, $label);
             }
         }
     }
 
     public function test_zero_restaurant_share_gives_everything_to_the_platform(): void
     {
-        $promo = PromoCode::factory()->fixed(1000)->restaurantShare(0)->create();
+        $promo = PromoCode::factory()->fixed(10_00)->restaurantShare(0)->create();
 
         $result = $this->service->apply($promo->code, $this->restaurant, 1_000_000);
 
         $this->assertSame(0, $result->restaurantShare);
-        $this->assertSame(1000, $result->platformShare);
+        $this->assertSame(10_00, $result->platformShare);
     }
 
     public function test_full_restaurant_share_gives_everything_to_the_restaurant(): void
     {
-        $promo = PromoCode::factory()->fixed(1001)->restaurantShare(100)->create();
+        $promo = PromoCode::factory()->fixed(1_001_00)->restaurantShare(100)->create();
 
-        $result = $this->service->apply($promo->code, $this->restaurant, 1_000_000);
+        $result = $this->service->apply($promo->code, $this->restaurant, 10_000_00);
 
-        $this->assertSame(1001, $result->restaurantShare);
+        $this->assertSame(1_001_00, $result->restaurantShare);
         $this->assertSame(0, $result->platformShare);
     }
 

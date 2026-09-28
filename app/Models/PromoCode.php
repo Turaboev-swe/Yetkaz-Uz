@@ -81,12 +81,13 @@ class PromoCode extends Model
     }
 
     /**
-     * Buyurtma summasidan chegirma miqdorini hisoblaydi (tiyinда).
+     * Buyurtma summasidan chegirma miqdorini hisoblaydi (tiyinда, doim BUTUN SO'M).
      *
-     * Foizli chegirmada natija PASTGA yaxlitlanadi (intdiv) — mijozga
-     * hisoblangandan ko'proq chegirma berilmasligi uchun. Ikkala turda ham
-     * natija `$subtotal` dan oshmaydi (chegirma buyurtma summasidan katta
-     * bo'lolmaydi).
+     * Natija butun so'mgacha PASTGA yaxlitlanadi (100 tiyinга karrali): kasrli
+     * so'm (masalan 12 345 so'mning 15% = 1 851,75) total'ni ham kasrli qilib,
+     * Mini App (Math.round) va panel/Telegram (intdiv) bir buyurtmaga turli
+     * summa ko'rsatardi. Pastga — mijozga e'lon qilingandan ko'p chegirma
+     * berilmaydi. Natija `$subtotal` dan oshmaydi.
      */
     public function discountFor(int $subtotal): int
     {
@@ -94,6 +95,6 @@ class PromoCode extends Model
             ? intdiv($subtotal * $this->discount_value, 100)
             : $this->discount_value;
 
-        return max(0, min($raw, $subtotal));
+        return intdiv(max(0, min($raw, $subtotal)), 100) * 100;
     }
 }
