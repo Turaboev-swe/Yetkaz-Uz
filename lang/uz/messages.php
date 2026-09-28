@@ -196,7 +196,7 @@ return [
         'not_started' => 'Bu promokod hali kuchga kirmagan.',
         'expired' => "Promokodning amal qilish muddati o'tgan.",
         'wrong_restaurant' => 'Bu promokod ushbu restoranda amal qilmaydi.',
-        'below_minimum' => "Promokod :amount so'mdan ortiq buyurtmada ishlaydi.",
+        'below_minimum' => "Promokod :amount so'm va undan ortiq buyurtmada ishlaydi.",
         'usage_limit_reached' => 'Promokodning ishlatilish limiti tugagan.',
         'user_limit_reached' => "Siz bu promokoddan ruxsat etilgan marta foydalanib bo'lgansiz.",
     ],

@@ -83,7 +83,7 @@ class PromoCodeValidateApiTest extends TestCase
             'boshqa restoran' => ['wrong_restaurant', 'Bu promokod ushbu restoranda amal qilmaydi.'],
             'umumiy limit' => ['usage_limit_reached', 'Promokodning ishlatilish limiti tugagan.'],
             'mijoz limiti' => ['user_limit_reached', "Siz bu promokoddan ruxsat etilgan marta foydalanib bo'lgansiz."],
-            'minimal summa' => ['below_minimum', "Promokod 70 000 so'mdan ortiq buyurtmada ishlaydi."],
+            'minimal summa' => ['below_minimum', "Promokod 70 000 so'm va undan ortiq buyurtmada ishlaydi."],
         ];
     }
 
@@ -131,7 +131,17 @@ class PromoCodeValidateApiTest extends TestCase
         $this->validatePromo('MIN50', subtotal: 49_999_00)
             ->assertStatus(422)
             ->assertJsonPath('promo_error', 'below_minimum')
-            ->assertJsonPath('message', "Promokod 50 000 so'mdan ortiq buyurtmada ishlaydi.");
+            ->assertJsonPath('message', "Promokod 50 000 so'm va undan ortiq buyurtmada ishlaydi.");
+    }
+
+    public function test_minimum_message_in_russian_is_inclusive_too(): void
+    {
+        $this->user->update(['language' => 'ru']);
+        PromoCode::factory()->at($this->restaurant)->minOrder(50_000_00)->create(['code' => 'MIN50']);
+
+        $this->validatePromo('MIN50', subtotal: 49_999_00)
+            ->assertStatus(422)
+            ->assertJsonPath('message', 'Промокод действует при заказе от 50 000 сум и выше.');
     }
 
     public function test_message_follows_the_users_chosen_language(): void

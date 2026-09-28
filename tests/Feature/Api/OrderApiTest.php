@@ -307,7 +307,7 @@ class OrderApiTest extends TestCase
         ]), $this->headers())
             ->assertStatus(422)
             ->assertJsonPath('promo_error', 'below_minimum')
-            ->assertJsonPath('message', "Promokod 50 000 so'mdan ortiq buyurtmada ishlaydi.");
+            ->assertJsonPath('message', "Promokod 50 000 so'm va undan ortiq buyurtmada ishlaydi.");
     }
 
     /** 45 000 taom + 10 000 yetkazish = 55 000 ≥ 50 000, lekin taomlar 45 000 < 50 000 — rad. */

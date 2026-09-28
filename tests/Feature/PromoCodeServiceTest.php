@@ -310,7 +310,7 @@ class PromoCodeServiceTest extends TestCase
             $this->fail('Minimaldan 1 so\'m kam summa qabul qilinmasligi kerak edi.');
         } catch (PromoCodeException $e) {
             $this->assertSame(PromoCodeError::BelowMinimum, $e->error);
-            $this->assertSame("Promokod 50 000 so'mdan ortiq buyurtmada ishlaydi.", $e->getMessage());
+            $this->assertSame("Promokod 50 000 so'm va undan ortiq buyurtmada ishlaydi.", $e->getMessage());
         }
     }
 
