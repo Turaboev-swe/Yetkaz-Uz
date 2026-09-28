@@ -86,6 +86,12 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('orders', fn (Request $request) => Limit::perMinute(5)
             ->by($this->limiterKey('order', $request))
             ->response($this->tooManyRequests('orders', 'messages.rate_limited_orders')));
+
+        // Promokod tekshirish — 10/daqiqa: checkout'da kamdan-kam bosiladi,
+        // cheklov kodlarni terib topishga (enumeration) qarshi.
+        RateLimiter::for('promo', fn (Request $request) => Limit::perMinute(10)
+            ->by($this->limiterKey('promo', $request))
+            ->response($this->tooManyRequests('promo', 'messages.rate_limited')));
     }
 
     private function limiterKey(string $bucket, Request $request): string

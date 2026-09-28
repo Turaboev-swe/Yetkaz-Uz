@@ -13,6 +13,7 @@ use App\Models\Category;
 use App\Models\District;
 use App\Models\Order;
 use App\Models\Product;
+use App\Models\PromoCode;
 use App\Models\Restaurant;
 use App\Models\Staff;
 use App\Models\User;
@@ -42,7 +43,7 @@ class OrderNotificationTest extends TestCase
         parent::tearDown();
     }
 
-    private function order(array $restaurantAttrs = [], string $type = 'delivery'): Order
+    private function order(array $restaurantAttrs = [], string $type = 'delivery', ?string $promoCode = null): Order
     {
         $always = array_fill_keys(['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'], [['00:00', '23:59']]);
         $restaurant = Restaurant::factory()->for(District::factory())->create(array_replace([
@@ -67,6 +68,7 @@ class OrderNotificationTest extends TestCase
             'address_id' => $type === 'delivery' ? $address->id : null,
             'items' => [['product_id' => $product->id, 'qty' => 2]],
             'note' => 'qo‘ng‘iroqsiz',
+            'promo_code' => $promoCode,
         ]);
     }
 
@@ -128,6 +130,33 @@ class OrderNotificationTest extends TestCase
             && $job->dueAt === $order->created_at->copy()->addSeconds(60)->getTimestamp());
         Queue::assertPushed(AlertAdminOfUnacceptedOrder::class, fn ($job) => $job->orderId === $order->id
             && $job->dueAt === $order->created_at->copy()->addMinutes(7)->getTimestamp());
+    }
+
+    public function test_owner_dm_shows_the_discount_and_the_restaurants_share(): void
+    {
+        PromoCode::factory()->percent(20)->restaurantShare(50)->create(['code' => 'OSON50']);
+        $order = $this->order(['notify_chat_id' => '555111222'], promoCode: 'OSON50');
+
+        $bot = app(Nutgram::class);
+        (new NotifyRestaurantOfNewOrder($order->id))->handle($bot);
+
+        // 64 000 so'm taom, 20% = 12 800 so'm chegirma, restoran ulushi 6 400 so'm;
+        // Jami = 64 000 + 10 000 - 12 800 = 61 200 so'm — Taomlar+Yetkazish bilan mos.
+        $bot->assertRaw(fn ($request) => str_contains($body = (string) $request->getBody(), 'Chegirma')
+            && str_contains($body, '12 800')
+            && str_contains($body, 'sizning ulushingiz')
+            && str_contains($body, '6 400')
+            && str_contains($body, '61 200'));
+    }
+
+    public function test_owner_dm_has_no_discount_line_without_a_promo_code(): void
+    {
+        $order = $this->order(['notify_chat_id' => '555111222']);
+
+        $bot = app(Nutgram::class);
+        (new NotifyRestaurantOfNewOrder($order->id))->handle($bot);
+
+        $bot->assertRaw(fn ($request) => ! str_contains((string) $request->getBody(), 'Chegirma'));
     }
 
     public function test_job_is_noop_without_chat_id(): void

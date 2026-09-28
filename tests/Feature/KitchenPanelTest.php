@@ -59,6 +59,24 @@ class KitchenPanelTest extends TestCase
         $this->assertNotContains($other->id, array_column($data, 'id'));
     }
 
+    /** Oshxona kartasi taom narxlarini ko'rsatadi — chegirma bo'lmasa "Jami" kam ko'rinib, xatodek tuyulardi. */
+    public function test_orders_endpoint_exposes_the_discount_and_the_discounted_total(): void
+    {
+        $this->order([
+            'status' => OrderStatus::New,
+            'subtotal' => 69_000_00,
+            'delivery_fee' => 10_000_00,
+            'discount_amount' => 13_800_00,
+            'total' => 65_200_00,
+        ]);
+
+        $this->actingAs($this->owner, 'staff')
+            ->getJson('/kitchen/orders')
+            ->assertOk()
+            ->assertJsonPath('data.0.discount_amount', 13_800_00)
+            ->assertJsonPath('data.0.total', 65_200_00);
+    }
+
     public function test_guest_is_redirected_to_kitchen_login(): void
     {
         $this->get('/kitchen')->assertRedirect('/kitchen/login');

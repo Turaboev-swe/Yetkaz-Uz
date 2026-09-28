@@ -33,6 +33,19 @@ export default function Checkout() {
     const [note, setNote] = useState('');
     const noteRef = useRef('');
     noteRef.current = note;
+
+    // Promokod: `promo` — qo'llangani ({ code, discount } tiyinда), `promoInput` —
+    // maydondagi hali qo'llanmagan matn. MainButton onClick eski submit closure'ini
+    // ushlab qoladi (note bilan bir xil sabab) — shuning uchun submit ref'dan o'qiydi.
+    const [promoInput, setPromoInput] = useState('');
+    const [promo, setPromo] = useState(null);
+    const [promoError, setPromoError] = useState(null);
+    const [promoChecking, setPromoChecking] = useState(false);
+    const promoRef = useRef(null);
+    promoRef.current = promo;
+    const promoInputRef = useRef('');
+    promoInputRef.current = promoInput;
+
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState(null);
     // Buyurtma berish uchun telefon kerak (mehmon / QR orqali kirgan) — botga qaytariladi.
@@ -67,8 +80,40 @@ export default function Checkout() {
         [rid, mode, addressId],
     );
 
+    const applyPromo = async () => {
+        const code = promoInput.trim().toUpperCase();
+        if (!code || promoChecking) return;
+        setPromoChecking(true);
+        setPromoError(null);
+        try {
+            // Faqat oldindan ko'rsatish — yakuniy chegirmani buyurtma yaratishda
+            // backend bazadagi narxlardan qayta hisoblaydi.
+            const res = await api.validatePromo({ promo_code: code, restaurant_id: rid, subtotal: total });
+            setPromo({ code: res.data.code, discount: res.data.discount_amount });
+            setPromoInput('');
+            notify('success');
+        } catch (e) {
+            setPromo(null);
+            setPromoError(e.message);
+            notify('error');
+        } finally {
+            setPromoChecking(false);
+        }
+    };
+
+    const removePromo = () => {
+        setPromo(null);
+        setPromoError(null);
+    };
+
     const submit = async () => {
         if (submitting) return;
+        // Kod yozilgan-u "Qo'llash" bosilmagan — jimgina to'liq narxda buyurtma
+        // bermaymiz (backend ham noto'g'ri kodda buyurtmani rad etadi).
+        if (!promoRef.current && promoInputRef.current.trim()) {
+            setPromoError('Promokodni «Qo‘llash» tugmasi bilan tasdiqlang yoki maydonni tozalang.');
+            return;
+        }
         setSubmitting(true);
         setError(null);
         try {
@@ -78,6 +123,7 @@ export default function Checkout() {
                 address_id: mode === 'delivery' ? addressId : null,
                 payment_method: 'cash',
                 note: noteRef.current.trim() || null,
+                promo_code: promoRef.current?.code ?? null,
                 items: cartItems(carts, rid),
             });
             notify('success');
@@ -87,6 +133,12 @@ export default function Checkout() {
         } catch (e) {
             if (e.body?.code === 'phone_required') {
                 setPhoneRequired(true);
+            } else if (e.body?.code === 'promo_code_invalid') {
+                // Qo'llangandan keyin limit tugagan / muddati o'tgan bo'lishi mumkin —
+                // chegirmani olib tashlaymiz, sababni maydon ostida ko'rsatamiz. Mijoz
+                // yangi (to'liq) summani ko'rib, qayta tasdiqlaydi.
+                setPromo(null);
+                setPromoError(e.message);
             } else {
                 setError(e.message);
             }
@@ -108,6 +160,9 @@ export default function Checkout() {
     // Backend hisoblaydi (masofaga qarab bo'lishi mumkin) — buyurtma yaratilganda
     // xuddi shu qiymat chiqadi, mijoz tomonidan taxmin qilinmaydi.
     const deliveryFee = estimate?.delivery_fee ?? 0;
+    // Chegirma faqat taomlar summasidan (backend ham shunday) — yetkazishga ta'sir qilmaydi.
+    const discount = promo?.discount ?? 0;
+    const payable = total + deliveryFee - discount;
 
     // Olib ketishdan yetkazishga o'tish faqat restoran manzil radiusi ichida bo'lsa
     // mumkin (backend OrderService::place() ham buni tekshiradi — bu yerda oldindan
@@ -128,12 +183,12 @@ export default function Checkout() {
             return;
         }
         return setMainButton({
-            text: belowMin ? `Yana ${somLabel(shortfall)} qo‘shing` : `Tasdiqlash — ${somLabel(total + deliveryFee)}`,
+            text: belowMin ? `Yana ${somLabel(shortfall)} qo‘shing` : `Tasdiqlash — ${somLabel(payable)}`,
             active: !belowMin,
             onClick: submit,
         });
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [data.loading, submitting, belowMin, shortfall, total, deliveryFee, phoneRequired]);
+    }, [data.loading, submitting, belowMin, shortfall, payable, phoneRequired]);
 
     if (data.loading) return <Spinner />;
     if (data.error) return <ErrorState error={data.error} onRetry={data.reload} />;
@@ -210,6 +265,59 @@ export default function Checkout() {
                 />
             </Section>
 
+            {/* Promokod */}
+            <Section title="Promokod">
+                {promo ? (
+                    <div className="flex items-center gap-2.5">
+                        <span aria-hidden>🎟</span>
+                        <span className="min-w-0 flex-1">
+                            <span className="block text-[14px] font-semibold" style={{ color: 'var(--tg-text)' }}>{promo.code}</span>
+                            <span className="block text-[12px]" style={{ color: 'var(--tg-hint)' }}>Chegirma: −{somLabel(promo.discount)}</span>
+                        </span>
+                        <button
+                            onClick={removePromo}
+                            className="text-[13px] font-medium"
+                            style={{ color: 'var(--tg-destructive)' }}
+                        >
+                            Olib tashlash
+                        </button>
+                    </div>
+                ) : (
+                    <>
+                        <div className="flex gap-2">
+                            <input
+                                value={promoInput}
+                                onChange={(e) => {
+                                    setPromoInput(e.target.value);
+                                    if (promoError) setPromoError(null);
+                                }}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter') applyPromo();
+                                }}
+                                maxLength={32}
+                                placeholder="Kodni kiriting"
+                                autoCapitalize="characters"
+                                autoCorrect="off"
+                                spellCheck={false}
+                                className="min-w-0 flex-1 rounded-xl px-3 py-2 text-[14px] uppercase outline-none"
+                                style={{ background: 'var(--tg-section-bg)', color: 'var(--tg-text)' }}
+                            />
+                            <button
+                                onClick={applyPromo}
+                                disabled={!promoInput.trim() || promoChecking}
+                                className="rounded-xl px-4 text-[14px] font-semibold disabled:opacity-50"
+                                style={{ background: 'var(--tg-button)', color: 'var(--tg-button-text)' }}
+                            >
+                                {promoChecking ? '…' : 'Qo‘llash'}
+                            </button>
+                        </div>
+                        {promoError && (
+                            <p className="mt-1.5 text-[12px]" style={{ color: 'var(--tg-destructive)' }}>{promoError}</p>
+                        )}
+                    </>
+                )}
+            </Section>
+
             {/* Hisob */}
             <Section title={`Taxminan ${eta}`}>
                 <Line label={`Taomlar (${count})`} value={somLabel(total)} />
@@ -222,9 +330,10 @@ export default function Checkout() {
                               + (estimate?.distance_km != null ? ` (${distanceLabel(estimate.distance_km)})` : '')
                     }
                 />
+                {discount > 0 && <Line label="Chegirma" value={`−${somLabel(discount)}`} />}
                 <div className="mt-2 flex justify-between border-t pt-2 text-[15px] font-bold" style={{ borderColor: 'var(--tg-bg)', color: 'var(--tg-text)' }}>
                     <span>Jami</span>
-                    <span>{somLabel(total + deliveryFee)}</span>
+                    <span>{somLabel(payable)}</span>
                 </div>
             </Section>
 
@@ -266,7 +375,7 @@ export default function Checkout() {
                     className="h-12 w-full rounded-xl text-[15px] font-semibold disabled:opacity-50"
                     style={{ background: 'var(--tg-button)', color: 'var(--tg-button-text)' }}
                 >
-                    {submitting ? 'Yuborilmoqda…' : `Tasdiqlash — ${som(total + deliveryFee)} so‘m`}
+                    {submitting ? 'Yuborilmoqda…' : `Tasdiqlash — ${som(payable)} so‘m`}
                 </button>
             )}
         </div>

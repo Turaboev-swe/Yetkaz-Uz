@@ -3,8 +3,8 @@
 namespace App\Services\Ordering;
 
 /**
- * PromoCodeService::apply() natijasi — buyurtmaga yozib qo'yiladigan
- * chegirma snapshoti (tiyinда). Promokodsiz buyurtma uchun `none()`.
+ * PromoCodeService::quote() / applyForOrder() natijasi — buyurtmaga yozib
+ * qo'yiladigan chegirma snapshoti (tiyinда). Promokodsiz buyurtma uchun `none()`.
  */
 final readonly class PromoCodeApplication
 {

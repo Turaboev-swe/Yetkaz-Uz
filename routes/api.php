@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\AgentController;
 use App\Http\Controllers\Api\GeoController;
 use App\Http\Controllers\Api\MeController;
 use App\Http\Controllers\Api\OrderController;
+use App\Http\Controllers\Api\PromoCodeController;
 use App\Http\Controllers\Api\RestaurantController;
 use App\Http\Controllers\Api\SearchController;
 use App\Http\Controllers\Api\TelegramWebhookController;
@@ -22,6 +23,7 @@ use Illuminate\Support\Facades\Route;
 |   - throttle:api-read   60/daqiqa  (o'qish: restoranlar, menyu, qidiruv, ETA)
 |   - throttle:addresses  20/daqiqa  (manzil yozish)
 |   - throttle:orders      5/daqiqa  (buyurtma yaratish)
+|   - throttle:promo      10/daqiqa  (promokod tekshirish)
 | Limiterlar AppServiceProvider::configureRateLimiting() da aniqlangan.
 |
 */
@@ -58,6 +60,11 @@ Route::middleware('telegram.initdata')->group(function () {
     // --- Buyurtma yaratish (5/daqiqa) ---
     Route::middleware('throttle:orders')->group(function () {
         Route::post('/orders', [OrderController::class, 'store']);
+    });
+
+    // --- Promokod tekshirish (10/daqiqa) — kodlarni terib topishga qarshi alohida limit ---
+    Route::middleware('throttle:promo')->group(function () {
+        Route::post('/promo-codes/validate', [PromoCodeController::class, 'check']);
     });
 });
 

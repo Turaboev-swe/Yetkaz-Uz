@@ -63,6 +63,18 @@ class RateLimitTest extends TestCase
             ->assertJsonPath('message', __('messages.rate_limited_orders'));
     }
 
+    public function test_promo_validate_allows_10_per_minute_then_429(): void
+    {
+        for ($i = 0; $i < 10; $i++) {
+            // Bo'sh payload — validatsiya 422 beradi, lekin limit EMAS.
+            $this->postJson('/api/promo-codes/validate', [], $this->headers())->assertStatus(422);
+        }
+
+        $this->postJson('/api/promo-codes/validate', [], $this->headers())
+            ->assertStatus(429)
+            ->assertJsonPath('message', __('messages.rate_limited'));
+    }
+
     public function test_address_writes_allow_20_per_minute_then_429(): void
     {
         for ($i = 0; $i < 20; $i++) {

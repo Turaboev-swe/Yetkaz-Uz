@@ -34,7 +34,8 @@ class PromoCodeResource extends Resource
 
     public static function getEloquentQuery(): Builder
     {
-        return parent::getEloquentQuery()->withCount('orders');
+        // Ishlatilish — bekor qilinmagan buyurtmalar (limit bilan bir xil ta'rif).
+        return parent::getEloquentQuery()->withCount('usages');
     }
 
     public static function form(Form $form): Form
@@ -86,6 +87,22 @@ class PromoCodeResource extends Resource
                 ->suffix('%')
                 ->default(50),
 
+            Forms\Components\TextInput::make('per_user_limit')
+                ->label('Bir mijozga limit')
+                ->numeric()
+                ->integer()
+                ->minValue(1)
+                ->suffix('marta')
+                ->helperText("Bo'sh — cheklovsiz. Bekor qilingan buyurtma hisoblanmaydi."),
+
+            Forms\Components\TextInput::make('total_usage_limit')
+                ->label('Umumiy limit')
+                ->numeric()
+                ->integer()
+                ->minValue(1)
+                ->suffix('marta')
+                ->helperText("Bo'sh — cheklovsiz. Bekor qilingan buyurtma hisoblanmaydi."),
+
             Forms\Components\Select::make('restaurant_id')
                 ->label('Restoran')
                 ->relationship('restaurant', 'name')
@@ -133,10 +150,20 @@ class PromoCodeResource extends Resource
 
                 Tables\Columns\ToggleColumn::make('is_active')->label('Faol'),
 
-                Tables\Columns\TextColumn::make('orders_count')
+                Tables\Columns\TextColumn::make('usages_count')
                     ->label('Ishlatilgan')
-                    ->state(fn (PromoCode $record): int => $record->orders_count ?? $record->orders()->count())
-                    ->suffix(' marta'),
+                    ->tooltip('Bekor qilinmagan buyurtmalar / umumiy limit')
+                    ->state(function (PromoCode $record): string {
+                        $used = $record->usages_count ?? $record->usages()->count();
+
+                        return $record->total_usage_limit !== null ? "{$used} / {$record->total_usage_limit}" : (string) $used;
+                    }),
+
+                Tables\Columns\TextColumn::make('per_user_limit')
+                    ->label('Mijozga')
+                    ->placeholder('∞')
+                    ->suffix(' marta')
+                    ->toggleable(),
 
                 Tables\Columns\TextColumn::make('ends_at')
                     ->label('Tugaydi')

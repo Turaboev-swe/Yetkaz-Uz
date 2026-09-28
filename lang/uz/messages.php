@@ -186,7 +186,16 @@ return [
     'cart_kept' => 'Savatingiz saqlanadi.',
     'min_order_not_met' => "Minimal buyurtma summasi: :amount so'm.",
     'restaurant_closed' => 'Restoran hozir yopiq.',
-    'promo_code_invalid' => "Promokod noto'g'ri yoki muddati o'tgan.",
+    // Promokod qabul qilinmagan sabab (PromoCodeError)
+    'promo_code_error' => [
+        'not_found' => 'Bunday promokod topilmadi.',
+        'inactive' => 'Bu promokod hozir faol emas.',
+        'not_started' => 'Bu promokod hali kuchga kirmagan.',
+        'expired' => "Promokodning amal qilish muddati o'tgan.",
+        'wrong_restaurant' => 'Bu promokod ushbu restoranda ishlamaydi.',
+        'usage_limit_reached' => 'Promokodning ishlatilish limiti tugagan.',
+        'user_limit_reached' => "Siz bu promokoddan ruxsat etilgan marta foydalanib bo'lgansiz.",
+    ],
     'out_of_radius' => 'Afsuski, bu manzilga yetkazib bera olmaymiz.',
     'cart_item_unavailable' => "Savatdagi ba'zi taomlar endi mavjud emas. Savatni yangilang.",
 

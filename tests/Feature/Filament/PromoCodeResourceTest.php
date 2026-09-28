@@ -3,9 +3,11 @@
 namespace Tests\Feature\Filament;
 
 use App\Enums\DiscountType;
+use App\Enums\OrderStatus;
 use App\Filament\Admin\Resources\PromoCodeResource\Pages\CreatePromoCode;
 use App\Filament\Admin\Resources\PromoCodeResource\Pages\EditPromoCode;
 use App\Filament\Admin\Resources\PromoCodeResource\Pages\ListPromoCodes;
+use App\Models\Order;
 use App\Models\PromoCode;
 use App\Models\Restaurant;
 use App\Models\Staff;
@@ -119,6 +121,52 @@ class PromoCodeResourceTest extends TestCase
             ])
             ->call('create')
             ->assertHasFormErrors(['code']);
+    }
+
+    public function test_usage_limits_are_saved(): void
+    {
+        Livewire::actingAs($this->admin, 'admin');
+
+        Livewire::test(CreatePromoCode::class)
+            ->fillForm([
+                'code' => 'LIMITLI',
+                'discount_type' => DiscountType::Percent->value,
+                'discount_value' => 10,
+                'restaurant_share_percent' => 50,
+                'per_user_limit' => 1,
+                'total_usage_limit' => 500,
+            ])
+            ->call('create')
+            ->assertHasNoFormErrors();
+
+        $this->assertDatabaseHas('promo_codes', ['code' => 'LIMITLI', 'per_user_limit' => 1, 'total_usage_limit' => 500]);
+    }
+
+    public function test_limits_are_optional_and_must_be_positive(): void
+    {
+        Livewire::actingAs($this->admin, 'admin');
+
+        Livewire::test(CreatePromoCode::class)
+            ->fillForm([
+                'code' => 'NOLLIMIT',
+                'discount_type' => DiscountType::Percent->value,
+                'discount_value' => 10,
+                'restaurant_share_percent' => 50,
+                'per_user_limit' => 0,
+            ])
+            ->call('create')
+            ->assertHasFormErrors(['per_user_limit']);
+    }
+
+    public function test_usage_column_counts_only_non_cancelled_orders_against_the_limit(): void
+    {
+        $promo = PromoCode::factory()->create(['code' => 'SANA', 'total_usage_limit' => 10]);
+        Order::factory()->count(2)->create(['promo_code_id' => $promo->id, 'status' => OrderStatus::Delivered]);
+        Order::factory()->create(['promo_code_id' => $promo->id, 'status' => OrderStatus::Cancelled]);
+        Livewire::actingAs($this->admin, 'admin');
+
+        Livewire::test(ListPromoCodes::class)
+            ->assertTableColumnStateSet('usages_count', '2 / 10', $promo);
     }
 
     public function test_can_restrict_a_code_to_one_restaurant(): void

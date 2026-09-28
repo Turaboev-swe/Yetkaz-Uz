@@ -3,6 +3,8 @@
 namespace App\Models;
 
 use App\Enums\DiscountType;
+use App\Enums\OrderStatus;
+use App\Enums\PromoCodeError;
 use Database\Factories\PromoCodeFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -20,6 +22,8 @@ class PromoCode extends Model
         'discount_type',
         'discount_value',
         'restaurant_share_percent',
+        'per_user_limit',
+        'total_usage_limit',
         'restaurant_id',
         'is_active',
         'starts_at',
@@ -32,6 +36,8 @@ class PromoCode extends Model
             'discount_type' => DiscountType::class,
             'discount_value' => 'integer',
             'restaurant_share_percent' => 'integer',
+            'per_user_limit' => 'integer',
+            'total_usage_limit' => 'integer',
             'is_active' => 'boolean',
             'starts_at' => 'datetime',
             'ends_at' => 'datetime',
@@ -56,28 +62,33 @@ class PromoCode extends Model
         return $this->hasMany(Order::class);
     }
 
-    /** Shu restoranda (yoki restaurant_id=null bo'lsa — hamma joyda) hozir ishlatsa bo'ladimi. */
-    public function isUsableFor(Restaurant $restaurant, ?Carbon $now = null): bool
+    /**
+     * Ishlatilish hisoblanadigan buyurtmalar — BEKOR QILINMAGANLARI. Bekor
+     * qilingan buyurtma limitni band qilmaydi (mijoz kodni qayta ishlata oladi).
+     *
+     * @return HasMany<Order>
+     */
+    public function usages(): HasMany
     {
-        if (! $this->is_active) {
-            return false;
-        }
+        return $this->orders()->where('status', '!=', OrderStatus::Cancelled->value);
+    }
 
-        if ($this->restaurant_id !== null && $this->restaurant_id !== $restaurant->id) {
-            return false;
-        }
-
+    /**
+     * Limitsiz tekshiruvlar (faollik, muddat, restoran) — birinchi mos kelmagan
+     * sabab, hammasi joyida bo'lsa null. Limitlar bazadagi buyurtmalarни
+     * sanaydi — ular PromoCodeService'da (qatorни qulflagan holda).
+     */
+    public function rejectionFor(Restaurant $restaurant, ?Carbon $now = null): ?PromoCodeError
+    {
         $now ??= now();
 
-        if ($this->starts_at !== null && $now->lt($this->starts_at)) {
-            return false;
-        }
-
-        if ($this->ends_at !== null && $now->gt($this->ends_at)) {
-            return false;
-        }
-
-        return true;
+        return match (true) {
+            ! $this->is_active => PromoCodeError::Inactive,
+            $this->ends_at !== null && $now->gt($this->ends_at) => PromoCodeError::Expired,
+            $this->starts_at !== null && $now->lt($this->starts_at) => PromoCodeError::NotStarted,
+            $this->restaurant_id !== null && $this->restaurant_id !== $restaurant->id => PromoCodeError::WrongRestaurant,
+            default => null,
+        };
     }
 
     /**

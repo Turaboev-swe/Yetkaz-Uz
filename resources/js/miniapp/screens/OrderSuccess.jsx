@@ -52,6 +52,12 @@ export default function OrderSuccess() {
                     <span>Yetkazish</span>
                     <span>{o.delivery_fee === 0 ? (pickup ? '—' : 'Bepul') : somLabel(o.delivery_fee)}</span>
                 </div>
+                {o.discount_amount > 0 && (
+                    <div className="flex justify-between text-[13px]" style={{ color: 'var(--tg-hint)' }}>
+                        <span>Chegirma</span>
+                        <span>−{somLabel(o.discount_amount)}</span>
+                    </div>
+                )}
                 <div className="mt-1 flex justify-between text-[15px] font-bold" style={{ color: 'var(--tg-text)' }}>
                     <span>Jami</span>
                     <span>{somLabel(o.total)}</span>

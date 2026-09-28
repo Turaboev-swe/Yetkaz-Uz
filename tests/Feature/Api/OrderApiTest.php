@@ -2,9 +2,11 @@
 
 namespace Tests\Feature\Api;
 
+use App\Enums\OrderStatus;
 use App\Models\Address;
 use App\Models\Category;
 use App\Models\District;
+use App\Models\Order;
 use App\Models\Product;
 use App\Models\PromoCode;
 use App\Models\Restaurant;
@@ -12,6 +14,7 @@ use App\Models\User;
 use App\Services\Delivery\RestaurantFinder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Tests\Concerns\InteractsWithTelegramInitData;
 use Tests\TestCase;
@@ -269,6 +272,80 @@ class OrderApiTest extends TestCase
         $this->postJson('/api/orders', $this->payload(['promo_code' => 'FAQATB']), $this->headers())
             ->assertStatus(422)
             ->assertJsonValidationErrorFor('promo_code');
+    }
+
+    public function test_rejected_order_reports_the_specific_promo_reason(): void
+    {
+        PromoCode::factory()->create(['code' => 'ESKI', 'ends_at' => now()->subDay()]);
+
+        $this->postJson('/api/orders', $this->payload(['promo_code' => 'ESKI']), $this->headers())
+            ->assertStatus(422)
+            ->assertJsonPath('code', 'promo_code_invalid')
+            ->assertJsonPath('promo_error', 'expired');
+    }
+
+    public function test_per_user_limit_is_enforced_when_placing_orders(): void
+    {
+        PromoCode::factory()->create(['code' => 'BIRMARTA', 'per_user_limit' => 1]);
+
+        $this->postJson('/api/orders', $this->payload(['promo_code' => 'BIRMARTA']), $this->headers())->assertCreated();
+
+        $this->postJson('/api/orders', $this->payload(['promo_code' => 'BIRMARTA']), $this->headers())
+            ->assertStatus(422)
+            ->assertJsonPath('promo_error', 'user_limit_reached');
+
+        $this->assertDatabaseCount('orders', 1);
+    }
+
+    public function test_cancelling_an_order_frees_its_promo_slot(): void
+    {
+        PromoCode::factory()->create(['code' => 'BIRMARTA', 'per_user_limit' => 1]);
+        $first = $this->postJson('/api/orders', $this->payload(['promo_code' => 'BIRMARTA']), $this->headers())
+            ->assertCreated()
+            ->json('data.id');
+
+        Order::query()->whereKey($first)->update(['status' => OrderStatus::Cancelled->value]);
+
+        $this->postJson('/api/orders', $this->payload(['promo_code' => 'BIRMARTA']), $this->headers())->assertCreated();
+    }
+
+    public function test_total_usage_limit_is_enforced_across_customers(): void
+    {
+        $promo = PromoCode::factory()->create(['code' => 'YAKKA', 'total_usage_limit' => 1]);
+        Order::factory()->create(['promo_code_id' => $promo->id]); // boshqa mijoz ishlatgan
+
+        $this->postJson('/api/orders', $this->payload(['promo_code' => 'YAKKA']), $this->headers())
+            ->assertStatus(422)
+            ->assertJsonPath('promo_error', 'usage_limit_reached');
+    }
+
+    /**
+     * Poyga holatiga qarshi: promokod qatori FOR UPDATE bilan qulflanadi va buyurtma
+     * AYNAN shu tranzaksiyada yoziladi — ikkinchi so'rov qulfni birinchisi commit
+     * qilguncha kutadi va limitni yangi buyurtma bilan birga sanaydi.
+     */
+    public function test_promo_row_is_locked_in_the_same_transaction_that_inserts_the_order(): void
+    {
+        PromoCode::factory()->create(['code' => 'OSON50']);
+        $base = DB::transactionLevel();
+        $lockLevel = null;
+        $insertLevel = null;
+
+        DB::listen(function ($query) use (&$lockLevel, &$insertLevel) {
+            $sql = strtolower($query->sql);
+            if (str_contains($sql, 'promo_codes') && str_contains($sql, 'for update')) {
+                $lockLevel = DB::transactionLevel();
+            }
+            if (str_starts_with($sql, 'insert into "orders"')) {
+                $insertLevel = DB::transactionLevel();
+            }
+        });
+
+        $this->postJson('/api/orders', $this->payload(['promo_code' => 'OSON50']), $this->headers())->assertCreated();
+
+        $this->assertNotNull($lockLevel, 'promo_codes qatori FOR UPDATE bilan qulflanmadi');
+        $this->assertGreaterThan($base, $lockLevel, 'Qulf OrderService tranzaksiyasi ichida bo\'lishi kerak');
+        $this->assertSame($lockLevel, $insertLevel, 'Qulf va buyurtma yozilishi bitta tranzaksiyada bo\'lishi kerak');
     }
 
     public function test_order_without_a_promo_code_has_zeroed_discount_fields(): void

@@ -90,13 +90,15 @@ class OrderService
         $maxPrep = max(array_map(fn ($l) => $l['prep'], $lines) ?: [(int) $restaurant->avg_prep_time_min]);
         $eta = $this->eta->estimate($restaurant, $type, $distanceKm, $maxPrep)->minutes;
 
-        // Promokod — faqat taomlar summasidan (subtotal), yetkazish narxidan emas:
-        // restoran chegirma xarajatini taomlar bo'yicha ulashadi, yetkazish
-        // platforma/kuryer xarajati, restoranga aloqasi yo'q. Kod noto'g'ri/muddati
-        // o'tgan bo'lsa — butun buyurtma rad etiladi (jimgina to'liq narx olinmaydi).
-        $promo = $this->promoCodes->apply($data['promo_code'] ?? null, $restaurant, $subtotal);
+        $order = DB::transaction(function () use ($user, $restaurant, $address, $type, $lines, $subtotal, $deliveryFee, $eta, $distanceKm, $data) {
+            // Promokod — tekshirish va buyurtma yozish BITTA tranzaksiyada, kod
+            // qatori qulflangan holda (limitlar uchun poyga holatiga qarshi —
+            // PromoCodeService::applyForOrder). Faqat taomlar summasidan
+            // (subtotal), yetkazish narxidan emas: restoran chegirma xarajatini
+            // taomlar bo'yicha ulashadi. Kod yaroqsiz bo'lsa — butun buyurtma
+            // rad etiladi (aniq sabab bilan), jimgina to'liq narx olinmaydi.
+            $promo = $this->promoCodes->applyForOrder($data['promo_code'] ?? null, $restaurant, $subtotal, $user);
 
-        $order = DB::transaction(function () use ($user, $restaurant, $address, $type, $lines, $subtotal, $deliveryFee, $eta, $distanceKm, $data, $promo) {
             $order = Order::create([
                 'order_number' => $this->orderNumbers->generate(),
                 'user_id' => $user->id,

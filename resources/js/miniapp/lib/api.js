@@ -54,6 +54,8 @@ export const api = {
     deleteAddress: (id) => request(`/addresses/${id}`, { method: 'DELETE' }),
     reverse: (lat, lng) => request('/geo/reverse', { params: { lat, lng } }),
     estimateOrder: (body) => request('/orders/estimate', { method: 'POST', body }),
+    // { promo_code, restaurant_id, subtotal } -> { data: { code, discount_amount } } | 422 (code: promo_code_invalid)
+    validatePromo: (body) => request('/promo-codes/validate', { method: 'POST', body }),
     createOrder: (body) => request('/orders', { method: 'POST', body }),
     order: (id) => request(`/orders/${id}`),
 };
