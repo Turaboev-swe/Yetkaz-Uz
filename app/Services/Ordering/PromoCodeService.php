@@ -23,7 +23,7 @@ use LogicException;
  * (PromoCode::usages) — bekor qilinsa limit qaytadi.
  *
  * TAQSIMOT (qaror): admin har kod uchun restoran qoplaydigan ulushni belgilaydi
- * (restaurant_share_percent, 0-100, standart 0 — hammasini platforma qoplaydi),
+ * (restaurant_share_percent, 0-100, standart 50 — yarmini restoran, yarmini platforma),
  * qolganini platforma qoplaydi. Natija buyurtmaga snapshot qilinadi
  * (discount_restaurant_amount / discount_platform_amount).
  *

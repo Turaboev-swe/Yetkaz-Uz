@@ -123,14 +123,31 @@ class PromoCodeResourceTest extends TestCase
             ->assertHasFormErrors(['code']);
     }
 
-    public function test_restaurant_share_defaults_to_zero_with_a_clear_hint(): void
+    public function test_restaurant_share_defaults_to_fifty_with_a_clear_hint(): void
     {
         Livewire::actingAs($this->admin, 'admin');
 
         Livewire::test(CreatePromoCode::class)
-            ->assertFormSet(['restaurant_share_percent' => 0])
+            ->assertFormSet(['restaurant_share_percent' => 50])
             ->assertSee('Restoran qoplaydigan ulush (%)')
-            ->assertSee('0 — hammasini platforma qoplaydi');
+            ->assertSee('Standart 50% — yarmini restoran, yarmini platforma qoplaydi');
+    }
+
+    public function test_admin_can_still_give_a_code_a_different_share(): void
+    {
+        Livewire::actingAs($this->admin, 'admin');
+
+        Livewire::test(CreatePromoCode::class)
+            ->fillForm([
+                'code' => 'BOSHQAULUSH',
+                'discount_type' => DiscountType::Percent->value,
+                'discount_value' => 10,
+                'restaurant_share_percent' => 30,
+            ])
+            ->call('create')
+            ->assertHasNoFormErrors();
+
+        $this->assertDatabaseHas('promo_codes', ['code' => 'BOSHQAULUSH', 'restaurant_share_percent' => 30]);
     }
 
     public function test_restaurant_share_must_be_between_0_and_100(): void

@@ -49,9 +49,9 @@ class KitchenOrderResource extends JsonResource
 
             'subtotal' => $this->subtotal,
             'delivery_fee' => $this->delivery_fee,
+            // Restoran/platforma taqsimoti ATAYLAB yo'q — oshxona panelida ko'rsatilmaydi
+            // (bu JSON Reverb orqali oshxona kanaliga ham ketadi). Faqat hisobotlarda.
             'discount_amount' => $this->discount_amount,
-            'discount_restaurant_amount' => $this->discount_restaurant_amount,
-            'discount_platform_amount' => $this->discount_platform_amount,
             'total' => $this->total, // mijozdan olinadigan — chegirma ayirilgan
         ];
     }

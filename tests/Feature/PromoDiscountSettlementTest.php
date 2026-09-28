@@ -152,17 +152,22 @@ class PromoDiscountSettlementTest extends TestCase
         $this->assertSame(58_000_00, $this->customerSpent());
     }
 
-    public function test_new_codes_default_to_the_platform_covering_everything(): void
+    /** Standart (bazada) 50% — yarmini restoran, yarmini platforma. */
+    public function test_new_codes_default_to_splitting_the_discount_in_half(): void
     {
         $promo = PromoCode::query()->create([
             'code' => 'STANDART', 'discount_type' => 'percent', 'discount_value' => 25,
         ])->fresh();
 
-        $this->assertSame(0, $promo->restaurant_share_percent);
+        $this->assertSame(50, $promo->restaurant_share_percent);
 
-        $order = $this->placeOrder('STANDART');
-        $this->assertSame(0, $order->discount_restaurant_amount);
-        $this->assertSame(16_000_00, $order->discount_platform_amount);
+        $order = $this->deliver($this->placeOrder('STANDART'));
+        $this->assertSame(8_000_00, $order->discount_restaurant_amount);
+        $this->assertSame(8_000_00, $order->discount_platform_amount);
+
+        // Hisobotda: platforma qarzi 8 000, daromad 58 000 + 8 000 = 66 000.
+        $this->assertSame(8_000_00, $this->stats()->platformDiscounts($this->period())[0]['platform_amount_tiyin']);
+        $this->assertSame(66_000_00, $this->stats()->summary($this->period(), $this->restaurant->id)['revenue_tiyin']);
     }
 
     // --- Snapshot: kod keyin o'zgarsa eski buyurtma o'zgarmaydi -------------

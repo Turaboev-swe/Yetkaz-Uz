@@ -79,15 +79,14 @@ class PromoCodeResource extends Resource
 
             Forms\Components\TextInput::make('restaurant_share_percent')
                 ->label('Restoran qoplaydigan ulush (%)')
-                ->helperText("0 — hammasini platforma qoplaydi. Qolgan qismini platforma qoplaydi; toq so'm ham platformaga. "
-                    ."Buyurtmaga shu paytdagi ulush yoziladi — keyin o'zgartirsangiz eski buyurtmalar o'zgarmaydi.")
+                ->helperText('Standart 50% — yarmini restoran, yarmini platforma qoplaydi')
                 ->required()
                 ->numeric()
                 ->integer()
                 ->minValue(0)
                 ->maxValue(100)
                 ->suffix('%')
-                ->default(0),
+                ->default(50),
 
             Forms\Components\TextInput::make('per_user_limit')
                 ->label('Bir mijozga limit')

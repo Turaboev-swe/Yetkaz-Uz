@@ -144,8 +144,7 @@ export default function OrderCard({ order, onAdvance, onCancel, busy, couriers =
             {/* Taomlar narxi ko'rinadi — chegirma qatorisiz olinadigan summa kam ko'rinib, xatodek tuyulardi. */}
             {order.discount_amount > 0 && (
                 <div className="mt-2 text-[13px] text-emerald-400">
-                    Chegirma: −{som(order.discount_amount)} so‘m (restoran: {som(order.discount_restaurant_amount)} so‘m,
-                    platforma qoplaydi: {som(order.discount_platform_amount)} so‘m)
+                    Chegirma: −{som(order.discount_amount)} so‘m
                 </div>
             )}
 

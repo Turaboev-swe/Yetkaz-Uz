@@ -148,7 +148,7 @@ return [
         'note' => 'Комментарий',
         'to_collect' => '💵 Получить с клиента',
         'cash' => 'наличными',
-        'discount_split' => 'Скидка: −:amount (ресторан: :restaurant, платформа покрывает: :platform)',
+        'discount' => 'Скидка: −:amount',
         'som' => 'сум',
         'status' => 'Статус',
         'done' => '✅ Завершён',

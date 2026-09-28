@@ -176,7 +176,8 @@ class KitchenBotCallbackTest extends TestCase
         $this->assertStringNotContainsString('Chegirma', $text);
     }
 
-    public function test_kitchen_message_shows_the_discount_split_like_the_owner_dm(): void
+    /** Taqsimot (restoran/platforma) faqat hisobotlarda — xodim xabarida yo'q. */
+    public function test_kitchen_message_shows_the_discount_but_not_the_split(): void
     {
         $text = app(KitchenOrderMessage::class)->text($this->order([
             'discount_amount' => 13_800_00,
@@ -185,11 +186,12 @@ class KitchenBotCallbackTest extends TestCase
             'total' => 65_200_00,
         ]));
 
-        $this->assertStringContainsString(
-            "Chegirma: −13 800 so'm (restoran: 3 400 so'm, platforma qoplaydi: 10 400 so'm)",
-            $text,
-        );
+        $this->assertStringContainsString("Chegirma: −13 800 so'm\n", $text);
         $this->assertStringContainsString("💵 Mijozdan olinadi: 65 200 so'm", $text);
+        $this->assertStringNotContainsString('restoran:', $text);
+        $this->assertStringNotContainsString('platforma', $text);
+        $this->assertStringNotContainsString('3 400', $text);
+        $this->assertStringNotContainsString('10 400', $text);
     }
 
     public function test_order_placed_has_exactly_one_listener_per_channel(): void

@@ -122,14 +122,17 @@ class OrderDispatchTest extends TestCase
         $this->assertStringNotContainsString('Chegirma', $text);
     }
 
-    public function test_receipt_shows_the_discount_split_for_a_discounted_order(): void
+    /** Taqsimot (restoran/platforma) faqat hisobotlarda — chekda yo'q. */
+    public function test_receipt_shows_the_discount_but_not_the_split(): void
     {
         $text = app(ReceiptFormatter::class)->format($this->discountedOrder())['text'];
 
         $this->assertMatchesRegularExpression('/Chegirma:\s+-13 800 som/', $text);
-        $this->assertMatchesRegularExpression('/restoran:\s+3 400 som/', $text);
-        $this->assertMatchesRegularExpression('/platforma qoplaydi:\s+10 400 som/', $text);
         $this->assertMatchesRegularExpression('/MIJOZDAN OLINADI:\s+65 200 som/', $text);
+        $this->assertStringNotContainsString('restoran', $text);
+        $this->assertStringNotContainsString('platforma', $text);
+        $this->assertStringNotContainsString('3 400', $text);
+        $this->assertStringNotContainsString('10 400', $text);
     }
 
     /** Printer WPC1252 — emoji (💵) yoki "−" (U+2212) chekka tushsa buzuq belgi chiqardi. */

@@ -132,7 +132,8 @@ class OrderNotificationTest extends TestCase
             && $job->dueAt === $order->created_at->copy()->addMinutes(7)->getTimestamp());
     }
 
-    public function test_owner_dm_shows_the_discount_split_and_the_amount_to_collect(): void
+    /** Taqsimot (restoran/platforma) faqat hisobotlarda — egasi DM'ida yo'q. */
+    public function test_owner_dm_shows_the_discount_and_the_amount_to_collect_but_not_the_split(): void
     {
         PromoCode::factory()->percent(20)->restaurantShare(25)->create(['code' => 'OSON20']);
         $order = $this->order(['notify_chat_id' => '555111222'], promoCode: 'OSON20');
@@ -140,14 +141,19 @@ class OrderNotificationTest extends TestCase
         $bot = app(Nutgram::class);
         (new NotifyRestaurantOfNewOrder($order->id))->handle($bot);
 
-        // 64 000 so'm taom, 20% = 12 800 so'm chegirma: restoran 25% = 3 200 so'm,
-        // platforma 9 600 so'm. Mijozdan: 64 000 + 10 000 - 12 800 = 61 200 so'm.
+        // 64 000 so'm taom, 20% = 12 800 so'm chegirma (restoran 3 200 / platforma 9 600
+        // — lekin bu DM'da ko'rinmaydi). Mijozdan: 64 000 + 10 000 − 12 800 = 61 200 so'm.
         $body = $this->sentBody($bot);
-        $this->assertStringContainsString('Chegirma', $body);
-        $this->assertStringContainsString('12 800', $body);
-        $this->assertStringContainsString('restoran: 3 200', $body);
-        $this->assertStringContainsString('platforma qoplaydi: 9 600', $body);
+        $this->assertStringContainsString('Chegirma: −12 800 so‘m', $body);
         $this->assertStringContainsString('Mijozdan olinadi: 61 200', $body);
+        $this->assertStringNotContainsString('restoran:', $body);
+        $this->assertStringNotContainsString('platforma', $body);
+        $this->assertStringNotContainsString('ulushingiz', $body);
+        $this->assertStringNotContainsString('9 600', $body);
+
+        // Snapshot esa bazada joyida — hisobotlar uchun.
+        $this->assertSame(3_200_00, $order->fresh()->discount_restaurant_amount);
+        $this->assertSame(9_600_00, $order->fresh()->discount_platform_amount);
     }
 
     public function test_owner_dm_shows_the_amount_to_collect_without_a_discount_line_when_no_code(): void

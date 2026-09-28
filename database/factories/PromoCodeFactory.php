@@ -15,7 +15,7 @@ class PromoCodeFactory extends Factory
             'code' => strtoupper(fake()->unique()->bothify('PROMO##??')),
             'discount_type' => DiscountType::Percent,
             'discount_value' => 20,
-            'restaurant_share_percent' => 0, // baza standarti bilan bir xil — hammasini platforma qoplaydi
+            'restaurant_share_percent' => 50, // baza standarti bilan bir xil — yarmini restoran, yarmini platforma
             'restaurant_id' => null,
             'is_active' => true,
             'starts_at' => null,

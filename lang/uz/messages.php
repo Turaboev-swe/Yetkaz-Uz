@@ -150,7 +150,7 @@ return [
         // Egasi DM'i va /kitchen kartasi bilan bir xil matn.
         'to_collect' => '💵 Mijozdan olinadi',
         'cash' => 'naqd',
-        'discount_split' => 'Chegirma: −:amount (restoran: :restaurant, platforma qoplaydi: :platform)',
+        'discount' => 'Chegirma: −:amount',
         'som' => "so'm",
         'status' => 'Holat',
         'done' => '✅ Yakunlandi',

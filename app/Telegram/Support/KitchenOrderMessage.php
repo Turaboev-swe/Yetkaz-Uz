@@ -74,13 +74,10 @@ class KitchenOrderMessage
         }
 
         $lines[] = '';
-        // Egasi DM'i va /kitchen kartasi bilan bir xil: taqsimot buyurtmadagi snapshot'dan.
+        // Egasi DM'i va /kitchen kartasi bilan bir xil. Restoran/platforma taqsimoti
+        // bu yerda KO'RSATILMAYDI — u faqat hisobotlarda (Platforma chegirmalari).
         if ($order->hasDiscount()) {
-            $lines[] = $t('discount_split', [
-                'amount' => $som((int) $order->discount_amount).' '.$t('som'),
-                'restaurant' => $som((int) $order->discount_restaurant_amount).' '.$t('som'),
-                'platform' => $som((int) $order->discount_platform_amount).' '.$t('som'),
-            ]);
+            $lines[] = $t('discount', ['amount' => $som((int) $order->discount_amount).' '.$t('som')]);
         }
         $lines[] = '<b>'.$t('to_collect').': '.$som((int) $order->total).' '.$t('som').'</b> · '.$t('cash');
         $lines[] = $t('status').': '.$esc((string) __("messages.order_status.{$order->status->value}", [], $this->locale));
