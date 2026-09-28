@@ -130,7 +130,7 @@ class PromoDiscountSettlementTest extends TestCase
     public function test_revenue_and_platform_debt_for_each_restaurant_share(
         int $percent, int $restaurantAmount, int $platformAmount, int $revenue,
     ): void {
-        PromoCode::factory()->percent(25)->restaurantShare($percent)->create(['code' => 'CHEGIRMA']);
+        PromoCode::factory()->at($this->restaurant)->percent(25)->restaurantShare($percent)->create(['code' => 'CHEGIRMA']);
 
         $order = $this->deliver($this->placeOrder('CHEGIRMA'));
 
@@ -158,8 +158,10 @@ class PromoDiscountSettlementTest extends TestCase
         $promo = PromoCode::query()->create([
             'code' => 'STANDART', 'discount_type' => 'percent', 'discount_value' => 25,
         ])->fresh();
+        $promo->restaurants()->attach($this->restaurant);
 
         $this->assertSame(50, $promo->restaurant_share_percent);
+        $this->assertSame(1, $promo->per_user_limit); // baza standarti — har mijoz bir marta
 
         $order = $this->deliver($this->placeOrder('STANDART'));
         $this->assertSame(8_000_00, $order->discount_restaurant_amount);
@@ -174,7 +176,7 @@ class PromoDiscountSettlementTest extends TestCase
 
     public function test_changing_the_code_later_does_not_change_existing_orders_or_reports(): void
     {
-        $promo = PromoCode::factory()->percent(25)->restaurantShare(50)->create(['code' => 'OZGARADI']);
+        $promo = PromoCode::factory()->at($this->restaurant)->percent(25)->restaurantShare(50)->unlimitedPerUser()->create(['code' => 'OZGARADI']); // bir mijoz ikki marta
         $old = $this->deliver($this->placeOrder('OZGARADI'));
         $revenueBefore = $this->stats()->summary($this->period(), $this->restaurant->id)['revenue_tiyin'];
         $debtBefore = $this->stats()->platformDiscounts($this->period())[0]['platform_amount_tiyin'];
@@ -200,7 +202,7 @@ class PromoDiscountSettlementTest extends TestCase
 
     public function test_odd_som_discount_gives_the_extra_som_to_the_platform_and_reconciles(): void
     {
-        PromoCode::factory()->fixed(15_005_00)->restaurantShare(50)->create(['code' => 'TOQ']);
+        PromoCode::factory()->at($this->restaurant)->fixed(15_005_00)->restaurantShare(50)->create(['code' => 'TOQ']);
 
         $order = $this->deliver($this->placeOrder('TOQ'));
 
@@ -227,7 +229,7 @@ class PromoDiscountSettlementTest extends TestCase
     {
         $this->restaurant->update(['free_delivery_radius_km' => null, 'price_per_km' => 123_457]); // 1 234,57 so'm/km
         $this->osh->update(['price' => 12_345_00]);
-        PromoCode::factory()->percent(15)->create(['code' => 'KASR']);
+        PromoCode::factory()->at($this->restaurant)->percent(15)->create(['code' => 'KASR']);
 
         // Yaxlitlashsiz ikkalasi ham kasrli so'm bo'lardi — test haqiqatan shu holatni sinaydi.
         $distanceKm = app(RestaurantFinder::class)->distanceKm($this->restaurant, $this->address);

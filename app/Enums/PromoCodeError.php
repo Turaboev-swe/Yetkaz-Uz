@@ -15,9 +15,11 @@ enum PromoCodeError: string
     case WrongRestaurant = 'wrong_restaurant';
     case UsageLimitReached = 'usage_limit_reached';
     case UserLimitReached = 'user_limit_reached';
+    case BelowMinimum = 'below_minimum';
 
-    public function message(): string
+    /** @param  array<string, string|int>  $replace  masalan BelowMinimum uchun ['amount' => '50 000'] */
+    public function message(array $replace = []): string
     {
-        return __("messages.promo_code_error.{$this->value}");
+        return __("messages.promo_code_error.{$this->value}", $replace);
     }
 }

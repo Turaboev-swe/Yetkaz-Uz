@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 
@@ -99,10 +100,10 @@ class Restaurant extends Model
         return $this->hasMany(Order::class);
     }
 
-    /** @return HasMany<PromoCode> Faqat shu restoranga bog'langan kodlar — restaurant_id=null (hammaga ochiq) kodlar bu yerda emas. */
-    public function promoCodes(): HasMany
+    /** @return BelongsToMany<PromoCode> Shu restoranda ishlaydigan kodlar (admin tanlagan). */
+    public function promoCodes(): BelongsToMany
     {
-        return $this->hasMany(PromoCode::class);
+        return $this->belongsToMany(PromoCode::class, 'promo_code_restaurant');
     }
 
     /** @return HasMany<Staff> */

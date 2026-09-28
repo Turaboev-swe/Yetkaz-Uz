@@ -50,6 +50,11 @@ class OrderConfirmationTest extends TestCase
             'delivery_radius_km' => 8, 'delivery_fee' => 1_000_000, 'min_order_amount' => 1,
         ], $restaurantAttrs));
 
+        // Kod faqat tanlangan restoranlarda ishlaydi — shu testdagi restoranga biriktiriladi.
+        if ($promoCode !== null) {
+            PromoCode::query()->where('code', mb_strtoupper($promoCode))->firstOrFail()->restaurants()->attach($restaurant);
+        }
+
         $cat = Category::factory()->for($restaurant)->create(['is_active' => true]);
         $burger = Product::factory()->for($cat)->create(['name' => 'Lavash oddiy', 'price' => 3_000_000, 'is_available' => true]);
         $cola = Product::factory()->for($cat)->create(['name' => 'Coca-Cola', 'price' => 800_000, 'is_available' => true]);

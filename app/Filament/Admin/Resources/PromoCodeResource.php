@@ -14,8 +14,9 @@ use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 
 /**
- * Promokodlar — platforma admini yaratadi/tahrirlaydi. Xarajat platforma va
- * restoran o'rtasida `restaurant_share_percent` bo'yicha bo'linadi
+ * Promokodlar — platforma admini yaratadi/tahrirlaydi. Kod faqat tanlangan
+ * restoranlarda ishlaydi (kamida bitta, "hammasi" varianti yo'q). Xarajat
+ * platforma va restoran o'rtasida `restaurant_share_percent` bo'yicha bo'linadi
  * (`PromoCodeService::split()`), buyurtmaga snapshot qilinadi. Hisob-kitob: Hisobotlar → Platforma chegirmalari.
  */
 class PromoCodeResource extends Resource
@@ -35,7 +36,8 @@ class PromoCodeResource extends Resource
     public static function getEloquentQuery(): Builder
     {
         // Ishlatilish — bekor qilinmagan buyurtmalar (limit bilan bir xil ta'rif).
-        return parent::getEloquentQuery()->withCount('usages');
+        // Restoranlar ro'yxatda ko'rsatiladi — N+1 bo'lmasin.
+        return parent::getEloquentQuery()->withCount('usages')->with('restaurants:id,name');
     }
 
     public static function form(Form $form): Form
@@ -88,13 +90,25 @@ class PromoCodeResource extends Resource
                 ->suffix('%')
                 ->default(50),
 
+            // Taomlar summasi bilan solishtiriladi (yetkazishsiz). Panelda so'mда, bazada tiyinда.
+            Forms\Components\TextInput::make('min_order_amount')
+                ->label("Minimal buyurtma summasi (so'm)")
+                ->helperText("Faqat TAOMLAR summasi hisobga olinadi — yetkazish narxi qo'shilmaydi. Bo'sh — cheklovsiz.")
+                ->numeric()
+                ->integer()
+                ->minValue(0)
+                ->suffix("so'm")
+                ->formatStateUsing(fn (?int $state): ?int => $state === null ? null : intdiv($state, 100))
+                ->dehydrateStateUsing(fn ($state): ?int => filled($state) ? (int) $state * 100 : null),
+
             Forms\Components\TextInput::make('per_user_limit')
                 ->label('Bir mijozga limit')
                 ->numeric()
                 ->integer()
                 ->minValue(1)
                 ->suffix('marta')
-                ->helperText("Bo'sh — cheklovsiz. Bekor qilingan buyurtma hisoblanmaydi."),
+                ->default(1)
+                ->helperText("Standart 1 — har mijoz bir marta. Bo'sh — cheklovsiz. Bekor qilingan buyurtma hisoblanmaydi."),
 
             Forms\Components\TextInput::make('total_usage_limit')
                 ->label('Umumiy limit')
@@ -104,12 +118,17 @@ class PromoCodeResource extends Resource
                 ->suffix('marta')
                 ->helperText("Bo'sh — cheklovsiz. Bekor qilingan buyurtma hisoblanmaydi."),
 
-            Forms\Components\Select::make('restaurant_id')
-                ->label('Restoran')
-                ->relationship('restaurant', 'name')
+            // "Barcha restoranlar" varianti ATAYLAB yo'q — rozi bo'lmagan restoranga
+            // tasodifan tushib qolmasligi uchun kamida bittasini tanlash majburiy.
+            Forms\Components\Select::make('restaurants')
+                ->label('Restoranlar')
+                ->relationship('restaurants', 'name')
+                ->multiple()
+                ->required()
                 ->searchable()
-                ->native(false)
-                ->helperText("Bo'sh — kod barcha restoranlarda ishlaydi."),
+                ->preload()
+                ->helperText('Kod faqat tanlangan restoranlarda ishlaydi. Kamida bittasini tanlang.')
+                ->columnSpanFull(),
 
             Forms\Components\Toggle::make('is_active')->label('Faol')->default(true),
 
@@ -143,11 +162,19 @@ class PromoCodeResource extends Resource
                     ->suffix('%')
                     ->sortable(),
 
-                Tables\Columns\TextColumn::make('restaurant.name')
-                    ->label('Restoran')
-                    ->placeholder('Barchasi')
+                Tables\Columns\TextColumn::make('restaurants.name')
+                    ->label('Restoranlar')
                     ->badge()
-                    ->color(fn (?string $state): string => $state === null ? 'gray' : 'info'),
+                    ->color('info')
+                    ->limitList(3)
+                    ->expandableLimitedList()
+                    ->placeholder('Tanlanmagan — ishlamaydi'),
+
+                Tables\Columns\TextColumn::make('min_order_amount')
+                    ->label('Min. summa')
+                    ->formatStateUsing(fn (?int $state): string => $state === null ? '—' : Money::soms($state))
+                    ->placeholder('—')
+                    ->toggleable(),
 
                 Tables\Columns\ToggleColumn::make('is_active')->label('Faol'),
 
@@ -174,9 +201,9 @@ class PromoCodeResource extends Resource
             ])
             ->filters([
                 Tables\Filters\TernaryFilter::make('is_active')->label('Faollik'),
-                Tables\Filters\SelectFilter::make('restaurant_id')
+                Tables\Filters\SelectFilter::make('restaurants')
                     ->label('Restoran')
-                    ->relationship('restaurant', 'name'),
+                    ->relationship('restaurants', 'name'),
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),

@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Services\Ordering\PromoCodeApplication;
 use App\Services\Ordering\PromoCodeService;
 use App\Support\Money;
+use Database\Factories\PromoCodeFactory;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -44,6 +45,12 @@ class PromoCodeServiceTest extends TestCase
     {
         Carbon::setTestNow();
         parent::tearDown();
+    }
+
+    /** Shu test restoraniga biriktirilgan kod (qoida: kod faqat tanlangan restoranlarda ishlaydi). */
+    private function promo(): PromoCodeFactory
+    {
+        return PromoCode::factory()->at($this->restaurant);
     }
 
     /** RefreshDatabase testni tranzaksiyaga o'raydi — applyForOrder() talabi bajariladi. */
@@ -92,14 +99,14 @@ class PromoCodeServiceTest extends TestCase
 
     public function test_percent_discount_is_calculated_from_subtotal(): void
     {
-        $promo = PromoCode::factory()->percent(20)->create();
+        $promo = $this->promo()->percent(20)->create();
 
         $this->assertSame(2_000_00, $this->apply($promo->code, 10_000_00)->discountAmount);
     }
 
     public function test_percent_discount_rounds_down_to_a_whole_som(): void
     {
-        $promo = PromoCode::factory()->percent(15)->create();
+        $promo = $this->promo()->percent(15)->create();
 
         // 12 345 so'm * 15% = 1 851,75 so'm -> 1 851 so'm.
         $this->assertSame(1_851_00, $this->apply($promo->code, 12_345_00)->discountAmount);
@@ -107,22 +114,22 @@ class PromoCodeServiceTest extends TestCase
 
     public function test_fixed_discount_with_a_fraction_of_a_som_rounds_down(): void
     {
-        $promo = PromoCode::factory()->fixed(5_000_50)->create(); // 5 000,50 so'm
+        $promo = $this->promo()->fixed(5_000_50)->create(); // 5 000,50 so'm
 
         $this->assertSame(5_000_00, $this->apply($promo->code, 50_000_00)->discountAmount);
     }
 
     public function test_fixed_discount_uses_the_configured_tiyin_amount(): void
     {
-        $promo = PromoCode::factory()->fixed(15_000_00)->create();
+        $promo = $this->promo()->fixed(15_000_00)->create();
 
         $this->assertSame(15_000_00, $this->apply($promo->code, 50_000_00)->discountAmount);
     }
 
     public function test_discount_never_exceeds_the_subtotal(): void
     {
-        PromoCode::factory()->percent(100)->create(['code' => 'FULL100']);
-        PromoCode::factory()->fixed(999_999_00)->create(['code' => 'HUGE']);
+        $this->promo()->percent(100)->create(['code' => 'FULL100']);
+        $this->promo()->fixed(999_999_00)->create(['code' => 'HUGE']);
 
         $this->assertSame(10_000_00, $this->apply('FULL100', 10_000_00)->discountAmount);
         $this->assertSame(10_000_00, $this->apply('HUGE', 10_000_00)->discountAmount);
@@ -133,7 +140,7 @@ class PromoCodeServiceTest extends TestCase
     public function test_odd_som_remainder_goes_to_the_platform(): void
     {
         // 15 005 so'm, 50%: restoran floor(7 502,5) = 7 502 so'm, platforma 7 503 so'm.
-        $promo = PromoCode::factory()->fixed(15_005_00)->restaurantShare(50)->create();
+        $promo = $this->promo()->fixed(15_005_00)->restaurantShare(50)->create();
 
         $result = $this->apply($promo->code, 100_000_00);
 
@@ -148,7 +155,7 @@ class PromoCodeServiceTest extends TestCase
      */
     public function test_shares_shown_in_som_add_up_to_the_discount_shown_in_som(): void
     {
-        $promo = PromoCode::factory()->fixed(15_005_00)->restaurantShare(50)->create();
+        $promo = $this->promo()->fixed(15_005_00)->restaurantShare(50)->create();
 
         $result = $this->apply($promo->code, 100_000_00);
 
@@ -163,7 +170,7 @@ class PromoCodeServiceTest extends TestCase
         foreach ([1, 3, 7, 33, 50, 66, 99, 100] as $percent) {
             foreach ([1, 3, 7, 101, 15_005, 1_234_567] as $discountSom) {
                 $discount = $discountSom * 100;
-                $promo = PromoCode::factory()->fixed($discount)->restaurantShare($percent)->create();
+                $promo = $this->promo()->fixed($discount)->restaurantShare($percent)->create();
 
                 $result = $this->apply($promo->code, $discount * 10);
                 $label = "discount={$discountSom} so'm percent={$percent}";
@@ -178,7 +185,7 @@ class PromoCodeServiceTest extends TestCase
 
     public function test_zero_restaurant_share_gives_everything_to_the_platform(): void
     {
-        $promo = PromoCode::factory()->fixed(10_00)->restaurantShare(0)->create();
+        $promo = $this->promo()->fixed(10_00)->restaurantShare(0)->create();
 
         $result = $this->apply($promo->code, 1_000_000);
 
@@ -188,7 +195,7 @@ class PromoCodeServiceTest extends TestCase
 
     public function test_full_restaurant_share_gives_everything_to_the_restaurant(): void
     {
-        $promo = PromoCode::factory()->fixed(1_001_00)->restaurantShare(100)->create();
+        $promo = $this->promo()->fixed(1_001_00)->restaurantShare(100)->create();
 
         $result = $this->apply($promo->code, 10_000_00);
 
@@ -205,14 +212,14 @@ class PromoCodeServiceTest extends TestCase
 
     public function test_code_is_matched_case_and_whitespace_insensitively(): void
     {
-        PromoCode::factory()->percent(10)->create(['code' => 'OSON50']);
+        $this->promo()->percent(10)->create(['code' => 'OSON50']);
 
         $this->assertSame(1_000_00, $this->apply(' oson50 ', 10_000_00)->discountAmount);
     }
 
     public function test_inactive_code_is_rejected_as_inactive(): void
     {
-        $promo = PromoCode::factory()->inactive()->create();
+        $promo = $this->promo()->inactive()->create();
 
         $this->assertRejected(PromoCodeError::Inactive, fn () => $this->apply($promo->code, 10_000_00));
     }
@@ -220,7 +227,7 @@ class PromoCodeServiceTest extends TestCase
     public function test_expired_code_is_rejected_as_expired(): void
     {
         Carbon::setTestNow('2026-09-28 12:00:00');
-        $promo = PromoCode::factory()->create(['ends_at' => now()->subMinute()]);
+        $promo = $this->promo()->create(['ends_at' => now()->subMinute()]);
 
         $this->assertRejected(PromoCodeError::Expired, fn () => $this->apply($promo->code, 10_000_00));
     }
@@ -228,7 +235,7 @@ class PromoCodeServiceTest extends TestCase
     public function test_not_yet_started_code_is_rejected_as_not_started(): void
     {
         Carbon::setTestNow('2026-09-28 12:00:00');
-        $promo = PromoCode::factory()->create(['starts_at' => now()->addMinute()]);
+        $promo = $this->promo()->create(['starts_at' => now()->addMinute()]);
 
         $this->assertRejected(PromoCodeError::NotStarted, fn () => $this->apply($promo->code, 10_000_00));
     }
@@ -236,37 +243,109 @@ class PromoCodeServiceTest extends TestCase
     public function test_code_inside_its_date_range_is_accepted(): void
     {
         Carbon::setTestNow('2026-09-28 12:00:00');
-        $promo = PromoCode::factory()->create(['starts_at' => now()->subHour(), 'ends_at' => now()->addHour()]);
+        $promo = $this->promo()->create(['starts_at' => now()->subHour(), 'ends_at' => now()->addHour()]);
 
         $this->assertSame($promo->id, $this->apply($promo->code, 10_000_00)->promoCodeId);
     }
 
-    public function test_code_restricted_to_another_restaurant_is_rejected_as_wrong_restaurant(): void
+    // --- Restoranlar: faqat admin tanlaganlarida ---------------------------
+
+    public function test_code_for_unselected_restaurant_is_rejected_as_wrong_restaurant(): void
     {
-        $promo = PromoCode::factory()->create(['restaurant_id' => Restaurant::factory()->create()->id]);
+        $promo = PromoCode::factory()->at(Restaurant::factory()->create())->create();
+
+        $this->assertRejected(PromoCodeError::WrongRestaurant, fn () => $this->apply($promo->code, 10_000_00));
+        $this->assertSame('Bu promokod ushbu restoranda amal qilmaydi.', PromoCodeError::WrongRestaurant->message());
+    }
+
+    public function test_code_works_at_every_selected_restaurant_only(): void
+    {
+        $second = Restaurant::factory()->create();
+        $notSelected = Restaurant::factory()->create();
+        $promo = PromoCode::factory()->at($this->restaurant, $second)->create();
+
+        $this->assertSame($promo->id, $this->apply($promo->code, 10_000_00)->promoCodeId);
+        $this->assertSame($promo->id, $this->service->applyForOrder($promo->code, $second, 10_000_00, $this->user)->promoCodeId);
+        $this->assertRejected(
+            PromoCodeError::WrongRestaurant,
+            fn () => $this->service->applyForOrder($promo->code, $notSelected, 10_000_00, $this->user),
+        );
+    }
+
+    /** "Barcha restoranlar" varianti yo'q — restoransiz kod hech qayerda ishlamaydi. */
+    public function test_code_without_restaurants_works_nowhere(): void
+    {
+        $promo = PromoCode::factory()->create(); // ataylab restoransiz
 
         $this->assertRejected(PromoCodeError::WrongRestaurant, fn () => $this->apply($promo->code, 10_000_00));
     }
 
-    public function test_code_without_a_restaurant_works_at_any_restaurant(): void
+    /** Restoran o'chirilsa kod "hammaga" aylanmaydi (eski FK ON DELETE SET NULL shunday qilardi). */
+    public function test_deleting_the_only_restaurant_does_not_open_the_code_to_everyone(): void
     {
-        $promo = PromoCode::factory()->create(['restaurant_id' => null]);
+        $gone = Restaurant::factory()->create();
+        $promo = PromoCode::factory()->at($gone)->create();
 
-        $this->assertSame($promo->id, $this->apply($promo->code, 10_000_00)->promoCodeId);
+        $gone->delete();
+
+        $this->assertSame(0, $promo->restaurants()->count());
+        $this->assertRejected(PromoCodeError::WrongRestaurant, fn () => $this->apply($promo->code, 10_000_00));
     }
 
-    public function test_code_restricted_to_this_restaurant_works(): void
-    {
-        $promo = PromoCode::factory()->create(['restaurant_id' => $this->restaurant->id]);
+    // --- Minimal summa: faqat taomlar (subtotal), chegarada ishlaydi ---------
 
-        $this->assertSame($promo->id, $this->apply($promo->code, 10_000_00)->promoCodeId);
+    public function test_minimum_is_met_at_exactly_the_minimum(): void
+    {
+        $promo = $this->promo()->minOrder(50_000_00)->create();
+
+        $this->assertSame($promo->id, $this->apply($promo->code, 50_000_00)->promoCodeId);
+    }
+
+    public function test_one_som_below_the_minimum_is_rejected_with_the_amount(): void
+    {
+        $promo = $this->promo()->minOrder(50_000_00)->create();
+
+        try {
+            $this->apply($promo->code, 49_999_00);
+            $this->fail('Minimaldan 1 so\'m kam summa qabul qilinmasligi kerak edi.');
+        } catch (PromoCodeException $e) {
+            $this->assertSame(PromoCodeError::BelowMinimum, $e->error);
+            $this->assertSame("Promokod 50 000 so'mdan ortiq buyurtmada ishlaydi.", $e->getMessage());
+        }
+    }
+
+    /** Tuzatib bo'lmaydigan sabab (limit) minimal summadan oldin aytiladi. */
+    public function test_limit_is_reported_before_the_minimum(): void
+    {
+        $promo = $this->promo()->minOrder(50_000_00)->create(['per_user_limit' => 1]);
+        $this->useCode($promo);
+
+        $this->assertRejected(PromoCodeError::UserLimitReached, fn () => $this->apply($promo->code, 10_000_00));
+    }
+
+    // --- Bir marta: standart limit 1 ----------------------------------------
+
+    public function test_default_per_user_limit_is_one_and_a_second_use_is_rejected(): void
+    {
+        $promo = PromoCode::query()->create(['code' => 'BIRMARTA', 'discount_type' => 'percent', 'discount_value' => 10]);
+        $promo->restaurants()->attach($this->restaurant);
+
+        $this->assertSame(1, $promo->fresh()->per_user_limit); // baza standarti
+
+        $this->assertSame($promo->id, $this->apply('BIRMARTA', 10_000_00)->promoCodeId);
+        $this->useCode($promo);
+        $this->assertRejected(PromoCodeError::UserLimitReached, fn () => $this->apply('BIRMARTA', 10_000_00));
+
+        // Bekor qilingan birinchi buyurtma hisoblanmaydi — yana ishlaydi.
+        $promo->orders()->update(['status' => OrderStatus::Cancelled->value]);
+        $this->assertSame($promo->id, $this->apply('BIRMARTA', 10_000_00)->promoCodeId);
     }
 
     // --- Limitlar: faqat bekor qilinmagan buyurtmalar sanaladi ---
 
     public function test_total_usage_limit_blocks_once_reached(): void
     {
-        $promo = PromoCode::factory()->create(['total_usage_limit' => 2]);
+        $promo = $this->promo()->create(['total_usage_limit' => 2]);
         $this->useCode($promo, User::factory()->create());
         $this->assertSame($promo->id, $this->apply($promo->code, 10_000_00)->promoCodeId); // 1 ta ishlatilgan — joy bor
 
@@ -277,7 +356,7 @@ class PromoCodeServiceTest extends TestCase
 
     public function test_per_user_limit_blocks_only_that_user(): void
     {
-        $promo = PromoCode::factory()->create(['per_user_limit' => 1]);
+        $promo = $this->promo()->create(['per_user_limit' => 1]);
         $this->useCode($promo);
 
         $this->assertRejected(PromoCodeError::UserLimitReached, fn () => $this->apply($promo->code, 10_000_00));
@@ -288,7 +367,7 @@ class PromoCodeServiceTest extends TestCase
 
     public function test_cancelled_orders_do_not_count_toward_either_limit(): void
     {
-        $promo = PromoCode::factory()->create(['per_user_limit' => 1, 'total_usage_limit' => 1]);
+        $promo = $this->promo()->create(['per_user_limit' => 1, 'total_usage_limit' => 1]);
         $this->useCode($promo, status: OrderStatus::Cancelled);
 
         $this->assertSame($promo->id, $this->apply($promo->code, 10_000_00)->promoCodeId);
@@ -296,7 +375,7 @@ class PromoCodeServiceTest extends TestCase
 
     public function test_delivered_and_in_progress_orders_count_as_usage(): void
     {
-        $promo = PromoCode::factory()->create(['total_usage_limit' => 2]);
+        $promo = $this->promo()->create(['total_usage_limit' => 2]);
         $this->useCode($promo, User::factory()->create(), OrderStatus::Delivered);
         $this->useCode($promo, User::factory()->create(), OrderStatus::Preparing);
 
@@ -305,7 +384,7 @@ class PromoCodeServiceTest extends TestCase
 
     public function test_null_limits_mean_unlimited(): void
     {
-        $promo = PromoCode::factory()->create(['per_user_limit' => null, 'total_usage_limit' => null]);
+        $promo = $this->promo()->create(['per_user_limit' => null, 'total_usage_limit' => null]);
         foreach (range(1, 5) as $_) {
             $this->useCode($promo);
         }
@@ -317,7 +396,7 @@ class PromoCodeServiceTest extends TestCase
 
     public function test_apply_for_order_locks_the_promo_code_row(): void
     {
-        $promo = PromoCode::factory()->create();
+        $promo = $this->promo()->create();
         $sql = $this->captureSql(fn () => $this->apply($promo->code, 10_000_00));
 
         $this->assertTrue(
@@ -328,7 +407,7 @@ class PromoCodeServiceTest extends TestCase
 
     public function test_quote_does_not_lock_but_gives_the_same_result(): void
     {
-        $promo = PromoCode::factory()->fixed(15_005_00)->restaurantShare(50)->create();
+        $promo = $this->promo()->fixed(15_005_00)->restaurantShare(50)->create();
 
         $sql = $this->captureSql(fn () => $this->service->quote($promo->code, $this->restaurant, 100_000_00, $this->user));
         $quoted = $this->service->quote($promo->code, $this->restaurant, 100_000_00, $this->user);
@@ -340,7 +419,7 @@ class PromoCodeServiceTest extends TestCase
 
     public function test_quote_reports_the_same_specific_reasons(): void
     {
-        $promo = PromoCode::factory()->create(['per_user_limit' => 1]);
+        $promo = $this->promo()->create(['per_user_limit' => 1]);
         $this->useCode($promo);
 
         $this->assertRejected(

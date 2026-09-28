@@ -228,7 +228,7 @@ class OrderApiTest extends TestCase
 
     public function test_a_valid_promo_code_reduces_the_total_and_is_recorded_on_the_order(): void
     {
-        $promo = PromoCode::factory()->percent(20)->restaurantShare(50)->create(['code' => 'OSON50']);
+        $promo = PromoCode::factory()->at($this->restaurant)->percent(20)->restaurantShare(50)->create(['code' => 'OSON50']);
 
         $res = $this->postJson('/api/orders', $this->payload(['promo_code' => 'oson50']), $this->headers())
             ->assertCreated()
@@ -247,7 +247,7 @@ class OrderApiTest extends TestCase
 
     public function test_discount_only_applies_to_the_food_subtotal_not_the_delivery_fee(): void
     {
-        PromoCode::factory()->percent(100)->create(['code' => 'FREEFOOD']);
+        PromoCode::factory()->at($this->restaurant)->percent(100)->create(['code' => 'FREEFOOD']);
 
         $this->postJson('/api/orders', $this->payload(['promo_code' => 'FREEFOOD']), $this->headers())
             ->assertCreated()
@@ -264,19 +264,84 @@ class OrderApiTest extends TestCase
         $this->assertDatabaseCount('orders', 0);
     }
 
-    public function test_promo_code_restricted_to_another_restaurant_is_rejected(): void
+    public function test_promo_code_for_unselected_restaurants_is_rejected_inside_the_order(): void
     {
-        $otherRestaurant = Restaurant::factory()->create();
-        PromoCode::factory()->create(['code' => 'FAQATB', 'restaurant_id' => $otherRestaurant->id]);
+        $this->user->update(['language' => 'uz']); // factory tilni tasodifiy tanlaydi — matn o'zbekcha tekshiriladi
+        PromoCode::factory()->at(Restaurant::factory()->create(), Restaurant::factory()->create())->create(['code' => 'FAQATB']);
 
         $this->postJson('/api/orders', $this->payload(['promo_code' => 'FAQATB']), $this->headers())
             ->assertStatus(422)
-            ->assertJsonValidationErrorFor('promo_code');
+            ->assertJsonPath('promo_error', 'wrong_restaurant')
+            ->assertJsonPath('message', 'Bu promokod ushbu restoranda amal qilmaydi.');
+
+        $this->assertDatabaseCount('orders', 0);
+    }
+
+    // --- Minimal summa: faqat taomlar, yetkazish narxi qo'shilmaydi ------------
+
+    private function soloProduct(int $priceTiyin): Product
+    {
+        return Product::factory()->for($this->osh->category)->create(['price' => $priceTiyin, 'is_available' => true]);
+    }
+
+    public function test_food_subtotal_exactly_at_the_promo_minimum_is_accepted(): void
+    {
+        $this->restaurant->update(['min_order_amount' => 0]);
+        PromoCode::factory()->at($this->restaurant)->minOrder(50_000_00)->create(['code' => 'MIN50']);
+        $item = $this->soloProduct(50_000_00);
+
+        $this->postJson('/api/orders', $this->payload([
+            'promo_code' => 'MIN50', 'items' => [['product_id' => $item->id, 'qty' => 1]],
+        ]), $this->headers())->assertCreated();
+    }
+
+    public function test_food_subtotal_one_som_below_the_promo_minimum_is_rejected(): void
+    {
+        $this->user->update(['language' => 'uz']); // factory tilni tasodifiy tanlaydi — matn o'zbekcha tekshiriladi
+        $this->restaurant->update(['min_order_amount' => 0]);
+        PromoCode::factory()->at($this->restaurant)->minOrder(50_000_00)->create(['code' => 'MIN50']);
+        $item = $this->soloProduct(49_999_00);
+
+        $this->postJson('/api/orders', $this->payload([
+            'promo_code' => 'MIN50', 'items' => [['product_id' => $item->id, 'qty' => 1]],
+        ]), $this->headers())
+            ->assertStatus(422)
+            ->assertJsonPath('promo_error', 'below_minimum')
+            ->assertJsonPath('message', "Promokod 50 000 so'mdan ortiq buyurtmada ishlaydi.");
+    }
+
+    /** 45 000 taom + 10 000 yetkazish = 55 000 ≥ 50 000, lekin taomlar 45 000 < 50 000 — rad. */
+    public function test_delivery_fee_does_not_count_toward_the_promo_minimum(): void
+    {
+        $this->restaurant->update(['min_order_amount' => 0, 'delivery_fee' => 10_000_00]);
+        PromoCode::factory()->at($this->restaurant)->minOrder(50_000_00)->create(['code' => 'MIN50']);
+        $item = $this->soloProduct(45_000_00);
+
+        $this->postJson('/api/orders', $this->payload([
+            'promo_code' => 'MIN50', 'items' => [['product_id' => $item->id, 'qty' => 1]],
+        ]), $this->headers())
+            ->assertStatus(422)
+            ->assertJsonPath('promo_error', 'below_minimum');
+    }
+
+    // --- Bir marta: standart limit 1 ------------------------------------------
+
+    public function test_second_use_of_a_default_code_by_the_same_customer_is_rejected(): void
+    {
+        // Admin formasidan tashqarida yaratilgan kod ham — bazadagi standart (1) bilan.
+        $promo = PromoCode::query()->create(['code' => 'BIRINCHI', 'discount_type' => 'percent', 'discount_value' => 10]);
+        $promo->restaurants()->attach($this->restaurant);
+
+        $this->postJson('/api/orders', $this->payload(['promo_code' => 'BIRINCHI']), $this->headers())->assertCreated();
+
+        $this->postJson('/api/orders', $this->payload(['promo_code' => 'BIRINCHI']), $this->headers())
+            ->assertStatus(422)
+            ->assertJsonPath('promo_error', 'user_limit_reached');
     }
 
     public function test_rejected_order_reports_the_specific_promo_reason(): void
     {
-        PromoCode::factory()->create(['code' => 'ESKI', 'ends_at' => now()->subDay()]);
+        PromoCode::factory()->at($this->restaurant)->create(['code' => 'ESKI', 'ends_at' => now()->subDay()]);
 
         $this->postJson('/api/orders', $this->payload(['promo_code' => 'ESKI']), $this->headers())
             ->assertStatus(422)
@@ -286,7 +351,7 @@ class OrderApiTest extends TestCase
 
     public function test_per_user_limit_is_enforced_when_placing_orders(): void
     {
-        PromoCode::factory()->create(['code' => 'BIRMARTA', 'per_user_limit' => 1]);
+        PromoCode::factory()->at($this->restaurant)->create(['code' => 'BIRMARTA', 'per_user_limit' => 1]);
 
         $this->postJson('/api/orders', $this->payload(['promo_code' => 'BIRMARTA']), $this->headers())->assertCreated();
 
@@ -299,7 +364,7 @@ class OrderApiTest extends TestCase
 
     public function test_cancelling_an_order_frees_its_promo_slot(): void
     {
-        PromoCode::factory()->create(['code' => 'BIRMARTA', 'per_user_limit' => 1]);
+        PromoCode::factory()->at($this->restaurant)->create(['code' => 'BIRMARTA', 'per_user_limit' => 1]);
         $first = $this->postJson('/api/orders', $this->payload(['promo_code' => 'BIRMARTA']), $this->headers())
             ->assertCreated()
             ->json('data.id');
@@ -311,7 +376,7 @@ class OrderApiTest extends TestCase
 
     public function test_total_usage_limit_is_enforced_across_customers(): void
     {
-        $promo = PromoCode::factory()->create(['code' => 'YAKKA', 'total_usage_limit' => 1]);
+        $promo = PromoCode::factory()->at($this->restaurant)->create(['code' => 'YAKKA', 'total_usage_limit' => 1]);
         Order::factory()->create(['promo_code_id' => $promo->id]); // boshqa mijoz ishlatgan
 
         $this->postJson('/api/orders', $this->payload(['promo_code' => 'YAKKA']), $this->headers())
@@ -326,7 +391,7 @@ class OrderApiTest extends TestCase
      */
     public function test_promo_row_is_locked_in_the_same_transaction_that_inserts_the_order(): void
     {
-        PromoCode::factory()->create(['code' => 'OSON50']);
+        PromoCode::factory()->at($this->restaurant)->create(['code' => 'OSON50']);
         $base = DB::transactionLevel();
         $lockLevel = null;
         $insertLevel = null;

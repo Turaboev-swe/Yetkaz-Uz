@@ -55,7 +55,7 @@ class PromoCodeValidateApiTest extends TestCase
 
     public function test_valid_code_returns_the_discount_amount(): void
     {
-        PromoCode::factory()->percent(20)->create(['code' => 'OSON50']);
+        PromoCode::factory()->at($this->restaurant)->percent(20)->create(['code' => 'OSON50']);
 
         $this->validatePromo('oson50')
             ->assertOk()
@@ -65,7 +65,7 @@ class PromoCodeValidateApiTest extends TestCase
 
     public function test_validate_does_not_create_anything(): void
     {
-        PromoCode::factory()->create(['code' => 'OSON50']);
+        PromoCode::factory()->at($this->restaurant)->create(['code' => 'OSON50']);
 
         $this->validatePromo('OSON50')->assertOk();
 
@@ -80,9 +80,10 @@ class PromoCodeValidateApiTest extends TestCase
             'faol emas' => ['inactive', 'Bu promokod hozir faol emas.'],
             'boshlanmagan' => ['not_started', 'Bu promokod hali kuchga kirmagan.'],
             'muddati o\'tgan' => ['expired', "Promokodning amal qilish muddati o'tgan."],
-            'boshqa restoran' => ['wrong_restaurant', 'Bu promokod ushbu restoranda ishlamaydi.'],
+            'boshqa restoran' => ['wrong_restaurant', 'Bu promokod ushbu restoranda amal qilmaydi.'],
             'umumiy limit' => ['usage_limit_reached', 'Promokodning ishlatilish limiti tugagan.'],
             'mijoz limiti' => ['user_limit_reached', "Siz bu promokoddan ruxsat etilgan marta foydalanib bo'lgansiz."],
+            'minimal summa' => ['below_minimum', "Promokod 70 000 so'mdan ortiq buyurtmada ishlaydi."],
         ];
     }
 
@@ -91,12 +92,14 @@ class PromoCodeValidateApiTest extends TestCase
     {
         $code = match ($reason) {
             'not_found' => 'YOQ-BUNDAY',
-            'inactive' => PromoCode::factory()->inactive()->create()->code,
-            'not_started' => PromoCode::factory()->create(['starts_at' => now()->addDay()])->code,
-            'expired' => PromoCode::factory()->create(['ends_at' => now()->subDay()])->code,
-            'wrong_restaurant' => PromoCode::factory()->create(['restaurant_id' => Restaurant::factory()->create()->id])->code,
+            'inactive' => PromoCode::factory()->at($this->restaurant)->inactive()->create()->code,
+            'not_started' => PromoCode::factory()->at($this->restaurant)->create(['starts_at' => now()->addDay()])->code,
+            'expired' => PromoCode::factory()->at($this->restaurant)->create(['ends_at' => now()->subDay()])->code,
+            'wrong_restaurant' => PromoCode::factory()->at(Restaurant::factory()->create())->create()->code,
             'usage_limit_reached' => $this->usedUp(['total_usage_limit' => 1], User::factory()->create()),
             'user_limit_reached' => $this->usedUp(['per_user_limit' => 1], $this->user),
+            // validatePromo() savat summasi 69 000 so'm (taomlar) — minimal 70 000.
+            'below_minimum' => PromoCode::factory()->at($this->restaurant)->minOrder(70_000_00)->create()->code,
         };
 
         $this->validatePromo($code)
@@ -106,6 +109,29 @@ class PromoCodeValidateApiTest extends TestCase
             ->assertJsonPath('message', $message)
             ->assertJsonPath('errors.promo_code.0', $message)
             ->assertJsonMissingPath('reason'); // Mini App api.js 'reason'ni xabarга qo'shib yuborardi
+    }
+
+    public function test_code_works_at_each_of_its_selected_restaurants(): void
+    {
+        $second = Restaurant::factory()->create();
+        PromoCode::factory()->at($this->restaurant, $second)->create(['code' => 'IKKITA']);
+
+        $this->validatePromo('IKKITA')->assertOk();
+        $this->validatePromo('IKKITA', restaurantId: $second->id)->assertOk();
+        $this->validatePromo('IKKITA', restaurantId: Restaurant::factory()->create()->id)
+            ->assertStatus(422)
+            ->assertJsonPath('promo_error', 'wrong_restaurant');
+    }
+
+    public function test_minimum_boundary_uses_the_food_subtotal(): void
+    {
+        PromoCode::factory()->at($this->restaurant)->minOrder(50_000_00)->create(['code' => 'MIN50']);
+
+        $this->validatePromo('MIN50', subtotal: 50_000_00)->assertOk();
+        $this->validatePromo('MIN50', subtotal: 49_999_00)
+            ->assertStatus(422)
+            ->assertJsonPath('promo_error', 'below_minimum')
+            ->assertJsonPath('message', "Promokod 50 000 so'mdan ortiq buyurtmada ishlaydi.");
     }
 
     public function test_message_follows_the_users_chosen_language(): void
@@ -120,7 +146,7 @@ class PromoCodeValidateApiTest extends TestCase
 
     public function test_cancelled_orders_do_not_use_up_the_limit(): void
     {
-        $promo = PromoCode::factory()->create(['per_user_limit' => 1]);
+        $promo = PromoCode::factory()->at($this->restaurant)->create(['per_user_limit' => 1]);
         Order::factory()->for($this->user)->create(['promo_code_id' => $promo->id, 'status' => OrderStatus::Cancelled]);
 
         $this->validatePromo($promo->code)->assertOk();
@@ -145,7 +171,7 @@ class PromoCodeValidateApiTest extends TestCase
     /** @param  array<string, mixed>  $limits */
     private function usedUp(array $limits, User $by): string
     {
-        $promo = PromoCode::factory()->create($limits);
+        $promo = PromoCode::factory()->at($this->restaurant)->create($limits);
         Order::factory()->for($by)->create(['promo_code_id' => $promo->id, 'status' => OrderStatus::New]);
 
         return $promo->code;

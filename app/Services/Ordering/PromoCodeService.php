@@ -7,6 +7,7 @@ use App\Exceptions\PromoCodeException;
 use App\Models\PromoCode;
 use App\Models\Restaurant;
 use App\Models\User;
+use App\Support\Money;
 use Illuminate\Support\Facades\DB;
 use LogicException;
 
@@ -89,6 +90,14 @@ class PromoCodeService
 
         if ($error !== null) {
             throw new PromoCodeException($error);
+        }
+
+        // Minimal summa — ENG OXIRIDA: faqat shu sababni mijoz o'zi tuzata oladi
+        // (savatga qo'shib). Tuzatib bo'lmaydiganlari (restoran, limit) oldin
+        // aytiladi — aks holda mijoz taom qo'shib, keyin baribir rad etilardi.
+        // `$subtotal` — faqat taomlar, yetkazish narxisiz.
+        if (! $promo->meetsMinimum($subtotal)) {
+            throw new PromoCodeException(PromoCodeError::BelowMinimum, ['amount' => Money::amount($promo->min_order_amount)]);
         }
 
         $discount = $promo->discountFor($subtotal);

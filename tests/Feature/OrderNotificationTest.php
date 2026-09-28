@@ -52,6 +52,11 @@ class OrderNotificationTest extends TestCase
             'delivery_radius_km' => 8, 'delivery_fee' => 1_000_000, 'min_order_amount' => 1,
         ], $restaurantAttrs));
 
+        // Kod faqat tanlangan restoranlarda ishlaydi — shu testdagi restoranga biriktiriladi.
+        if ($promoCode !== null) {
+            PromoCode::query()->where('code', mb_strtoupper($promoCode))->firstOrFail()->restaurants()->attach($restaurant);
+        }
+
         $cat = Category::factory()->for($restaurant)->create(['is_active' => true]);
         $product = Product::factory()->for($cat)->create(['name' => 'Osh', 'price' => 3_200_000, 'is_available' => true]);
 

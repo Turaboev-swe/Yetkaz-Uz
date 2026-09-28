@@ -28,10 +28,13 @@ class PromoCodeResourceTest extends TestCase
 
     private Staff $admin;
 
+    private Restaurant $restaurant;
+
     protected function setUp(): void
     {
         parent::setUp();
         $this->admin = Staff::factory()->platformAdmin()->create();
+        $this->restaurant = Restaurant::factory()->create(['name' => 'Donix']);
 
         Filament::setCurrentPanel(Filament::getPanel('admin'));
     }
@@ -57,6 +60,7 @@ class PromoCodeResourceTest extends TestCase
                 'discount_type' => DiscountType::Percent->value,
                 'discount_value' => 30,
                 'restaurant_share_percent' => 50,
+                'restaurants' => [$this->restaurant->id],
             ])
             ->call('create')
             ->assertHasNoFormErrors();
@@ -78,6 +82,7 @@ class PromoCodeResourceTest extends TestCase
                 'discount_type' => DiscountType::Fixed->value,
                 'discount_value' => 15_000, // so'm kiritildi
                 'restaurant_share_percent' => 50,
+                'restaurants' => [$this->restaurant->id],
             ])
             ->call('create')
             ->assertHasNoFormErrors();
@@ -118,6 +123,7 @@ class PromoCodeResourceTest extends TestCase
                 'discount_type' => DiscountType::Percent->value,
                 'discount_value' => 10,
                 'restaurant_share_percent' => 50,
+                'restaurants' => [$this->restaurant->id],
             ])
             ->call('create')
             ->assertHasFormErrors(['code']);
@@ -143,6 +149,7 @@ class PromoCodeResourceTest extends TestCase
                 'discount_type' => DiscountType::Percent->value,
                 'discount_value' => 10,
                 'restaurant_share_percent' => 30,
+                'restaurants' => [$this->restaurant->id],
             ])
             ->call('create')
             ->assertHasNoFormErrors();
@@ -161,6 +168,7 @@ class PromoCodeResourceTest extends TestCase
                     'discount_type' => DiscountType::Percent->value,
                     'discount_value' => 10,
                     'restaurant_share_percent' => $invalid,
+                    'restaurants' => [$this->restaurant->id],
                 ])
                 ->call('create')
                 ->assertHasFormErrors(['restaurant_share_percent']);
@@ -177,6 +185,7 @@ class PromoCodeResourceTest extends TestCase
                 'discount_type' => DiscountType::Percent->value,
                 'discount_value' => 10,
                 'restaurant_share_percent' => 50,
+                'restaurants' => [$this->restaurant->id],
                 'per_user_limit' => 1,
                 'total_usage_limit' => 500,
             ])
@@ -196,6 +205,7 @@ class PromoCodeResourceTest extends TestCase
                 'discount_type' => DiscountType::Percent->value,
                 'discount_value' => 10,
                 'restaurant_share_percent' => 50,
+                'restaurants' => [$this->restaurant->id],
                 'per_user_limit' => 0,
             ])
             ->call('create')
@@ -213,36 +223,118 @@ class PromoCodeResourceTest extends TestCase
             ->assertTableColumnStateSet('usages_count', '2 / 10', $promo);
     }
 
-    public function test_can_restrict_a_code_to_one_restaurant(): void
+    // --- Restoranlar: ko'p tanlash, kamida bitta majburiy --------------------
+
+    public function test_code_without_any_restaurant_is_not_saved(): void
     {
-        $restaurant = Restaurant::factory()->create(['name' => 'Donix']);
         Livewire::actingAs($this->admin, 'admin');
 
         Livewire::test(CreatePromoCode::class)
             ->fillForm([
-                'code' => 'DONIXONLY',
+                'code' => 'RESTORANSIZ',
                 'discount_type' => DiscountType::Percent->value,
                 'discount_value' => 10,
                 'restaurant_share_percent' => 50,
-                'restaurant_id' => $restaurant->id,
+                'restaurants' => [],
+            ])
+            ->call('create')
+            ->assertHasFormErrors(['restaurants' => 'required']);
+
+        $this->assertDatabaseMissing('promo_codes', ['code' => 'RESTORANSIZ']);
+    }
+
+    public function test_several_restaurants_can_be_selected(): void
+    {
+        $second = Restaurant::factory()->create(['name' => 'Evos']);
+        Livewire::actingAs($this->admin, 'admin');
+
+        Livewire::test(CreatePromoCode::class)
+            ->fillForm([
+                'code' => 'IKKITA',
+                'discount_type' => DiscountType::Percent->value,
+                'discount_value' => 10,
+                'restaurant_share_percent' => 50,
+                'restaurants' => [$this->restaurant->id, $second->id],
             ])
             ->call('create')
             ->assertHasNoFormErrors();
 
-        $this->assertDatabaseHas('promo_codes', ['code' => 'DONIXONLY', 'restaurant_id' => $restaurant->id]);
+        $promo = PromoCode::where('code', 'IKKITA')->firstOrFail();
+        $this->assertEqualsCanonicalizing([$this->restaurant->id, $second->id], $promo->restaurants()->pluck('restaurants.id')->all());
+    }
+
+    public function test_edit_form_shows_the_selected_restaurants(): void
+    {
+        $promo = PromoCode::factory()->at($this->restaurant)->create();
+        Livewire::actingAs($this->admin, 'admin');
+
+        Livewire::test(EditPromoCode::class, ['record' => $promo->getRouteKey()])
+            ->assertFormSet(['restaurants' => [$this->restaurant->id]]);
+    }
+
+    public function test_list_shows_where_each_code_works(): void
+    {
+        $second = Restaurant::factory()->create(['name' => 'Evos']);
+        $promo = PromoCode::factory()->at($this->restaurant, $second)->create(['code' => 'IKKITA']);
+        Livewire::actingAs($this->admin, 'admin');
+
+        Livewire::test(ListPromoCodes::class)
+            ->assertTableColumnStateSet('restaurants.name', ['Donix', 'Evos'], $promo)
+            ->assertSee('Donix')
+            ->assertSee('Evos');
     }
 
     public function test_restaurant_filter_narrows_the_list(): void
     {
-        $restaurant = Restaurant::factory()->create();
-        $scoped = PromoCode::factory()->create(['code' => 'FAQATBU', 'restaurant_id' => $restaurant->id]);
-        $global = PromoCode::factory()->create(['code' => 'HAMMAGA', 'restaurant_id' => null]);
+        $other = Restaurant::factory()->create();
+        $here = PromoCode::factory()->at($this->restaurant)->create(['code' => 'FAQATBU']);
+        $elsewhere = PromoCode::factory()->at($other)->create(['code' => 'BOSHQADA']);
         Livewire::actingAs($this->admin, 'admin');
 
         Livewire::test(ListPromoCodes::class)
-            ->filterTable('restaurant_id', $restaurant->id)
-            ->assertCanSeeTableRecords([$scoped])
-            ->assertCanNotSeeTableRecords([$global]);
+            ->filterTable('restaurants', $this->restaurant->id)
+            ->assertCanSeeTableRecords([$here])
+            ->assertCanNotSeeTableRecords([$elsewhere]);
+    }
+
+    // --- Minimal summa va standart limit ---------------------------------
+
+    public function test_min_order_amount_is_entered_in_som_and_stored_in_tiyin(): void
+    {
+        Livewire::actingAs($this->admin, 'admin');
+
+        Livewire::test(CreatePromoCode::class)
+            ->assertSee("Minimal buyurtma summasi (so'm)")
+            ->assertSee("Faqat TAOMLAR summasi hisobga olinadi — yetkazish narxi qo'shilmaydi")
+            ->fillForm([
+                'code' => 'MIN50',
+                'discount_type' => DiscountType::Percent->value,
+                'discount_value' => 10,
+                'restaurant_share_percent' => 50,
+                'restaurants' => [$this->restaurant->id],
+                'min_order_amount' => 50_000,
+            ])
+            ->call('create')
+            ->assertHasNoFormErrors();
+
+        $this->assertDatabaseHas('promo_codes', ['code' => 'MIN50', 'min_order_amount' => 50_000_00]);
+    }
+
+    public function test_edit_form_shows_min_order_back_in_som(): void
+    {
+        $promo = PromoCode::factory()->at($this->restaurant)->minOrder(50_000_00)->create();
+        Livewire::actingAs($this->admin, 'admin');
+
+        Livewire::test(EditPromoCode::class, ['record' => $promo->getRouteKey()])
+            ->assertFormSet(['min_order_amount' => 50_000]);
+    }
+
+    public function test_per_user_limit_defaults_to_one(): void
+    {
+        Livewire::actingAs($this->admin, 'admin');
+
+        Livewire::test(CreatePromoCode::class)
+            ->assertFormSet(['per_user_limit' => 1]);
     }
 
     public function test_active_filter(): void

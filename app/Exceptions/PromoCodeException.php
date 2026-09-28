@@ -17,9 +17,10 @@ use Illuminate\Http\JsonResponse;
  */
 class PromoCodeException extends Exception
 {
-    public function __construct(public readonly PromoCodeError $error)
+    /** @param  array<string, string|int>  $replace  xabardagi o'rinbosarlar (masalan minimal summa) */
+    public function __construct(public readonly PromoCodeError $error, array $replace = [])
     {
-        parent::__construct($error->message());
+        parent::__construct($error->message($replace));
     }
 
     public function render(): JsonResponse
