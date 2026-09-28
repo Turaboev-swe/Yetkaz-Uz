@@ -5,6 +5,7 @@
 
     <x-filament::section>
         <x-slot name="heading">Xulosa — {{ $periodLabel }}</x-slot>
+        <x-slot name="description">Daromad — yetkazilgan buyurtmalar bo'yicha mijoz to'lagan summa + platforma qoplaydigan chegirma.</x-slot>
 
         <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
             @foreach ([

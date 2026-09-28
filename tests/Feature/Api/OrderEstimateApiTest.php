@@ -95,7 +95,7 @@ class OrderEstimateApiTest extends TestCase
             ->assertOk();
 
         $distanceKm = app(RestaurantFinder::class)->distanceKm($this->restaurant, $far);
-        $expectedFee = (int) round($distanceKm * 200_000);
+        $expectedFee = (int) round($distanceKm * 200_000 / 100) * 100; // butun so'mga
 
         $this->assertGreaterThan(1, $distanceKm);
         $estimate->assertJsonPath('data.delivery_fee', $expectedFee);

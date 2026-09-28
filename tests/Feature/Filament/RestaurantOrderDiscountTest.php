@@ -42,8 +42,8 @@ class RestaurantOrderDiscountTest extends TestCase
         $order = Order::factory()->for($this->restaurant)->create([
             'promo_code_id' => $promo->id,
             'discount_amount' => 1_380_000,
-            'discount_restaurant_share' => 690_000,
-            'discount_platform_share' => 690_000,
+            'discount_restaurant_amount' => 690_000,
+            'discount_platform_amount' => 690_000,
         ]);
 
         Livewire::test(ViewOrder::class, ['record' => $order->getRouteKey()])

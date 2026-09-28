@@ -210,73 +210,119 @@ class OrderStatsServiceTest extends TestCase
         $this->assertSame(11, $this->stats->summary($this->period(), null)['orders']);
     }
 
-    // --- promoCodeUsage — restoranlar bilan hisob-kitob uchun -------------
+    // --- Daromad: mijoz to'lagan + platforma qoplaydigan chegirma ----------
 
-    public function test_promo_code_usage_aggregates_per_restaurant(): void
+    /**
+     * 100 000 so'm (taom+yetkazish), 20 000 so'm chegirma -> mijoz 80 000 to'laydi.
+     * Daromad = 80 000 + platforma qismi: ulush 0% -> 100 000, 50% -> 90 000, 100% -> 80 000.
+     */
+    public function test_revenue_is_what_the_customer_paid_plus_the_platform_covered_part(): void
+    {
+        foreach ([0 => 100_000_00, 50 => 90_000_00, 100 => 80_000_00] as $restaurantPercent => $expectedRevenue) {
+            $restaurant = Restaurant::factory()->create();
+            $restaurantAmount = intdiv(20_000_00 * $restaurantPercent, 100);
+            Order::factory()->forRestaurant($restaurant)->placedAt('2026-09-05 10:00')->delivered('2026-09-05 11:00')
+                ->discounted(20_000_00, $restaurantAmount)
+                ->create(['total' => 80_000_00]);
+
+            $s = $this->stats->summary($this->period(), $restaurant->id);
+
+            $this->assertSame($expectedRevenue, $s['revenue_tiyin'], "ulush {$restaurantPercent}%");
+            $this->assertSame($expectedRevenue, $s['avg_check_tiyin'], "ulush {$restaurantPercent}%");
+        }
+    }
+
+    public function test_top_restaurants_revenue_uses_the_same_definition(): void
+    {
+        Order::factory()->forRestaurant($this->a)->placedAt('2026-09-05 10:00')->delivered('2026-09-05 11:00')
+            ->discounted(20_000_00, 5_000_00) // restoran 5 000, platforma 15 000
+            ->create(['total' => 80_000_00]);
+
+        $top = $this->stats->topRestaurants($this->period());
+
+        $this->assertSame(95_000_00, $top[0]['revenue_tiyin']); // 80 000 + 15 000
+    }
+
+    public function test_revenue_ignores_discounts_of_undelivered_orders(): void
+    {
+        Order::factory()->forRestaurant($this->a)->placedAt('2026-09-05 10:00')->cancelled()
+            ->discounted(20_000_00)->create(['total' => 80_000_00]);
+
+        $this->assertSame(0, $this->stats->summary($this->period(), $this->a->id)['revenue_tiyin']);
+    }
+
+    // --- platformDiscounts — har restoranga platforma qancha qoplashi kerak ---
+
+    public function test_platform_discounts_aggregate_per_restaurant_sorted_by_platform_amount(): void
     {
         $promo = PromoCode::factory()->create();
 
-        Order::factory()->forRestaurant($this->a)->placedAt('2026-09-05 10:00')->delivered('2026-09-05 11:00')->create([
-            'promo_code_id' => $promo->id, 'discount_amount' => 1_000_00, 'discount_restaurant_share' => 500_00, 'discount_platform_share' => 500_00,
-        ]);
-        Order::factory()->forRestaurant($this->a)->placedAt('2026-09-06 10:00')->delivered('2026-09-06 11:00')->create([
-            'promo_code_id' => $promo->id, 'discount_amount' => 2_000_00, 'discount_restaurant_share' => 1_000_00, 'discount_platform_share' => 1_000_00,
-        ]);
-        Order::factory()->forRestaurant($this->b)->placedAt('2026-09-07 10:00')->delivered('2026-09-07 11:00')->create([
-            'promo_code_id' => $promo->id, 'discount_amount' => 500_00, 'discount_restaurant_share' => 250_00, 'discount_platform_share' => 250_00,
-        ]);
+        Order::factory()->forRestaurant($this->a)->placedAt('2026-09-05 10:00')->delivered('2026-09-05 11:00')
+            ->discounted(1_000_00, 500_00)->create(['promo_code_id' => $promo->id]);
+        Order::factory()->forRestaurant($this->a)->placedAt('2026-09-06 10:00')->delivered('2026-09-06 11:00')
+            ->discounted(2_000_00, 1_000_00)->create(['promo_code_id' => $promo->id]);
+        Order::factory()->forRestaurant($this->b)->placedAt('2026-09-07 10:00')->delivered('2026-09-07 11:00')
+            ->discounted(5_000_00)->create(['promo_code_id' => $promo->id]); // hammasini platforma
 
-        $usage = $this->stats->promoCodeUsage($this->period())->keyBy('name');
+        $rows = $this->stats->platformDiscounts($this->period());
 
-        $this->assertSame(2, $usage['Alfa']['orders']);
-        $this->assertSame(3_000_00, $usage['Alfa']['discount_tiyin']);
-        $this->assertSame(1_500_00, $usage['Alfa']['restaurant_share_tiyin']);
-        $this->assertSame(1_500_00, $usage['Alfa']['platform_share_tiyin']);
-        $this->assertSame(1, $usage['Beta']['orders']);
-        $this->assertSame(500_00, $usage['Beta']['discount_tiyin']);
+        $this->assertSame(['Beta', 'Alfa'], $rows->pluck('name')->all()); // platforma qarzi bo'yicha
+        $alfa = $rows->firstWhere('name', 'Alfa');
+        $this->assertSame(2, $alfa['orders']);
+        $this->assertSame(3_000_00, $alfa['discount_tiyin']);
+        $this->assertSame(1_500_00, $alfa['restaurant_amount_tiyin']);
+        $this->assertSame(1_500_00, $alfa['platform_amount_tiyin']);
+        $this->assertSame(5_000_00, $rows->firstWhere('name', 'Beta')['platform_amount_tiyin']);
     }
 
-    public function test_promo_code_usage_excludes_orders_without_a_code(): void
+    public function test_platform_discounts_exclude_orders_without_a_discount(): void
     {
         Order::factory()->forRestaurant($this->a)->placedAt('2026-09-05 10:00')->delivered()->create();
 
-        $this->assertCount(0, $this->stats->promoCodeUsage($this->period()));
+        $this->assertCount(0, $this->stats->platformDiscounts($this->period()));
     }
 
     /** Bekor qilingan buyurtmada chegirma xarajati haqiqatda sodir bo'lmagan — hisob-kitobga kirmaydi. */
-    public function test_promo_code_usage_excludes_cancelled_and_unfinished_orders(): void
+    public function test_platform_discounts_exclude_cancelled_and_unfinished_orders(): void
     {
-        $promo = PromoCode::factory()->create();
+        Order::factory()->forRestaurant($this->a)->placedAt('2026-09-05 10:00')->delivered('2026-09-05 11:00')
+            ->discounted(1_000_00)->create();
+        Order::factory()->forRestaurant($this->a)->placedAt('2026-09-06 10:00')->cancelled()
+            ->discounted(9_999_00)->create();
+        Order::factory()->forRestaurant($this->a)->placedAt('2026-09-07 10:00')
+            ->discounted(9_999_00)->create(['status' => OrderStatus::New]);
 
-        Order::factory()->forRestaurant($this->a)->placedAt('2026-09-05 10:00')->delivered('2026-09-05 11:00')->create([
-            'promo_code_id' => $promo->id, 'discount_amount' => 1_000_00,
-        ]);
-        Order::factory()->forRestaurant($this->a)->placedAt('2026-09-06 10:00')->cancelled()->create([
-            'promo_code_id' => $promo->id, 'discount_amount' => 9_999_00,
-        ]);
-        Order::factory()->forRestaurant($this->a)->placedAt('2026-09-07 10:00')->create([
-            'promo_code_id' => $promo->id, 'discount_amount' => 9_999_00, 'status' => OrderStatus::New,
-        ]);
+        $rows = $this->stats->platformDiscounts($this->period());
 
-        $usage = $this->stats->promoCodeUsage($this->period());
-
-        $this->assertCount(1, $usage);
-        $this->assertSame(1, $usage[0]['orders']);
-        $this->assertSame(1_000_00, $usage[0]['discount_tiyin']);
+        $this->assertCount(1, $rows);
+        $this->assertSame(1_000_00, $rows[0]['platform_amount_tiyin']);
     }
 
-    public function test_promo_code_usage_respects_the_period_and_restaurant_filter(): void
+    public function test_platform_discounts_respect_the_period_and_restaurant_filter(): void
     {
-        $promo = PromoCode::factory()->create();
-
         Order::factory()->forRestaurant($this->a)->placedAt('2026-09-10 10:00')->delivered('2026-09-10 11:00')
-            ->create(['promo_code_id' => $promo->id, 'discount_amount' => 1_000_00]);
+            ->discounted(1_000_00)->create();
         // Oraliqdan tashqarida — hisobga olinmaydi.
         Order::factory()->forRestaurant($this->a)->placedAt('2026-08-01 10:00')->delivered('2026-08-01 11:00')
-            ->create(['promo_code_id' => $promo->id, 'discount_amount' => 9_999_00]);
+            ->discounted(9_999_00)->create();
 
-        $this->assertCount(1, $this->stats->promoCodeUsage($this->period()));
-        $this->assertCount(1, $this->stats->promoCodeUsage($this->period(), $this->a->id));
-        $this->assertCount(0, $this->stats->promoCodeUsage($this->period(), $this->b->id));
+        $this->assertCount(1, $this->stats->platformDiscounts($this->period()));
+        $this->assertCount(1, $this->stats->platformDiscounts($this->period(), $this->a->id));
+        $this->assertCount(0, $this->stats->platformDiscounts($this->period(), $this->b->id));
+    }
+
+    /**
+     * Promokod o'chirilsa promo_code_id NULL bo'ladi (nullOnDelete), lekin platforma
+     * qarzi yo'qolmasligi kerak — hisobot faqat snapshot'ga tayanadi.
+     */
+    public function test_platform_debt_survives_deleting_the_promo_code(): void
+    {
+        $promo = PromoCode::factory()->create();
+        Order::factory()->forRestaurant($this->a)->placedAt('2026-09-05 10:00')->delivered('2026-09-05 11:00')
+            ->discounted(4_000_00)->create(['promo_code_id' => $promo->id]);
+
+        $promo->delete();
+
+        $this->assertSame(4_000_00, $this->stats->platformDiscounts($this->period())[0]['platform_amount_tiyin']);
     }
 }

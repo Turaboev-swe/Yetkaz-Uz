@@ -132,31 +132,46 @@ class OrderNotificationTest extends TestCase
             && $job->dueAt === $order->created_at->copy()->addMinutes(7)->getTimestamp());
     }
 
-    public function test_owner_dm_shows_the_discount_and_the_restaurants_share(): void
+    public function test_owner_dm_shows_the_discount_split_and_the_amount_to_collect(): void
     {
-        PromoCode::factory()->percent(20)->restaurantShare(50)->create(['code' => 'OSON50']);
-        $order = $this->order(['notify_chat_id' => '555111222'], promoCode: 'OSON50');
+        PromoCode::factory()->percent(20)->restaurantShare(25)->create(['code' => 'OSON20']);
+        $order = $this->order(['notify_chat_id' => '555111222'], promoCode: 'OSON20');
 
         $bot = app(Nutgram::class);
         (new NotifyRestaurantOfNewOrder($order->id))->handle($bot);
 
-        // 64 000 so'm taom, 20% = 12 800 so'm chegirma, restoran ulushi 6 400 so'm;
-        // Jami = 64 000 + 10 000 - 12 800 = 61 200 so'm — Taomlar+Yetkazish bilan mos.
-        $bot->assertRaw(fn ($request) => str_contains($body = (string) $request->getBody(), 'Chegirma')
-            && str_contains($body, '12 800')
-            && str_contains($body, 'sizning ulushingiz')
-            && str_contains($body, '6 400')
-            && str_contains($body, '61 200'));
+        // 64 000 so'm taom, 20% = 12 800 so'm chegirma: restoran 25% = 3 200 so'm,
+        // platforma 9 600 so'm. Mijozdan: 64 000 + 10 000 - 12 800 = 61 200 so'm.
+        $body = $this->sentBody($bot);
+        $this->assertStringContainsString('Chegirma', $body);
+        $this->assertStringContainsString('12 800', $body);
+        $this->assertStringContainsString('restoran: 3 200', $body);
+        $this->assertStringContainsString('platforma qoplaydi: 9 600', $body);
+        $this->assertStringContainsString('Mijozdan olinadi: 61 200', $body);
     }
 
-    public function test_owner_dm_has_no_discount_line_without_a_promo_code(): void
+    public function test_owner_dm_shows_the_amount_to_collect_without_a_discount_line_when_no_code(): void
     {
         $order = $this->order(['notify_chat_id' => '555111222']);
 
         $bot = app(Nutgram::class);
         (new NotifyRestaurantOfNewOrder($order->id))->handle($bot);
 
-        $bot->assertRaw(fn ($request) => ! str_contains((string) $request->getBody(), 'Chegirma'));
+        $body = $this->sentBody($bot);
+        $this->assertStringNotContainsString('Chegirma', $body);
+        $this->assertStringContainsString('Mijozdan olinadi: 74 000', $body); // 64 000 + 10 000
+    }
+
+    /** Birinchi sendMessage so'rovining matni (JSON'dan — unicode ochilgan holda). */
+    private function sentBody(Nutgram $bot): string
+    {
+        foreach ($bot->getRequestHistory() as $entry) {
+            if (str_ends_with((string) $entry['request']->getUri(), 'sendMessage')) {
+                return (string) (json_decode((string) $entry['request']->getBody(), true)['text'] ?? '');
+            }
+        }
+
+        $this->fail('sendMessage yuborilmadi');
     }
 
     public function test_job_is_noop_without_chat_id(): void

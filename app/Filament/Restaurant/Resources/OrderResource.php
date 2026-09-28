@@ -90,7 +90,7 @@ class OrderResource extends Resource
                 ->label('Chegirma')
                 ->visible(fn (Order $record): bool => $record->hasDiscount())
                 ->formatStateUsing(fn (Order $record): string => Money::soms($record->discount_amount)
-                    .' (sizning ulushingiz: '.Money::soms($record->discount_restaurant_share).')'),
+                    .' (sizning ulushingiz: '.Money::soms($record->discount_restaurant_amount).')'),
             Infolists\Components\TextEntry::make('created_at')->label('Kelgan vaqti')->dateTime('d.m.Y H:i'),
             Infolists\Components\TextEntry::make('courier_type')->label('Kuryer')
                 ->formatStateUsing(fn (?CourierType $state): string => $state ? $state->icon().' '.$state->label() : '—'),

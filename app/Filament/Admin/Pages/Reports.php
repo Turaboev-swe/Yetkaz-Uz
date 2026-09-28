@@ -89,6 +89,7 @@ class Reports extends Page implements HasForms
     {
         $period = $this->period();
         $stats = $this->stats();
+        $discounts = $stats->platformDiscounts($period);
 
         return [
             'periodLabel' => $period->label(),
@@ -114,13 +115,14 @@ class Reports extends Page implements HasForms
                 number_format($r['qty'], 0, '.', ' ').' dona',
                 Money::soms($r['revenue_tiyin']),
             ])->all(),
-            'promoCodes' => $stats->promoCodeUsage($period)->map(fn ($r) => [
+            'platformDiscountRows' => $discounts->map(fn ($r) => [
                 $r['name'],
                 number_format($r['orders'], 0, '.', ' '),
                 Money::soms($r['discount_tiyin']),
-                Money::soms($r['restaurant_share_tiyin']),
-                Money::soms($r['platform_share_tiyin']),
+                Money::soms($r['restaurant_amount_tiyin']),
+                Money::soms($r['platform_amount_tiyin']),
             ])->all(),
+            'platformDiscountTotal' => Money::soms($discounts->sum('platform_amount_tiyin')),
         ];
     }
 
@@ -154,17 +156,17 @@ class Reports extends Page implements HasForms
         return CsvResponse::stream('top-taomlar.csv', ['Taom', 'Sotildi', "Daromad (so'm)"], $rows);
     }
 
-    /** Restoranlar bilan hisob-kitob uchun — jami chegirma va uning ulushlari. */
-    public function exportPromoCodes(): StreamedResponse
+    /** Restoranlar bilan hisob-kitob: har restoranga platforma qancha qoplashi kerak. */
+    public function exportPlatformDiscounts(): StreamedResponse
     {
-        $rows = $this->stats()->promoCodeUsage($this->period())->map(fn ($r) => [
+        $rows = $this->stats()->platformDiscounts($this->period())->map(fn ($r) => [
             $r['name'], $r['orders'],
             Money::toSoms($r['discount_tiyin']),
-            Money::toSoms($r['restaurant_share_tiyin']),
-            Money::toSoms($r['platform_share_tiyin']),
+            Money::toSoms($r['restaurant_amount_tiyin']),
+            Money::toSoms($r['platform_amount_tiyin']),
         ]);
 
-        return CsvResponse::stream('promokodlar.csv',
-            ['Restoran', 'Buyurtmalar', "Jami chegirma (so'm)", "Restoran ulushi (so'm)", "Platforma ulushi (so'm)"], $rows);
+        return CsvResponse::stream('platforma-chegirmalari.csv',
+            ['Restoran', 'Chegirmali buyurtmalar', "Jami chegirma (so'm)", "Restoran qopladi (so'm)", "Platforma qoplaydi (so'm)"], $rows);
     }
 }

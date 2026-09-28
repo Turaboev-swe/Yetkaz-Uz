@@ -25,10 +25,15 @@ use App\Models\Restaurant;
  *
  * Restoran yangi maydonlarni umuman to'ldirmagan bo'lsa (ikkalasi ham null) —
  * eski qat'iy narx o'zgarishsiz ishlaydi (regressiya yo'q).
+ *
+ * NATIJA DOIM BUTUN SO'M (eng yaqiniga yaxlitlanadi, 100 tiyinга karrali).
+ * Tiyin aniqligida (3,271 km × 1 500 so'm = 4 906,50 so'm) total kasrli so'm
+ * bo'lib, Mini App (Math.round) va PHP (intdiv) bir buyurtmaga 1 so'm farqli
+ * summa ko'rsatardi.
  */
 class DeliveryFeeCalculator
 {
-    /** @return int tiyinda */
+    /** @return int tiyinда, butun so'm */
     public function calculate(Restaurant $restaurant, DeliveryType $type, ?float $distanceKm): int
     {
         if ($type->isPickup()) {
@@ -42,9 +47,15 @@ class DeliveryFeeCalculator
         }
 
         if ($restaurant->price_per_km !== null) {
-            return (int) round($km * $restaurant->price_per_km);
+            return self::wholeSom($km * $restaurant->price_per_km);
         }
 
-        return (int) $restaurant->delivery_fee;
+        return self::wholeSom((int) $restaurant->delivery_fee);
+    }
+
+    /** Tiyin -> eng yaqin butun so'm (tiyinда). 4 906,50 so'm -> 4 907 so'm. */
+    private static function wholeSom(int|float $tiyin): int
+    {
+        return (int) round($tiyin / 100) * 100;
     }
 }

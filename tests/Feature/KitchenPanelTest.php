@@ -67,13 +67,19 @@ class KitchenPanelTest extends TestCase
             'subtotal' => 69_000_00,
             'delivery_fee' => 10_000_00,
             'discount_amount' => 13_800_00,
+            'discount_restaurant_amount' => 3_400_00,
+            'discount_platform_amount' => 10_400_00,
             'total' => 65_200_00,
         ]);
 
+        // Karta: "Chegirma: −13 800 (restoran: 3 400, platforma qoplaydi: 10 400)"
+        // va "💵 Mijozdan olinadi: 65 200 so'm" — shu maydonlardan.
         $this->actingAs($this->owner, 'staff')
             ->getJson('/kitchen/orders')
             ->assertOk()
             ->assertJsonPath('data.0.discount_amount', 13_800_00)
+            ->assertJsonPath('data.0.discount_restaurant_amount', 3_400_00)
+            ->assertJsonPath('data.0.discount_platform_amount', 10_400_00)
             ->assertJsonPath('data.0.total', 65_200_00);
     }
 

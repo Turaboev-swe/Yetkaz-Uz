@@ -154,12 +154,14 @@ class NotifyRestaurantOfNewOrder implements ShouldQueue
         if (! $order->delivery_type->isPickup()) {
             $lines[] = 'Yetkazish: '.($order->delivery_fee > 0 ? $som($order->delivery_fee).' so‘m' : 'bepul');
         }
-        // Chegirmasiz Taomlar + Yetkazish != Jami bo'lib qolardi (Jami chegirma ayirilgan).
+        // Chegirmasiz Taomlar + Yetkazish != olinadigan summa bo'lib qolardi. Taqsimot —
+        // buyurtmadagi snapshot'dan (kodning hozirgi ulushidan emas).
         if ($order->hasDiscount()) {
-            $lines[] = 'Chegirma: −'.$som($order->discount_amount).' so‘m (sizning ulushingiz: '
-                .$som($order->discount_restaurant_share).' so‘m)';
+            $lines[] = 'Chegirma: −'.$som($order->discount_amount).' so‘m (restoran: '
+                .$som($order->discount_restaurant_amount).' so‘m, platforma qoplaydi: '
+                .$som($order->discount_platform_amount).' so‘m)';
         }
-        $lines[] = '<b>Jami: '.$som($order->total).' so‘m</b> · naqd';
+        $lines[] = '<b>💵 Mijozdan olinadi: '.$som($order->total).' so‘m</b> · naqd';
 
         if ($order->note) {
             $lines[] = '';

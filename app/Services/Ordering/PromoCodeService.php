@@ -22,9 +22,14 @@ use LogicException;
  * Ishlatilish = shu kod bilan yaratilgan BEKOR QILINMAGAN buyurtma
  * (PromoCode::usages) — bekor qilinsa limit qaytadi.
  *
+ * TAQSIMOT (qaror): admin har kod uchun restoran qoplaydigan ulushni belgilaydi
+ * (restaurant_share_percent, 0-100, standart 0 — hammasini platforma qoplaydi),
+ * qolganini platforma qoplaydi. Natija buyurtmaga snapshot qilinadi
+ * (discount_restaurant_amount / discount_platform_amount).
+ *
  * YAXLITLASH QOIDASI (aniq belgilangan, o'zgarmas) — BUTUN SO'M darajasida:
  *   - chegirma butun so'mgacha pastga (PromoCode::discountFor);
- *   - restoran ulushi butun so'mgacha PASTGA (floor), TOQ SO'M QOLDIG'I
+ *   - restoran qismi butun so'mgacha PASTGA (floor), TOQ SO'M QOLDIG'I
  *     PLATFORMAGA. Masalan 15 005 so'm chegirma, ulush 50%:
  *     restoran = floor(15 005 * 50 / 100) = 7 502 so'm, platforma = 7 503 so'm.
  *
@@ -87,9 +92,11 @@ class PromoCodeService
         }
 
         $discount = $promo->discountFor($subtotal);
-        [$restaurantShare, $platformShare] = $this->split($discount, $promo->restaurant_share_percent);
+        // Ulush kodning O'ZIDAN (admin belgilagan restaurant_share_percent) — shu
+        // lahzada buyurtmaga snapshot qilinadi, keyin kod o'zgarsa ham o'zgarmaydi.
+        [$restaurantAmount, $platformAmount] = $this->split($discount, $promo->restaurant_share_percent);
 
-        return new PromoCodeApplication($promo->id, $discount, $restaurantShare, $platformShare);
+        return new PromoCodeApplication($promo->id, $discount, $restaurantAmount, $platformAmount);
     }
 
     private function rejection(PromoCode $promo, Restaurant $restaurant, User $user): ?PromoCodeError
@@ -111,16 +118,16 @@ class PromoCodeService
     }
 
     /**
-     * `$discountAmount` — butun so'm (tiyinда, 100 ga karrali). Restoran ulushi
-     * so'mда hisoblanib pastga yaxlitlanadi, qolgani platformaga.
+     * `$discountAmount` — butun so'm (tiyinда, 100 ga karrali). Restoran qismi
+     * so'mда hisoblanib pastga yaxlitlanadi, qolgani (toq so'm ham) platformaga.
      *
-     * @return array{0: int, 1: int} [restoran ulushi, platforma ulushi] — tiyinда
+     * @return array{0: int, 1: int} [restoran qoplaydi, platforma qoplaydi] — tiyinда
      */
     private function split(int $discountAmount, int $restaurantSharePercent): array
     {
-        $restaurantShare = intdiv($discountAmount * $restaurantSharePercent, 100 * 100) * 100;
-        $platformShare = $discountAmount - $restaurantShare;
+        $restaurantAmount = intdiv($discountAmount * $restaurantSharePercent, 100 * 100) * 100;
+        $platformAmount = $discountAmount - $restaurantAmount;
 
-        return [$restaurantShare, $platformShare];
+        return [$restaurantAmount, $platformAmount];
     }
 }

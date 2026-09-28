@@ -79,8 +79,8 @@ class PromoCodeServiceTest extends TestCase
 
         $this->assertNull($result->promoCodeId);
         $this->assertSame(0, $result->discountAmount);
-        $this->assertSame(0, $result->restaurantShare);
-        $this->assertSame(0, $result->platformShare);
+        $this->assertSame(0, $result->restaurantAmount);
+        $this->assertSame(0, $result->platformAmount);
     }
 
     public function test_blank_code_is_treated_as_no_code(): void
@@ -138,8 +138,8 @@ class PromoCodeServiceTest extends TestCase
         $result = $this->apply($promo->code, 100_000_00);
 
         $this->assertSame(15_005_00, $result->discountAmount);
-        $this->assertSame(7_502_00, $result->restaurantShare);
-        $this->assertSame(7_503_00, $result->platformShare);
+        $this->assertSame(7_502_00, $result->restaurantAmount);
+        $this->assertSame(7_503_00, $result->platformAmount);
     }
 
     /**
@@ -154,7 +154,7 @@ class PromoCodeServiceTest extends TestCase
 
         $this->assertSame(
             Money::toSoms($result->discountAmount),
-            Money::toSoms($result->restaurantShare) + Money::toSoms($result->platformShare),
+            Money::toSoms($result->restaurantAmount) + Money::toSoms($result->platformAmount),
         );
     }
 
@@ -168,10 +168,10 @@ class PromoCodeServiceTest extends TestCase
                 $result = $this->apply($promo->code, $discount * 10);
                 $label = "discount={$discountSom} so'm percent={$percent}";
 
-                $this->assertSame($discount, $result->restaurantShare + $result->platformShare, $label);
-                $this->assertSame(0, $result->restaurantShare % 100, $label);
-                $this->assertSame(0, $result->platformShare % 100, $label);
-                $this->assertSame(intdiv($discountSom * $percent, 100) * 100, $result->restaurantShare, $label);
+                $this->assertSame($discount, $result->restaurantAmount + $result->platformAmount, $label);
+                $this->assertSame(0, $result->restaurantAmount % 100, $label);
+                $this->assertSame(0, $result->platformAmount % 100, $label);
+                $this->assertSame(intdiv($discountSom * $percent, 100) * 100, $result->restaurantAmount, $label);
             }
         }
     }
@@ -182,8 +182,8 @@ class PromoCodeServiceTest extends TestCase
 
         $result = $this->apply($promo->code, 1_000_000);
 
-        $this->assertSame(0, $result->restaurantShare);
-        $this->assertSame(10_00, $result->platformShare);
+        $this->assertSame(0, $result->restaurantAmount);
+        $this->assertSame(10_00, $result->platformAmount);
     }
 
     public function test_full_restaurant_share_gives_everything_to_the_restaurant(): void
@@ -192,8 +192,8 @@ class PromoCodeServiceTest extends TestCase
 
         $result = $this->apply($promo->code, 10_000_00);
 
-        $this->assertSame(1_001_00, $result->restaurantShare);
-        $this->assertSame(0, $result->platformShare);
+        $this->assertSame(1_001_00, $result->restaurantAmount);
+        $this->assertSame(0, $result->platformAmount);
     }
 
     // --- Aniq sabab: topilmadi, faol emas, muddati, restoran ---

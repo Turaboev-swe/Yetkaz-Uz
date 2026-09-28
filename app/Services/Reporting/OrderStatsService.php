@@ -14,12 +14,27 @@ use Illuminate\Support\Facades\DB;
  * chetlab) — `$restaurantId` HAR DOIM aniq uzatiladi.
  *
  * Pul — tiyinда. Vaqtlar bazада UTC; kunlik guruhlash Asia/Tashkent bo'yicha.
+ *
+ * DAROMAD (restoran daromadi, qaror bo'yicha) = mijoz to'lagan summa (total) +
+ * platforma qoplaydigan chegirma (discount_platform_amount). Ya'ni daromaddan
+ * faqat RESTORAN qoplaydigan qism kamayadi; ulush 0% bo'lsa daromad chegirmasiz
+ * summaga teng. Faqat yetkazilgan buyurtmalar. Chegirma taqsimoti buyurtmadagi
+ * snapshot'dan — promo_codes'dan emas.
  */
 class OrderStatsService
 {
     private const TZ = 'Asia/Tashkent';
 
+    /** SQL: restoran daromadi (yetkazilganlar). `$o` — jadval taxallusi prefiksi (masalan 'o.'). */
+    private static function revenueSql(string $o = ''): string
+    {
+        return "COALESCE(SUM({$o}total + {$o}discount_platform_amount) FILTER (WHERE {$o}status = 'delivered'), 0)";
+    }
+
     /**
+     * `avg_check_tiyin` = daromad / yetkazilgan (restoranning bir buyurtmadan
+     * o'rtacha daromadi — Daromad bilan bir xil ta'rif).
+     *
      * @return array{orders:int, delivered:int, cancelled:int, revenue_tiyin:int, avg_check_tiyin:int, customers:int}
      */
     public function summary(ReportPeriod $period, ?int $restaurantId = null): array
@@ -29,9 +44,9 @@ class OrderStatsService
                 COUNT(*) AS orders,
                 COUNT(*) FILTER (WHERE status = 'delivered') AS delivered,
                 COUNT(*) FILTER (WHERE status = 'cancelled') AS cancelled,
-                COALESCE(SUM(total) FILTER (WHERE status = 'delivered'), 0) AS revenue_tiyin,
+                ".self::revenueSql().' AS revenue_tiyin,
                 COUNT(DISTINCT user_id) AS customers
-            ")
+            ')
             ->first();
 
         $delivered = (int) ($row->delivered ?? 0);
@@ -61,11 +76,11 @@ class OrderStatsService
             ->orderByDesc('orders')
             ->orderByDesc('revenue_tiyin')
             ->limit($limit)
-            ->selectRaw("
+            ->selectRaw('
                 o.restaurant_id,
                 r.name,
                 COUNT(*) AS orders,
-                COALESCE(SUM(o.total) FILTER (WHERE o.status = 'delivered'), 0) AS revenue_tiyin,
+                '.self::revenueSql('o.')." AS revenue_tiyin,
                 COUNT(DISTINCT o.user_id) AS customers,
                 ROUND(100.0 * COUNT(*) FILTER (WHERE o.status = 'cancelled') / NULLIF(COUNT(*), 0), 1) AS cancelled_pct
             ")
@@ -81,31 +96,34 @@ class OrderStatsService
     }
 
     /**
-     * Promokod ishlatilishi — restoran bo'yicha (restoranlar bilan hisob-kitob
-     * uchun: buyurtmalar soni, jami chegirma, restoran ulushi, platforma ulushi).
+     * Platforma chegirmalari — har restoranga platforma qancha qoplashi kerak
+     * (restoranlar bilan hisob-kitob): chegirmali buyurtmalar soni, jami
+     * chegirma, restoran qoplagani, platforma qoplaydigani. Platforma qarzi
+     * bo'yicha kamayish tartibida.
      *
      * Faqat `delivered` buyurtmalar — bekor qilinganда chegirma xarajati
-     * haqiqatda sodir bo'lmagan (boshqa metodlar bilan bir xil qoida: daromad
-     * ham faqat yetkazilgandan hisoblanadi).
+     * haqiqatda sodir bo'lmagan (daromad bilan bir xil qoida). Summalar
+     * buyurtmadagi SNAPSHOT'dan (discount_*_amount) — kodning hozirgi ulushidan emas.
      *
-     * @return Collection<int, array{restaurant_id:int, name:string, orders:int, discount_tiyin:int, restaurant_share_tiyin:int, platform_share_tiyin:int}>
+     * @return Collection<int, array{restaurant_id:int, name:string, orders:int, discount_tiyin:int, restaurant_amount_tiyin:int, platform_amount_tiyin:int}>
      */
-    public function promoCodeUsage(ReportPeriod $period, ?int $restaurantId = null): Collection
+    public function platformDiscounts(ReportPeriod $period, ?int $restaurantId = null): Collection
     {
         $q = DB::table('orders as o')
             ->join('restaurants as r', 'r.id', '=', 'o.restaurant_id')
-            ->whereNotNull('o.promo_code_id')
+            ->where('o.discount_amount', '>', 0)
             ->where('o.status', OrderStatus::Delivered->value)
             ->whereBetween('o.created_at', [$period->fromUtc(), $period->toUtc()])
             ->groupBy('o.restaurant_id', 'r.name')
-            ->orderByDesc('discount_tiyin')
+            ->orderByDesc('platform_amount_tiyin')
+            ->orderBy('r.name')
             ->selectRaw('
                 o.restaurant_id,
                 r.name,
                 COUNT(*) AS orders,
                 SUM(o.discount_amount) AS discount_tiyin,
-                SUM(o.discount_restaurant_share) AS restaurant_share_tiyin,
-                SUM(o.discount_platform_share) AS platform_share_tiyin
+                SUM(o.discount_restaurant_amount) AS restaurant_amount_tiyin,
+                SUM(o.discount_platform_amount) AS platform_amount_tiyin
             ');
 
         if ($restaurantId !== null) {
@@ -117,8 +135,8 @@ class OrderStatsService
             'name' => (string) $r->name,
             'orders' => (int) $r->orders,
             'discount_tiyin' => (int) $r->discount_tiyin,
-            'restaurant_share_tiyin' => (int) $r->restaurant_share_tiyin,
-            'platform_share_tiyin' => (int) $r->platform_share_tiyin,
+            'restaurant_amount_tiyin' => (int) $r->restaurant_amount_tiyin,
+            'platform_amount_tiyin' => (int) $r->platform_amount_tiyin,
         ]);
     }
 

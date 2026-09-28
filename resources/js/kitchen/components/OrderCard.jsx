@@ -141,15 +141,16 @@ export default function OrderCard({ order, onAdvance, onCancel, busy, couriers =
                 </div>
             )}
 
-            {/* Taomlar narxi ko'rinadi — chegirma qatorisiz "Jami" kam ko'rinib, xatodek tuyulardi. */}
+            {/* Taomlar narxi ko'rinadi — chegirma qatorisiz olinadigan summa kam ko'rinib, xatodek tuyulardi. */}
             {order.discount_amount > 0 && (
                 <div className="mt-2 text-[13px] text-emerald-400">
-                    Chegirma (promokod): −{som(order.discount_amount)} so‘m
+                    Chegirma: −{som(order.discount_amount)} so‘m (restoran: {som(order.discount_restaurant_amount)} so‘m,
+                    platforma qoplaydi: {som(order.discount_platform_amount)} so‘m)
                 </div>
             )}
 
             <div className="mt-3 flex items-center justify-between text-[13px] text-gray-400">
-                <span>Jami: <b className="text-gray-200">{som(order.total)} so‘m</b> · naqd</span>
+                <span>💵 Mijozdan olinadi: <b className="text-gray-200">{som(order.total)} so‘m</b> · naqd</span>
                 {order.eta_minutes ? <span>≈ {order.eta_minutes} daq</span> : null}
             </div>
 

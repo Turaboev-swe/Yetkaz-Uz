@@ -173,7 +173,7 @@ class OrderApiTest extends TestCase
         $far = Address::factory()->for($this->user)->create(['lat' => 40.83, 'lng' => 72.40]);
 
         $distanceKm = app(RestaurantFinder::class)->distanceKm($this->restaurant, $far);
-        $expectedFee = (int) round($distanceKm * 200_000);
+        $expectedFee = (int) round($distanceKm * 200_000 / 100) * 100; // butun so'mga
 
         $res = $this->postJson('/api/orders', $this->payload(['address_id' => $far->id]), $this->headers())
             ->assertCreated();
@@ -240,8 +240,8 @@ class OrderApiTest extends TestCase
             'id' => $res->json('data.id'),
             'promo_code_id' => $promo->id,
             'discount_amount' => 1_380_000,
-            'discount_restaurant_share' => 690_000,
-            'discount_platform_share' => 690_000,
+            'discount_restaurant_amount' => 690_000,
+            'discount_platform_amount' => 690_000,
         ]);
     }
 

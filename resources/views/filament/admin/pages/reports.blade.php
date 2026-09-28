@@ -5,6 +5,7 @@
 
     <x-filament::section>
         <x-slot name="heading">Xulosa — {{ $periodLabel }}</x-slot>
+        <x-slot name="description">Daromad — yetkazilgan buyurtmalar bo'yicha mijoz to'lagan summa + platforma qoplaydigan chegirma.</x-slot>
 
         <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
             @foreach ([
@@ -62,15 +63,15 @@
     </x-filament::section>
 
     <x-filament::section>
-        <x-slot name="heading">Promokodlar</x-slot>
-        <x-slot name="description">Restoran bo'yicha chegirma va uning ulushlari — restoranlar bilan hisob-kitob uchun. Faqat yetkazilgan buyurtmalar.</x-slot>
+        <x-slot name="heading">Platforma chegirmalari — jami {{ $platformDiscountTotal }}</x-slot>
+        <x-slot name="description">Har restoranga platforma qancha qoplashi kerak (restoranlar bilan hisob-kitob). Buyurtma yaratilgan paytdagi taqsimot bo'yicha, faqat yetkazilgan buyurtmalar.</x-slot>
         <x-slot name="headerEnd">
-            <x-filament::button size="sm" color="gray" icon="heroicon-o-arrow-down-tray" wire:click="exportPromoCodes">CSV</x-filament::button>
+            <x-filament::button size="sm" color="gray" icon="heroicon-o-arrow-down-tray" wire:click="exportPlatformDiscounts">CSV</x-filament::button>
         </x-slot>
 
         <x-report-table
-            :head="['Restoran', 'Buyurtmalar', 'Jami chegirma', 'Restoran ulushi', 'Platforma ulushi']"
-            :rows="$promoCodes"
-            empty="Bu davrda promokod ishlatilmagan" />
+            :head="['Restoran', 'Chegirmali buyurtmalar', 'Jami chegirma', 'Restoran qopladi', 'Platforma qoplaydi']"
+            :rows="$platformDiscountRows"
+            empty="Bu davrda chegirmali buyurtma yo'q" />
     </x-filament::section>
 </x-filament-panels::page>

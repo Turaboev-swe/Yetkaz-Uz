@@ -46,6 +46,19 @@ class OrderFactory extends Factory
         return $this->state(fn () => ['status' => $status]);
     }
 
+    /**
+     * Chegirmali buyurtma snapshot'i (tiyinда, butun so'm). Platforma qismi —
+     * qolgani, shuning uchun orders_discount_split_sum_check doim bajariladi.
+     */
+    public function discounted(int $discount, int $restaurantAmount = 0): static
+    {
+        return $this->state(fn () => [
+            'discount_amount' => $discount,
+            'discount_restaurant_amount' => $restaurantAmount,
+            'discount_platform_amount' => $discount - $restaurantAmount,
+        ]);
+    }
+
     public function forRestaurant(Restaurant|int $restaurant): static
     {
         return $this->state(fn () => [

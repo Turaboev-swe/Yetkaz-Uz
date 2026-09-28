@@ -54,8 +54,8 @@ class Order extends Model
         'cancellation_reason',
         'promo_code_id',
         'discount_amount',
-        'discount_restaurant_share',
-        'discount_platform_share',
+        'discount_restaurant_amount',
+        'discount_platform_amount',
     ];
 
     protected function casts(): array
@@ -68,8 +68,8 @@ class Order extends Model
             'delivery_fee' => 'integer',
             'total' => 'integer',
             'discount_amount' => 'integer',
-            'discount_restaurant_share' => 'integer',
-            'discount_platform_share' => 'integer',
+            'discount_restaurant_amount' => 'integer',
+            'discount_platform_amount' => 'integer',
             'status' => OrderStatus::class,
             'courier_type' => CourierType::class,
             'payment_method' => PaymentMethod::class,

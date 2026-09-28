@@ -50,6 +50,8 @@ class KitchenOrderResource extends JsonResource
             'subtotal' => $this->subtotal,
             'delivery_fee' => $this->delivery_fee,
             'discount_amount' => $this->discount_amount,
+            'discount_restaurant_amount' => $this->discount_restaurant_amount,
+            'discount_platform_amount' => $this->discount_platform_amount,
             'total' => $this->total, // mijozdan olinadigan — chegirma ayirilgan
         ];
     }

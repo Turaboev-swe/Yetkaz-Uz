@@ -16,7 +16,7 @@ use Illuminate\Database\Eloquent\Builder;
 /**
  * Promokodlar — platforma admini yaratadi/tahrirlaydi. Xarajat platforma va
  * restoran o'rtasida `restaurant_share_percent` bo'yicha bo'linadi
- * (`PromoCodeService::split()`). Foydalanish hisoboti: Hisobotlar sahifasi.
+ * (`PromoCodeService::split()`), buyurtmaga snapshot qilinadi. Hisob-kitob: Hisobotlar → Platforma chegirmalari.
  */
 class PromoCodeResource extends Resource
 {
@@ -78,14 +78,16 @@ class PromoCodeResource extends Resource
                     ? (int) round((float) $state * 100) : (int) $state),
 
             Forms\Components\TextInput::make('restaurant_share_percent')
-                ->label('Restoran ulushi')
-                ->helperText("Chegirma xarajatining shu foizi restoranga tegadi, qolgani platformaga. Toq tiyin qoldig'i ham platformaga.")
+                ->label('Restoran qoplaydigan ulush (%)')
+                ->helperText("0 — hammasini platforma qoplaydi. Qolgan qismini platforma qoplaydi; toq so'm ham platformaga. "
+                    ."Buyurtmaga shu paytdagi ulush yoziladi — keyin o'zgartirsangiz eski buyurtmalar o'zgarmaydi.")
                 ->required()
                 ->numeric()
+                ->integer()
                 ->minValue(0)
                 ->maxValue(100)
                 ->suffix('%')
-                ->default(50),
+                ->default(0),
 
             Forms\Components\TextInput::make('per_user_limit')
                 ->label('Bir mijozga limit')
@@ -138,7 +140,7 @@ class PromoCodeResource extends Resource
                         : $record->discount_value.'%'),
 
                 Tables\Columns\TextColumn::make('restaurant_share_percent')
-                    ->label('Restoran ulushi')
+                    ->label('Restoran qoplaydi')
                     ->suffix('%')
                     ->sortable(),
 
