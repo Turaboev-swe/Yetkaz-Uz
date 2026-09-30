@@ -59,6 +59,14 @@ class StaffFactory extends Factory
         ]);
     }
 
+    /** Asosiy restorandan tashqari qo'shimcha restoranlarga ham biriktiriladi (pivot). */
+    public function alsoAssignedTo(Restaurant|int ...$restaurants): static
+    {
+        return $this->afterCreating(fn (Staff $staff) => $staff->restaurants()->syncWithoutDetaching(
+            array_map(fn (Restaurant|int $r) => $r instanceof Restaurant ? $r->id : $r, $restaurants),
+        ));
+    }
+
     public function inactive(): static
     {
         return $this->state(fn () => ['is_active' => false]);

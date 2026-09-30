@@ -17,6 +17,11 @@ class KitchenOrderResource extends JsonResource
         return [
             'id' => $this->id,
             'order_number' => $this->order_number,
+            // Bir nechta restoranli oshxona xodimi kartada qaysi restoran ekanini ko'radi.
+            'restaurant' => [
+                'id' => $this->restaurant_id,
+                'name' => $this->restaurant?->name,
+            ],
             'status' => $this->status->value,
             'status_label' => $this->status->label(),
             'delivery_type' => $this->delivery_type->value,

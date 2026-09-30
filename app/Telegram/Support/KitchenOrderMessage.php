@@ -40,9 +40,15 @@ class KitchenOrderMessage
         $esc = fn (?string $v): string => htmlspecialchars((string) $v, ENT_NOQUOTES | ENT_SUBSTITUTE, 'UTF-8');
         $som = fn (int $tiyin): string => number_format(intdiv($tiyin, 100), 0, '.', ' ');
         $final = $order->status->isFinal();
+        $order->loadMissing('restaurant');
 
         $lines = [];
-        $lines[] = ($final ? $t('done') : '<b>'.$t('new_order').'</b>').' — '.$esc($order->order_number);
+        $header = ($final ? $t('done') : '<b>'.$t('new_order').'</b>').' — '.$esc($order->order_number);
+        // Bir xodim bir nechta restoranga biriktirilgan bo'lishi mumkin — qaysi restoran ekani sarlavhada.
+        if (filled($order->restaurant?->name)) {
+            $header .= ' · 🏪 <b>'.$esc($order->restaurant->name).'</b>';
+        }
+        $lines[] = $header;
         $lines[] = $order->delivery_type->isPickup() ? $t('pickup') : $t('delivery');
         $lines[] = '';
 

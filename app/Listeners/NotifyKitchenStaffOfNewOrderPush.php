@@ -2,7 +2,6 @@
 
 namespace App\Listeners;
 
-use App\Enums\StaffRole;
 use App\Events\OrderPlaced;
 use App\Models\Order;
 use App\Models\Staff;
@@ -26,16 +25,16 @@ class NotifyKitchenStaffOfNewOrderPush implements ShouldQueue
 
     public function handle(OrderPlaced $event): void
     {
-        $order = Order::withoutGlobalScopes()->find($event->orderId);
+        $order = Order::withoutGlobalScopes()->with('restaurant')->find($event->orderId);
 
         if ($order === null) {
             return;
         }
 
+        // Pivot orqali; har xodim yozuvi bir marta (ikki restoranga biriktirilgan
+        // bo'lsa ham — buyurtma bitta restoranniki).
         $recipients = Staff::query()
-            ->where('restaurant_id', $order->restaurant_id)
-            ->where('is_active', true)
-            ->whereIn('role', [StaffRole::KitchenStaff->value, StaffRole::RestaurantOwner->value])
+            ->kitchenRecipients($order->restaurant_id)
             ->whereHas('pushSubscriptions')
             ->get();
 
@@ -46,6 +45,10 @@ class NotifyKitchenStaffOfNewOrderPush implements ShouldQueue
         $itemsCount = count($order->items ?? []);
         $summary = "{$itemsCount} ta taom, ".Money::soms($order->total);
 
-        Notification::send($recipients, new NewKitchenOrderPushNotification($order->order_number, $summary));
+        Notification::send($recipients, new NewKitchenOrderPushNotification(
+            $order->order_number,
+            $summary,
+            restaurantName: $order->restaurant?->name,
+        ));
     }
 }

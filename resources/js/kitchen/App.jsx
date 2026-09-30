@@ -5,8 +5,10 @@ import { enableSound, soundReady, startAlarm, pauseAlarm, stopAlarm } from './li
 import { pushSupported, enablePush, disablePush } from './lib/push';
 import OrderCard from './components/OrderCard';
 
-const { restaurantId, restaurantName, staffName, csrf, pushSubscribed } = window.__KITCHEN__;
+const { restaurants = [], staffName, csrf, pushSubscribed } = window.__KITCHEN__;
 const DONE = new Set(['delivered', 'cancelled']);
+// Bir nechta restoranga biriktirilgan xodim — kartalarda restoran belgisi ko'rinadi.
+const MULTI = restaurants.length > 1;
 
 export default function App() {
     const [orders, setOrders] = useState([]);
@@ -16,7 +18,7 @@ export default function App() {
     const [soundOn, setSoundOn] = useState(soundReady());
     const [muted, setMuted] = useState(false);
     const [busyId, setBusyId] = useState(null);
-    const [couriers, setCouriers] = useState([]);
+    const [couriersBy, setCouriersBy] = useState({}); // restaurant_id -> xodimlar
     const [pushOn, setPushOn] = useState(pushSubscribed);
     const [pushBusy, setPushBusy] = useState(false);
     const [pushError, setPushError] = useState(null);
@@ -40,8 +42,13 @@ export default function App() {
         }
     };
 
+    // Kuryer ro'yxati — har restoran uchun alohida (buyurtma restoranining xodimlari).
     useEffect(() => {
-        api.couriers().then((r) => setCouriers(r.data || [])).catch(() => {});
+        restaurants.forEach(({ id }) => {
+            api.couriers(id)
+                .then((r) => setCouriersBy((cur) => ({ ...cur, [id]: r.data || [] })))
+                .catch(() => {});
+        });
     }, []);
 
     const sortInsert = useCallback((list) => [...list].sort((a, b) => a.created_at.localeCompare(b.created_at)), []);
@@ -69,26 +76,31 @@ export default function App() {
             return () => clearInterval(t);
         }
 
-        const ch = echo.private(`kitchen.${restaurantId}`);
+        // Har biriktirilgan restoran — o'z kanali (server har biri uchun ruxsatni tekshiradi).
+        const channels = restaurants.map(({ id }) => `kitchen.${id}`);
 
-        ch.listen('.order.placed', (o) => {
-            setOrders((cur) => {
-                if (seen.current.has(o.id)) return cur;
-                seen.current.add(o.id);
-                return sortInsert([...cur, o]);
+        channels.forEach((name) => {
+            const ch = echo.private(name);
+
+            ch.listen('.order.placed', (o) => {
+                setOrders((cur) => {
+                    if (seen.current.has(o.id)) return cur;
+                    seen.current.add(o.id);
+                    return sortInsert([...cur, o]);
+                });
             });
-        });
 
-        ch.listen('.order.status', (e) => {
-            setOrders((cur) =>
-                DONE.has(e.status)
-                    ? cur.filter((o) => o.id !== e.id)
-                    : cur.map((o) => (o.id === e.id ? { ...o, status: e.status, status_label: e.status_label } : o)),
-            );
-        });
+            ch.listen('.order.status', (e) => {
+                setOrders((cur) =>
+                    DONE.has(e.status)
+                        ? cur.filter((o) => o.id !== e.id)
+                        : cur.map((o) => (o.id === e.id ? { ...o, status: e.status, status_label: e.status_label } : o)),
+                );
+            });
 
-        ch.listen('.order.dispatch_failed', (e) => {
-            setOrders((cur) => cur.map((o) => (o.id === e.id ? { ...o, dispatch_failed: true } : o)));
+            ch.listen('.order.dispatch_failed', (e) => {
+                setOrders((cur) => cur.map((o) => (o.id === e.id ? { ...o, dispatch_failed: true } : o)));
+            });
         });
 
         const pusher = echo.connector.pusher;
@@ -97,7 +109,7 @@ export default function App() {
         pusher.connection.bind('disconnected', () => setConnected(false));
         setConnected(pusher.connection.state === 'connected');
 
-        return () => echo.leave(`kitchen.${restaurantId}`);
+        return () => channels.forEach((name) => echo.leave(name));
     }, [sortInsert, load]);
 
     const pendingCount = orders.filter((o) => o.status === 'new').length;
@@ -153,7 +165,7 @@ export default function App() {
         <div className="min-h-screen">
             <header className="sticky top-0 z-10 flex items-center justify-between border-b border-gray-800 bg-[#0f1115] px-5 py-3">
                 <div>
-                    <h1 className="text-[18px] font-extrabold">{restaurantName} — Oshxona</h1>
+                    <h1 className="text-[18px] font-extrabold">{restaurants.map((r) => r.name).join(' · ')} — Oshxona</h1>
                     <p className="text-[12px] text-gray-500">{staffName}</p>
                 </div>
                 <div className="flex items-center gap-3">
@@ -222,7 +234,15 @@ export default function App() {
 
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                     {orders.map((o) => (
-                        <OrderCard key={o.id} order={o} onAdvance={advance} onCancel={cancel} busy={busyId === o.id} couriers={couriers} />
+                        <OrderCard
+                            key={o.id}
+                            order={o}
+                            onAdvance={advance}
+                            onCancel={cancel}
+                            busy={busyId === o.id}
+                            couriers={couriersBy[o.restaurant?.id] || []}
+                            showRestaurant={MULTI}
+                        />
                     ))}
                 </div>
             </main>

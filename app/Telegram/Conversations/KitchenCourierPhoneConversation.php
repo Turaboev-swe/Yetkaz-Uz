@@ -55,13 +55,10 @@ class KitchenCourierPhoneConversation extends Conversation
             return;
         }
 
-        $staff = $this->kitchenStaff($bot);
         $order = Order::withoutGlobalScopes()->find($this->orderId);
+        $staff = $this->kitchenStaffFor($bot, $order);
 
-        if ($staff !== null
-            && $order !== null
-            && $order->restaurant_id === $staff->restaurant_id
-            && $order->status->value === $this->expected) {
+        if ($staff !== null && $order->status->value === $this->expected) {
             try {
                 app(OrderStatusService::class)->advance($order, "kitchen:{$staff->id}", [
                     'courier_type' => CourierType::Taxi->value,

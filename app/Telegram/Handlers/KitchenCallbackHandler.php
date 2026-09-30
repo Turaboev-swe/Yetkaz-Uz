@@ -3,8 +3,8 @@
 namespace App\Telegram\Handlers;
 
 use App\Models\Order;
-use App\Models\Staff;
 use App\Services\Ordering\OrderStatusService;
+use App\Telegram\Handlers\Concerns\ResolvesKitchenStaff;
 use App\Telegram\Support\KitchenOrderMessage;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -23,6 +23,8 @@ use SergiX44\Nutgram\Telegram\Properties\ParseMode;
  */
 class KitchenCallbackHandler
 {
+    use ResolvesKitchenStaff;
+
     public function __construct(
         private readonly OrderStatusService $status,
         private readonly KitchenOrderMessage $message,
@@ -30,22 +32,11 @@ class KitchenCallbackHandler
 
     public function __invoke(Nutgram $bot, string $orderId, string $expected): void
     {
-        $staff = Staff::query()
-            ->where('telegram_chat_id', $bot->userId())
-            ->where('is_active', true)
-            ->orderBy('id')
-            ->first();
-
-        if ($staff === null || ! $staff->canManageKitchen()) {
-            $bot->answerCallbackQuery(text: __('messages.kitchen_bot.cb_no_access', [], 'uz'), show_alert: true);
-
-            return;
-        }
-
-        $outcome = DB::transaction(function () use ($orderId, $expected, $staff): array {
+        $outcome = DB::transaction(function () use ($bot, $orderId, $expected): array {
             $order = Order::withoutGlobalScopes()->lockForUpdate()->find((int) $orderId);
+            $staff = $this->kitchenStaffFor($bot, $order);
 
-            if ($order === null || $order->restaurant_id !== $staff->restaurant_id) {
+            if ($staff === null) {
                 return ['type' => 'forbidden', 'order' => null];
             }
 

@@ -32,7 +32,7 @@ async function request(path, method = 'GET', body = null) {
 
 export const api = {
     orders: () => request('/orders'),
-    couriers: () => request('/couriers'),
+    couriers: (restaurantId) => request(`/couriers?restaurant_id=${encodeURIComponent(restaurantId)}`),
     advance: (id, fields = null) => request(`/orders/${id}/advance`, 'PATCH', fields),
     cancel: (id, reason) => request(`/orders/${id}/cancel`, 'PATCH', { reason }),
     subscribePush: (subscription) => request('/push/subscribe', 'POST', subscription),

@@ -9,6 +9,7 @@ use App\Models\Order;
 use App\Models\Staff;
 use App\Services\Ordering\OrderStatusService;
 use App\Support\Phone;
+use Closure;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -27,7 +28,19 @@ class KitchenController extends Controller
     /** Sahifa (React ilova). */
     public function page()
     {
-        return view('kitchen', ['staff' => $this->staff()]);
+        $staff = $this->staff();
+
+        // Asosiy restoran birinchi, qolganlari nomi bo'yicha.
+        $restaurants = $staff->restaurants()
+            ->get(['restaurants.id', 'restaurants.name'])
+            ->sortBy([
+                fn ($a, $b) => ($b->id === $staff->restaurant_id) <=> ($a->id === $staff->restaurant_id),
+                ['name', 'asc'],
+            ])
+            ->map(fn ($r) => ['id' => $r->id, 'name' => $r->name])
+            ->values();
+
+        return view('kitchen', ['staff' => $staff, 'restaurants' => $restaurants]);
     }
 
     /**
@@ -62,25 +75,34 @@ class KitchenController extends Controller
         return response()->json(['data' => ['subscribed' => false]]);
     }
 
-    /** GET /kitchen/orders — faol buyurtmalar (eng eskisi birinchi). */
+    /** GET /kitchen/orders — biriktirilgan barcha restoranlarning faol buyurtmalari (eng eskisi birinchi). */
     public function orders(): AnonymousResourceCollection
     {
         $orders = Order::query()
             ->withoutGlobalScopes()
-            ->where('restaurant_id', $this->staff()->restaurant_id)
+            ->whereIn('restaurant_id', $this->staff()->restaurantIds())
             ->whereIn('status', OrderStatus::activeValues())
-            ->with('user')
+            ->with(['user', 'restaurant:id,name'])
             ->orderBy('created_at')
             ->get();
 
         return KitchenOrderResource::collection($orders);
     }
 
-    /** GET /kitchen/couriers — "Yo'lga chiqdi" dropdown'i uchun o'z restorani xodimlari. */
-    public function couriers(): JsonResponse
+    /**
+     * GET /kitchen/couriers?restaurant_id= — "Yo'lga chiqdi" dropdown'i uchun
+     * buyurtma restoranining xodimlari (pivot orqali — umumiy xodim ham).
+     * `restaurant_id` berilmasa — asosiy restoran (eski frontend bilan moslik).
+     */
+    public function couriers(Request $request): JsonResponse
     {
+        $staff = $this->staff();
+        $restaurantId = (int) ($request->query('restaurant_id') ?? $staff->restaurant_id);
+
+        abort_unless($staff->canManageRestaurant($restaurantId), Response::HTTP_FORBIDDEN);
+
         $list = Staff::query()
-            ->where('restaurant_id', $this->staff()->restaurant_id)
+            ->assignedTo($restaurantId)
             ->where('is_active', true)
             ->orderBy('name')
             ->get(['id', 'name', 'phone']);
@@ -96,19 +118,27 @@ class KitchenController extends Controller
      * (+ majburiy `courier_phone`, `courier_name` serverda "Royal Taxi"
      * qattiq belgilanadi — mijoz/frontend buni o'zgartira olmaydi).
      */
-    public function advance(Request $request, Order $order): JsonResponse
+    public function advance(Request $request, int $orderId): JsonResponse
     {
         $staff = $this->staff();
-
-        abort_unless($order->restaurant_id === $staff->restaurant_id, Response::HTTP_FORBIDDEN);
+        $order = $this->manageableOrder($staff, $orderId);
 
         $data = $request->validate([
             'courier_type' => ['nullable', Rule::enum(CourierType::class)],
             'courier_staff_id' => [
                 'nullable', 'integer',
-                Rule::exists('staff', 'id')->where(fn ($q) => $q
-                    ->where('restaurant_id', $order->restaurant_id)
-                    ->where('is_active', true)),
+                // Buyurtma restoraniga biriktirilgan faol xodim (pivot orqali).
+                function (string $attribute, mixed $value, Closure $fail) use ($order): void {
+                    $ok = Staff::query()
+                        ->assignedTo($order->restaurant_id)
+                        ->where('is_active', true)
+                        ->whereKey((int) $value)
+                        ->exists();
+
+                    if (! $ok) {
+                        $fail('validation.exists')->translate();
+                    }
+                },
             ],
             'courier_phone' => ['nullable', 'string', 'max:32'],
         ]);
@@ -117,7 +147,7 @@ class KitchenController extends Controller
 
         $this->status->advance($order, "kitchen:{$staff->id}", $fill);
 
-        return (new KitchenOrderResource($order->fresh('user')))->response();
+        return (new KitchenOrderResource($order->fresh(['user', 'restaurant:id,name'])))->response();
     }
 
     /** @param  array<string, mixed>  $data
@@ -167,18 +197,34 @@ class KitchenController extends Controller
      * PATCH /kitchen/orders/{order}/cancel — buyurtmani bekor qiladi.
      * Bot bilan bir xil OrderStatusService::cancel() ni chaqiradi.
      */
-    public function cancel(Request $request, Order $order): JsonResponse
+    public function cancel(Request $request, int $orderId): JsonResponse
     {
         $staff = $this->staff();
-
-        abort_unless($order->restaurant_id === $staff->restaurant_id, Response::HTTP_FORBIDDEN);
+        $order = $this->manageableOrder($staff, $orderId);
 
         $data = $request->validate(['reason' => ['required', 'string', 'max:500']]);
 
         // ValidationException (noto'g'ri holat) -> 422, xabar bilan.
         $this->status->cancel($order, $data['reason'], "kitchen:{$staff->id}");
 
-        return (new KitchenOrderResource($order->fresh('user')))->response();
+        return (new KitchenOrderResource($order->fresh(['user', 'restaurant:id,name'])))->response();
+    }
+
+    /**
+     * Buyurtma RestaurantScope'siz topiladi (egasining scope'i faqat asosiy
+     * restoranni ko'radi), ruxsat esa xodimning biriktirilgan restoranlari
+     * bo'yicha tekshiriladi. Biriktirilmagan restoran buyurtmasi — avvalgidek:
+     * egasiga 404 (scope uni "ko'rmas" edi), oshxona xodimiga 403.
+     */
+    private function manageableOrder(Staff $staff, int $orderId): Order
+    {
+        $order = Order::withoutGlobalScopes()->findOrFail($orderId);
+
+        if (! $staff->canManageRestaurant($order->restaurant_id)) {
+            abort($staff->isRestaurantOwner() ? Response::HTTP_NOT_FOUND : Response::HTTP_FORBIDDEN);
+        }
+
+        return $order;
     }
 
     private function staff(): Staff

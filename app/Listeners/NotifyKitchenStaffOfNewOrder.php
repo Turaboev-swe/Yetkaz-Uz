@@ -2,7 +2,6 @@
 
 namespace App\Listeners;
 
-use App\Enums\StaffRole;
 use App\Events\OrderPlaced;
 use App\Models\Order;
 use App\Models\Staff;
@@ -28,16 +27,15 @@ class NotifyKitchenStaffOfNewOrder implements ShouldQueue
 
     public function handle(OrderPlaced $event): void
     {
-        $order = Order::withoutGlobalScopes()->with('user')->find($event->orderId);
+        $order = Order::withoutGlobalScopes()->with(['user', 'restaurant'])->find($event->orderId);
 
         if ($order === null) {
             return;
         }
 
+        // Pivot orqali — bir nechta restoranga biriktirilgan xodim ham shu yerda.
         $recipients = Staff::query()
-            ->where('restaurant_id', $order->restaurant_id)
-            ->where('is_active', true)
-            ->whereIn('role', [StaffRole::KitchenStaff->value, StaffRole::RestaurantOwner->value])
+            ->kitchenRecipients($order->restaurant_id)
             ->whereNotNull('telegram_chat_id')
             ->pluck('telegram_chat_id')
             // Bir chat — bir xabar: bir odam ikki xodim yozuvida (masalan egasi

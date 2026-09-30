@@ -23,16 +23,10 @@ class KitchenCancelHandler
     {
         $t = fn (string $k): string => (string) __("messages.kitchen_bot.$k", [], 'uz');
 
-        $staff = $this->kitchenStaff($bot);
-        if ($staff === null) {
-            $bot->answerCallbackQuery(text: $t('cb_no_access'), show_alert: true);
-
-            return;
-        }
-
         $order = Order::withoutGlobalScopes()->find((int) $orderId);
+        $staff = $this->kitchenStaffFor($bot, $order);
 
-        if ($order === null || $order->restaurant_id !== $staff->restaurant_id) {
+        if ($staff === null) {
             $bot->answerCallbackQuery(text: $t('cb_no_access'), show_alert: true);
 
             return;

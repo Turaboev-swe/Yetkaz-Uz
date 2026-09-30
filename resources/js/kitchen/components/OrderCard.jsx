@@ -10,7 +10,16 @@ const STATUS_COLOR = {
     on_the_way: '#06b6d4',
 };
 
-export default function OrderCard({ order, onAdvance, onCancel, busy, couriers = [] }) {
+// Restoran belgisi — bir nechta restoranli panelda har restoran o'z rangida (id bo'yicha barqaror).
+const RESTAURANT_COLORS = [
+    { background: '#4c1d95', color: '#ddd6fe' },
+    { background: '#065f46', color: '#a7f3d0' },
+    { background: '#9d174d', color: '#fbcfe8' },
+    { background: '#1e3a8a', color: '#bfdbfe' },
+    { background: '#713f12', color: '#fde68a' },
+];
+
+export default function OrderCard({ order, onAdvance, onCancel, busy, couriers = [], showRestaurant = false }) {
     const [, tick] = useState(0);
     useEffect(() => {
         const t = setInterval(() => tick((n) => n + 1), 15000);
@@ -74,6 +83,14 @@ export default function OrderCard({ order, onAdvance, onCancel, busy, couriers =
 
     return (
         <div className="flex flex-col rounded-2xl border p-4" style={{ borderColor: STATUS_COLOR[order.status] || '#374151', background: '#171a21' }}>
+            {showRestaurant && order.restaurant?.name && (
+                <div
+                    className="mb-2 self-start rounded-lg px-2.5 py-1 text-[14px] font-extrabold"
+                    style={RESTAURANT_COLORS[(order.restaurant.id || 0) % RESTAURANT_COLORS.length]}
+                >
+                    🏪 {order.restaurant.name}
+                </div>
+            )}
             <div className="flex items-start justify-between">
                 <div>
                     <div className="text-[22px] font-extrabold tabular-nums">{order.order_number}</div>

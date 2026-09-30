@@ -33,7 +33,7 @@ class StaffTelegramChatIdTest extends TestCase
                 'email' => 'aziz@example.com',
                 'telegram_chat_id' => 424299,
                 'role' => StaffRole::KitchenStaff->value,
-                'restaurant_id' => $restaurant->id,
+                'restaurant_ids' => [$restaurant->id],
                 'password' => 'secret-pass',
                 'is_active' => true,
             ])

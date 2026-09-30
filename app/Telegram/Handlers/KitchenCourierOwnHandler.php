@@ -22,16 +22,10 @@ class KitchenCourierOwnHandler
     {
         $t = fn (string $k): string => (string) __("messages.kitchen_bot.$k", [], 'uz');
 
-        $staff = $this->kitchenStaff($bot);
-        if ($staff === null) {
-            $bot->answerCallbackQuery(text: $t('cb_no_access'), show_alert: true);
-
-            return;
-        }
-
         $order = Order::withoutGlobalScopes()->find((int) $orderId);
+        $staff = $this->kitchenStaffFor($bot, $order);
 
-        if ($order === null || $order->restaurant_id !== $staff->restaurant_id) {
+        if ($staff === null) {
             $bot->answerCallbackQuery(text: $t('cb_no_access'), show_alert: true);
 
             return;
@@ -39,8 +33,10 @@ class KitchenCourierOwnHandler
 
         $bot->answerCallbackQuery();
 
+        // Buyurtma restoranining xodimlari — bir nechta restoranga biriktirilgan
+        // umumiy xodim ham shu ro'yxatda.
         $couriers = Staff::query()
-            ->where('restaurant_id', $staff->restaurant_id)
+            ->assignedTo($order->restaurant_id)
             ->where('is_active', true)
             ->orderBy('name')
             ->get(['id', 'name']);

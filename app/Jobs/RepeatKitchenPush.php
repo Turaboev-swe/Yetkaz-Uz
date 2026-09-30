@@ -3,7 +3,6 @@
 namespace App\Jobs;
 
 use App\Enums\OrderStatus;
-use App\Enums\StaffRole;
 use App\Models\Order;
 use App\Models\Staff;
 use App\Notifications\NewKitchenOrderPushNotification;
@@ -82,7 +81,7 @@ class RepeatKitchenPush implements ShouldQueue
             return;
         }
 
-        $order = Order::withoutGlobalScopes()->find($this->orderId);
+        $order = Order::withoutGlobalScopes()->with('restaurant')->find($this->orderId);
 
         if ($order === null || $order->status !== OrderStatus::New) {
             return; // qabul qilingan / bekor qilingan — zanjir tugadi
@@ -121,9 +120,7 @@ class RepeatKitchenPush implements ShouldQueue
     {
         try {
             $recipients = Staff::query()
-                ->where('restaurant_id', $order->restaurant_id)
-                ->where('is_active', true)
-                ->whereIn('role', [StaffRole::KitchenStaff->value, StaffRole::RestaurantOwner->value])
+                ->kitchenRecipients($order->restaurant_id)
                 ->whereHas('pushSubscriptions')
                 ->get();
 
@@ -134,7 +131,12 @@ class RepeatKitchenPush implements ShouldQueue
             $summary = count($order->items ?? []).' ta taom, '.Money::soms($order->total);
             $waiting = max(1, (int) $order->created_at->diffInMinutes(now()));
 
-            Notification::send($recipients, new NewKitchenOrderPushNotification($order->order_number, $summary, $waiting));
+            Notification::send($recipients, new NewKitchenOrderPushNotification(
+                $order->order_number,
+                $summary,
+                $waiting,
+                restaurantName: $order->restaurant?->name,
+            ));
         } catch (Throwable $e) {
             Log::warning('[kitchen-push-repeat] push yuborilmadi', [
                 'order' => $order->order_number,

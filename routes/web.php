@@ -31,8 +31,8 @@ Route::middleware(['panel.session:yetkaz_staff_session', 'web'])->prefix('kitche
         Route::get('/', [KitchenController::class, 'page'])->name('kitchen');
         Route::get('/orders', [KitchenController::class, 'orders']);
         Route::get('/couriers', [KitchenController::class, 'couriers']);
-        Route::patch('/orders/{order}/advance', [KitchenController::class, 'advance']);
-        Route::patch('/orders/{order}/cancel', [KitchenController::class, 'cancel']);
+        Route::patch('/orders/{orderId}/advance', [KitchenController::class, 'advance'])->whereNumber('orderId');
+        Route::patch('/orders/{orderId}/cancel', [KitchenController::class, 'cancel'])->whereNumber('orderId');
         Route::post('/push/subscribe', [KitchenController::class, 'subscribePush']);
         Route::delete('/push/subscribe', [KitchenController::class, 'unsubscribePush']);
     });

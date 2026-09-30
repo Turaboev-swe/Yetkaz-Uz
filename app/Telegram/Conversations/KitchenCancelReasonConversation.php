@@ -39,12 +39,10 @@ class KitchenCancelReasonConversation extends Conversation
             return;
         }
 
-        $staff = $this->kitchenStaff($bot);
         $order = Order::withoutGlobalScopes()->find($this->orderId);
+        $staff = $this->kitchenStaffFor($bot, $order);
 
-        if ($staff !== null
-            && $order !== null
-            && $order->restaurant_id === $staff->restaurant_id) {
+        if ($staff !== null) {
             try {
                 app(OrderStatusService::class)->cancel($order, $reason, "kitchen:{$staff->id}");
                 $bot->sendMessage('✅ '.__('messages.kitchen_bot.cancel_done', [], 'uz').' — '.$order->order_number);

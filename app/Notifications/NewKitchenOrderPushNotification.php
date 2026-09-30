@@ -31,6 +31,8 @@ class NewKitchenOrderPushNotification extends Notification
         private readonly string $orderNumber,
         private readonly string $summary,
         private readonly ?int $waitingMinutes = null,
+        // Sarlavhada — bir nechta restoranli oshxona xodimi qaysi restoran ekanini darhol ko'rsin.
+        private readonly ?string $restaurantName = null,
     ) {}
 
     public function via(object $notifiable): array
@@ -41,9 +43,10 @@ class NewKitchenOrderPushNotification extends Notification
     public function toWebPush(object $notifiable, self $notification): WebPushMessage
     {
         $isReminder = $this->waitingMinutes !== null;
+        $title = $isReminder ? '⏰ Buyurtma qabul qilinmadi!' : '🔔 Yangi buyurtma!';
 
         return (new WebPushMessage)
-            ->title($isReminder ? '⏰ Buyurtma qabul qilinmadi!' : '🔔 Yangi buyurtma!')
+            ->title(filled($this->restaurantName) ? "{$title} — {$this->restaurantName}" : $title)
             ->body($isReminder
                 ? "№{$this->orderNumber} — {$this->waitingMinutes} daqiqadan beri kutmoqda. {$this->summary}"
                 : "№{$this->orderNumber} — {$this->summary}")

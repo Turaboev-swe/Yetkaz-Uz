@@ -30,15 +30,10 @@ class KitchenCourierPickHandler
     {
         $t = fn (string $k): string => (string) __("messages.kitchen_bot.$k", [], 'uz');
 
-        $staff = $this->kitchenStaff($bot);
-        if ($staff === null) {
-            $bot->answerCallbackQuery(text: $t('cb_no_access'), show_alert: true);
-
-            return;
-        }
-
         $order = Order::withoutGlobalScopes()->find((int) $orderId);
-        if ($order === null || $order->restaurant_id !== $staff->restaurant_id) {
+        $staff = $this->kitchenStaffFor($bot, $order);
+
+        if ($staff === null) {
             $bot->answerCallbackQuery(text: $t('cb_no_access'), show_alert: true);
 
             return;
@@ -53,7 +48,7 @@ class KitchenCourierPickHandler
         $fill = ['courier_type' => CourierType::OwnStaff->value];
         $courierId = (int) $staffId;
         if ($courierId > 0) {
-            $courier = Staff::query()->where('restaurant_id', $order->restaurant_id)->find($courierId);
+            $courier = Staff::query()->assignedTo($order->restaurant_id)->find($courierId);
             if ($courier !== null) {
                 $fill += [
                     'courier_staff_id' => $courier->id,

@@ -3,7 +3,6 @@
 namespace App\Jobs;
 
 use App\Enums\DeliveryType;
-use App\Enums\StaffRole;
 use App\Models\Order;
 use App\Models\Staff;
 use Illuminate\Bus\Queueable;
@@ -90,9 +89,7 @@ class NotifyRestaurantOfNewOrder implements ShouldQueue
     private function receivesKitchenMessage(Order $order, int $chatId): bool
     {
         return Staff::query()
-            ->where('restaurant_id', $order->restaurant_id)
-            ->where('is_active', true)
-            ->whereIn('role', [StaffRole::KitchenStaff->value, StaffRole::RestaurantOwner->value])
+            ->kitchenRecipients($order->restaurant_id)
             ->where('telegram_chat_id', $chatId)
             ->exists();
     }

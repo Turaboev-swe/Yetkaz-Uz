@@ -4,6 +4,7 @@ namespace App\Filament\Admin\Resources;
 
 use App\Enums\StaffRole;
 use App\Filament\Admin\Resources\StaffResource\Pages;
+use App\Models\Restaurant;
 use App\Models\Staff;
 use Filament\Forms;
 use Filament\Forms\Form;
@@ -47,12 +48,16 @@ class StaffResource extends Resource
                 ->options(collect(StaffRole::cases())->mapWithKeys(fn ($c) => [$c->value => $c->label()]))
                 ->required()->native(false)->live(),
 
-            Forms\Components\Select::make('restaurant_id')->label('Restoran')
-                ->relationship('restaurant', 'name')
+            // Pivot (restaurant_staff) — saqlash Create/EditStaff'da, Staff::assignRestaurants() orqali.
+            Forms\Components\Select::make('restaurant_ids')->label('Restoranlar')
+                ->multiple()
+                ->options(fn () => Restaurant::query()->orderBy('name')->pluck('name', 'id'))
+                ->searchable()
                 ->native(false)
                 ->required(fn (Forms\Get $get) => $get('role') !== StaffRole::PlatformAdmin->value)
                 ->visible(fn (Forms\Get $get) => $get('role') !== StaffRole::PlatformAdmin->value)
-                ->helperText('platform_admin uchun bo`sh qoldiring.'),
+                ->helperText('Oshxona xodimi tanlangan barcha restoranlar buyurtmalarini bitta /kitchen panelida boshqaradi. '
+                    .'Asosiy restoran (egasining /restaurant paneli) — avvalgisi; u olib tashlansa, birinchi tanlangani.'),
 
             // Model `password` cast'i (hashed) hash qiladi.
             Forms\Components\TextInput::make('password')->label('Parol')
@@ -76,7 +81,8 @@ class StaffResource extends Resource
                     ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('role')->label('Rol')
                     ->badge()->formatStateUsing(fn (StaffRole $state) => $state->label()),
-                Tables\Columns\TextColumn::make('restaurant.name')->label('Restoran')->placeholder('—'),
+                Tables\Columns\TextColumn::make('restaurants.name')->label('Restoranlar')
+                    ->badge()->placeholder('—'),
                 Tables\Columns\IconColumn::make('telegram_chat_id')->label('Telegram')
                     ->boolean()->tooltip('Bildirishnoma chat ID kiritilganmi')
                     ->toggleable(isToggledHiddenByDefault: true),
@@ -86,12 +92,40 @@ class StaffResource extends Resource
             ->filters([
                 Tables\Filters\SelectFilter::make('role')
                     ->options(collect(StaffRole::cases())->mapWithKeys(fn ($c) => [$c->value => $c->label()])),
+                Tables\Filters\SelectFilter::make('restaurants')->label('Restoran')
+                    ->relationship('restaurants', 'name'),
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),
                 Tables\Actions\DeleteAction::make(),
             ])
             ->bulkActions([]);
+    }
+
+    /**
+     * Formadagi `restaurant_ids` ni modeldan ajratadi: [qolgan ma'lumot, ids].
+     * ids = null — maydon formada yo'q edi (o'zgartirilmaydi). platform_admin
+     * restoransiz (staff CHECK): restaurant_id null, pivot bo'sh.
+     *
+     * @param  array<string, mixed>  $data
+     * @return array{0: array<string, mixed>, 1: list<int>|null}
+     */
+    public static function extractRestaurants(array $data): array
+    {
+        $ids = array_key_exists('restaurant_ids', $data)
+            ? array_values(array_map('intval', (array) $data['restaurant_ids']))
+            : null;
+        unset($data['restaurant_ids']);
+
+        $role = $data['role'] ?? null;
+        $role = $role instanceof StaffRole ? $role : StaffRole::tryFrom((string) $role);
+
+        if ($role === StaffRole::PlatformAdmin) {
+            $data['restaurant_id'] = null;
+            $ids = [];
+        }
+
+        return [$data, $ids];
     }
 
     public static function getPages(): array

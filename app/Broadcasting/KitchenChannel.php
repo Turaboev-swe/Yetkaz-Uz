@@ -5,14 +5,14 @@ namespace App\Broadcasting;
 use App\Models\Staff;
 
 /**
- * `kitchen.{restaurantId}` kanaliga kirish — faqat o'sha restoran oshxona
- * xodimi yoki egasi.
+ * `kitchen.{restaurantId}` kanaliga kirish — shu restoranga biriktirilgan
+ * oshxona xodimi yoki egasi. Bir nechta restoranli xodim har biriga obuna
+ * bo'ladi.
  */
 class KitchenChannel
 {
     public function join(Staff $staff, int $restaurantId): bool
     {
-        return $staff->canManageKitchen()
-            && (int) $staff->restaurant_id === $restaurantId;
+        return $staff->canManageRestaurant($restaurantId);
     }
 }
