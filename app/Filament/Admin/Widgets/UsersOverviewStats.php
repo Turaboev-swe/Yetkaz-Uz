@@ -7,7 +7,6 @@ use App\Models\User;
 use App\Services\Reporting\ReportPeriod;
 use Filament\Widgets\StatsOverviewWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;
-use Illuminate\Support\Carbon;
 
 /**
  * /admin Dashboard — Telegram mijozlari (users) bo'yicha qisqa statistika.
@@ -18,13 +17,17 @@ class UsersOverviewStats extends StatsOverviewWidget
 
     protected function getStats(): array
     {
-        $today = Carbon::today();
-        $monthStart = Carbon::today()->startOfMonth();
+        // Kun/oy chegaralari — Toshkent kalendari (ReportPeriod), UTC emas (REPORT-3).
+        $today = ReportPeriod::preset('today');
+        $month = ReportPeriod::preset('month');
+        $last30 = ReportPeriod::custom(now()->subDays(29), now());
 
-        $trend = collect(range(29, 0))
-            ->map(fn (int $daysAgo) => Carbon::today()->subDays($daysAgo))
-            ->map(fn (Carbon $day) => User::query()->whereDate('created_at', $day)->count())
-            ->all();
+        $perDay = User::query()
+            ->whereBetween('created_at', [$last30->fromUtc(), $last30->toUtc()])
+            ->selectRaw(ReportPeriod::localDateSql('created_at').' AS d, COUNT(*) AS n')
+            ->groupBy('d')
+            ->pluck('n', 'd');
+        $trend = array_map(fn (string $d) => (int) ($perDay[$d] ?? 0), $last30->dates());
 
         $total = User::query()->count();
         $completed = User::query()->where('profile_completed', true)->count();
@@ -36,11 +39,11 @@ class UsersOverviewStats extends StatsOverviewWidget
                 ->color('primary'),
 
             Stat::make('Bugun ro\'yxatdan o\'tgan', number_format(
-                User::query()->whereDate('created_at', $today)->count(), 0, '.', ' ',
+                User::query()->whereBetween('created_at', [$today->fromUtc(), $today->toUtc()])->count(), 0, '.', ' ',
             )),
 
             Stat::make('Shu oy ro\'yxatdan o\'tgan', number_format(
-                User::query()->where('created_at', '>=', $monthStart)->count(), 0, '.', ' ',
+                User::query()->where('created_at', '>=', $month->fromUtc())->count(), 0, '.', ' ',
             )),
 
             Stat::make('Jami /start bosganlar', number_format($total, 0, '.', ' '))

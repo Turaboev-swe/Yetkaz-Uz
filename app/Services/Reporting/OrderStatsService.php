@@ -4,7 +4,6 @@ namespace App\Services\Reporting;
 
 use App\Enums\OrderStatus;
 use Illuminate\Database\Query\Builder;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -23,8 +22,6 @@ use Illuminate\Support\Facades\DB;
  */
 class OrderStatsService
 {
-    private const TZ = 'Asia/Tashkent';
-
     /** SQL: restoran daromadi (yetkazilganlar). `$o` — jadval taxallusi prefiksi (masalan 'o.'). */
     private static function revenueSql(string $o = ''): string
     {
@@ -222,28 +219,20 @@ class OrderStatsService
     }
 
     /**
-     * Kunlik buyurtmalar (grafik) — oraliqдаги har kun uchun qator, bo'sh kun = 0.
+     * Kunlik buyurtmalar (grafik) — oraliqдаги har Toshkent kalendar kuni uchun
+     * qator, bo'sh kun = 0. Kun chegarasi summary() bilan bir xil (ReportPeriod).
      *
      * @return Collection<int, array{date:string, orders:int}>
      */
     public function ordersPerDay(ReportPeriod $period, ?int $restaurantId = null): Collection
     {
         $counts = $this->orders($period, $restaurantId)
-            ->selectRaw("(created_at AT TIME ZONE '".self::TZ."')::date AS d, COUNT(*) AS orders")
+            ->selectRaw(ReportPeriod::localDateSql('created_at').' AS d, COUNT(*) AS orders')
             ->groupBy('d')
             ->pluck('orders', 'd');
 
-        $out = collect();
-        $cursor = Carbon::parse($period->from->format('Y-m-d'));
-        $end = Carbon::parse($period->to->format('Y-m-d'));
-
-        while ($cursor->lte($end)) {
-            $key = $cursor->format('Y-m-d');
-            $out->push(['date' => $key, 'orders' => (int) ($counts[$key] ?? 0)]);
-            $cursor->addDay();
-        }
-
-        return $out;
+        return collect($period->dates())
+            ->map(fn (string $date) => ['date' => $date, 'orders' => (int) ($counts[$date] ?? 0)]);
     }
 
     /** @return Builder */

@@ -4,6 +4,7 @@ namespace App\Filament\Restaurant\Pages;
 
 use App\Models\Order;
 use App\Models\Restaurant;
+use App\Services\Reporting\ReportPeriod;
 use Filament\Forms\Components\DatePicker;
 use Filament\Pages\Page;
 use Filament\Tables\Columns\TextColumn;
@@ -128,8 +129,9 @@ class Ratings extends Page implements HasTable
                         DatePicker::make('until')->label('Gacha')->native(false),
                     ])
                     ->query(fn (Builder $query, array $data) => $query
-                        ->when($data['from'] ?? null, fn (Builder $q, $d) => $q->whereDate('rated_at', '>=', $d))
-                        ->when($data['until'] ?? null, fn (Builder $q, $d) => $q->whereDate('rated_at', '<=', $d)))
+                        // Toshkent kalendar kuni chegarasi (whereDate UTC sanani solishtirardi — REPORT-3).
+                        ->when($data['from'] ?? null, fn (Builder $q, $d) => $q->where('rated_at', '>=', ReportPeriod::custom($d, $d)->fromUtc()))
+                        ->when($data['until'] ?? null, fn (Builder $q, $d) => $q->where('rated_at', '<=', ReportPeriod::custom($d, $d)->toUtc())))
                     ->indicateUsing(function (array $data): array {
                         $out = [];
                         if ($data['from'] ?? null) {

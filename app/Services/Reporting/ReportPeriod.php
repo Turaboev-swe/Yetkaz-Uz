@@ -41,16 +41,45 @@ final class ReportPeriod
      * `$from`/`$to` — Toshkent kalendar sanasi (masalan admin DatePicker'idan
      * "2026-09-21"). Aniq shu zonada tahlil qilinishi shart, aks holda
      * `startOfDay()`/`endOfDay()` noto'g'ri kun chegarasini beradi (REPORT-1).
+     *
+     * Carbon obyekti (masalan vidjetlardagi `now()`, u UTC'da) — avval Toshkent
+     * zonasiga O'GIRILADI: `parse()` obyektning zonasini o'zgartirmaydi, aks
+     * holda Toshkent 00:00–04:59 da "bugun" UTC bo'yicha kecha bo'lib qolardi (REPORT-3).
      */
     public static function custom(Carbon|CarbonImmutable|string $from, Carbon|CarbonImmutable|string $to): self
     {
         $tz = config('app.display_timezone');
+        $local = fn (Carbon|CarbonImmutable|string $d): CarbonImmutable => is_string($d)
+            ? CarbonImmutable::parse($d, $tz)
+            : CarbonImmutable::instance($d)->setTimezone($tz);
 
-        return new self(
-            CarbonImmutable::parse($from, $tz)->startOfDay(),
-            CarbonImmutable::parse($to, $tz)->endOfDay(),
-            'custom',
-        );
+        return new self($local($from)->startOfDay(), $local($to)->endOfDay(), 'custom');
+    }
+
+    /**
+     * SQL: UTC'da saqlangan (`timestamp without time zone`) ustunning Toshkent
+     * kalendar sanasi. Avval `AT TIME ZONE 'UTC'` — qiymat UTC ekanini aytadi,
+     * keyin Toshkentga o'giradi. Faqat `AT TIME ZONE 'Asia/Tashkent'` qiymatni
+     * "allaqachon Toshkent vaqti" deb talqin qilib sanani surardi (REPORT-3).
+     */
+    public static function localDateSql(string $column): string
+    {
+        return "({$column} AT TIME ZONE 'UTC' AT TIME ZONE '".config('app.display_timezone')."')::date";
+    }
+
+    /**
+     * Oraliqdagi har bir Toshkent kalendar kuni ('Y-m-d') — grafik o'qi.
+     *
+     * @return list<string>
+     */
+    public function dates(): array
+    {
+        $out = [];
+        for ($d = $this->from->startOfDay(); $d->lte($this->to); $d = $d->addDay()) {
+            $out[] = $d->format('Y-m-d');
+        }
+
+        return $out;
     }
 
     /**

@@ -5,6 +5,7 @@ namespace App\Filament\Admin\Resources;
 use App\Enums\OrderStatus;
 use App\Filament\Admin\Resources\UserResource\Pages;
 use App\Models\User;
+use App\Services\Reporting\ReportPeriod;
 use App\Support\Money;
 use Filament\Forms\Components\DatePicker;
 use Filament\Infolists;
@@ -154,8 +155,9 @@ class UserResource extends Resource
                         DatePicker::make('until')->label('Gacha')->native(false),
                     ])
                     ->query(fn (Builder $query, array $data) => $query
-                        ->when($data['from'] ?? null, fn (Builder $q, $d) => $q->whereDate('created_at', '>=', $d))
-                        ->when($data['until'] ?? null, fn (Builder $q, $d) => $q->whereDate('created_at', '<=', $d)))
+                        // Toshkent kalendar kuni chegarasi (whereDate UTC sanani solishtirardi — REPORT-3).
+                        ->when($data['from'] ?? null, fn (Builder $q, $d) => $q->where('created_at', '>=', ReportPeriod::custom($d, $d)->fromUtc()))
+                        ->when($data['until'] ?? null, fn (Builder $q, $d) => $q->where('created_at', '<=', ReportPeriod::custom($d, $d)->toUtc())))
                     ->indicateUsing(function (array $data): array {
                         $out = [];
                         if ($data['from'] ?? null) {
