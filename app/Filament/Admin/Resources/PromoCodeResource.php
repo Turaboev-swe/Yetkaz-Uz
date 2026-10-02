@@ -132,10 +132,14 @@ class PromoCodeResource extends Resource
 
             Forms\Components\Toggle::make('is_active')->label('Faol')->default(true),
 
+            // Admin Toshkent vaqtini kiritadi va ko'radi, bazaga UTC yoziladi
+            // (zonasiz picker kiritilgan vaqtni UTC deb saqlardi — muddat 5 soat kech edi).
             Forms\Components\DateTimePicker::make('starts_at')->label('Boshlanish vaqti')->native(false)
-                ->helperText("Bo'sh — darhol boshlanadi."),
+                ->timezone(config('app.display_timezone'))
+                ->helperText("Toshkent vaqti. Bo'sh — darhol boshlanadi."),
             Forms\Components\DateTimePicker::make('ends_at')->label('Tugash vaqti')->native(false)
-                ->helperText("Bo'sh — muddatsiz."),
+                ->timezone(config('app.display_timezone'))
+                ->helperText("Toshkent vaqti. Bo'sh — muddatsiz."),
         ])->columns(2);
     }
 
@@ -193,9 +197,18 @@ class PromoCodeResource extends Resource
                     ->suffix(' marta')
                     ->toggleable(),
 
+                Tables\Columns\TextColumn::make('starts_at')
+                    ->label('Boshlanadi')
+                    ->dateTime('d.m.Y H:i')
+                    ->timezone(config('app.display_timezone'))
+                    ->placeholder('Darhol')
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
+
                 Tables\Columns\TextColumn::make('ends_at')
                     ->label('Tugaydi')
                     ->dateTime('d.m.Y H:i')
+                    ->timezone(config('app.display_timezone'))
                     ->placeholder('Muddatsiz')
                     ->sortable(),
             ])
