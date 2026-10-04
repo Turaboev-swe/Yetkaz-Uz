@@ -30,31 +30,24 @@ export default function RestaurantList() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    const base = useAsync(() => Promise.all([api.me(), api.districts()]), []);
+    const base = useAsync(() => api.me(), []);
 
     if (base.loading) return <Spinner />;
     if (base.error) return <ErrorState error={base.error} onRetry={base.reload} />;
 
-    const [me, districtsRes] = base.data;
-    return (
-        <Flow
-            addresses={me.data?.addresses || []}
-            districts={districtsRes.data || []}
-            justAddedAddressId={justAddedAddressId}
-        />
-    );
+    return <Flow addresses={base.data.data?.addresses || []} justAddedAddressId={justAddedAddressId} />;
 }
 
 /**
  * Oqim: manzil tasdiqlash/tanlash -> yetkazish/olib ketish rejimi -> ro'yxat.
  * Rejim har doim manzildan KEYIN, ro'yxatdan OLDIN so'raladi.
  */
-function Flow({ addresses: initialAddresses, districts, justAddedAddressId }) {
+function Flow({ addresses: initialAddresses, justAddedAddressId }) {
     const navigate = useNavigate();
     const { addressId, mode, ready, setAddress, confirmDelivery, choosePickup, reset } = useSession();
     const [step, setStep] = useState(null); // null | 'confirm' | 'pick' | 'mode'
     // Server ro'yxatidan boshlab olinadi, tahrirlash/o'chirishdan keyin lokal
-    // yangilanadi — har safar butun ekranni (me + districts) qayta yuklamaslik
+    // yangilanadi — har safar butun ekranni (me) qayta yuklamaslik
     // uchun (sheet ochiq turgan holda spinner miltillamasin).
     const [addresses, setAddresses] = useState(initialAddresses);
 
@@ -121,7 +114,6 @@ function Flow({ addresses: initialAddresses, districts, justAddedAddressId }) {
                 <Results
                     address={current}
                     pickup={mode === 'pickup'}
-                    districts={districts}
                     onChangeAddress={() => setStep('pick')}
                     onChangeMode={() => setStep('mode')}
                 />
@@ -167,29 +159,54 @@ function Flow({ addresses: initialAddresses, districts, justAddedAddressId }) {
     );
 }
 
-function Results({ address, pickup, districts, onChangeAddress, onChangeMode }) {
+/**
+ * Ro'yxatdagi restoranlar tegishli tumanlar (takrorsiz, nomi bo'yicha) — filtr
+ * chiplari faqat shulardan. Bo'sh tuman hech qachon chiqmaydi.
+ */
+function districtsOf(rows) {
+    const byId = new Map();
+    for (const r of rows) {
+        if (r.district?.id != null && !byId.has(r.district.id)) {
+            byId.set(r.district.id, { id: r.district.id, name: r.district.name });
+        }
+    }
+    return [...byId.values()].sort((a, b) => a.name.localeCompare(b.name, 'uz'));
+}
+
+function Results({ address, pickup, onChangeAddress, onChangeMode }) {
     const [districtId, setDistrictId] = useState(null);
 
+    // Ro'yxat doim TO'LIQ olinadi (district_id yuborilmaydi), tuman filtri
+    // shu ro'yxat ustida lokal ishlaydi — aks holda tuman tanlangach ro'yxatda
+    // bitta tuman qolib, filtr qatori o'zini yashirib qo'yardi. Server tartibi
+    // (ochiqlari oldin, keyin yaqinlik) filtrdan keyin ham saqlanadi.
     const list = useAsync(
         () =>
             address
                 ? api.restaurants({
                       address_id: address.id,
                       include_closed: 1,
-                      district_id: districtId ?? undefined,
                       delivery_type: pickup ? 'pickup' : 'delivery',
                   })
                 : Promise.resolve({ data: [] }),
-        [address?.id, districtId, pickup],
+        [address?.id, pickup],
     );
 
+    const rows = list.data?.data;
+    const districts = useMemo(() => districtsOf(rows || []), [rows]);
+
+    // Filtr faqat kamida ikki xil tuman bo'lsa. Tanlangan tuman yangi ro'yxatda
+    // qolmagan bo'lsa (manzil/rejim almashdi) — hammasi ko'rsatiladi.
+    const showFilter = districts.length >= 2;
+    const activeDistrict = showFilter && districts.some((d) => d.id === districtId) ? districtId : null;
+
     const { open, closed } = useMemo(() => {
-        const rows = list.data?.data || [];
+        const shown = (rows || []).filter((r) => activeDistrict == null || r.district?.id === activeDistrict);
         return {
-            open: rows.filter((r) => r.is_open_now),
-            closed: rows.filter((r) => !r.is_open_now),
+            open: shown.filter((r) => r.is_open_now),
+            closed: shown.filter((r) => !r.is_open_now),
         };
-    }, [list.data]);
+    }, [rows, activeDistrict]);
 
     return (
         <div className="mx-auto max-w-md px-4 pb-10 pt-1">
@@ -206,9 +223,11 @@ function Results({ address, pickup, districts, onChangeAddress, onChangeMode }) 
 
             <BannerCarousel />
 
-            <div className="sticky top-0 z-10 -mx-4 px-4 pb-2 pt-1" style={{ background: 'var(--tg-bg)' }}>
-                <DistrictFilter districts={districts} value={districtId} onChange={setDistrictId} />
-            </div>
+            {showFilter && (
+                <div className="sticky top-0 z-10 -mx-4 px-4 pb-2 pt-1" style={{ background: 'var(--tg-bg)' }}>
+                    <DistrictFilter districts={districts} value={activeDistrict} onChange={setDistrictId} />
+                </div>
+            )}
 
             {list.loading && <Spinner />}
             {list.error && <ErrorState error={list.error} onRetry={list.reload} />}
