@@ -5,6 +5,7 @@ import { useAsync } from '../hooks/useAsync';
 import { hideBackButton } from '../lib/telegram';
 import { useSession } from '../store/session';
 import AddressBar from '../components/AddressBar';
+import BannerCarousel from '../components/BannerCarousel';
 import DistrictFilter from '../components/DistrictFilter';
 import RestaurantCard from '../components/RestaurantCard';
 import AddressConfirmSheet from '../components/AddressConfirmSheet';
@@ -202,6 +203,8 @@ function Results({ address, pickup, districts, onChangeAddress, onChangeMode }) 
                     {pickup ? '🛍 Olib ketaman' : '🛵 Yetkazish'}
                 </button>
             </div>
+
+            <BannerCarousel />
 
             <div className="sticky top-0 z-10 -mx-4 px-4 pb-2 pt-1" style={{ background: 'var(--tg-bg)' }}>
                 <DistrictFilter districts={districts} value={districtId} onChange={setDistrictId} />

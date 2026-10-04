@@ -45,6 +45,8 @@ async function request(path, { params, method = 'GET', body } = {}) {
 export const api = {
     me: () => request('/me'),
     districts: () => request('/districts'),
+    // -> { data: [{ id, image_url, target_type: 'none'|'restaurant', restaurant_id }] }
+    banners: () => request('/banners'),
     restaurants: (params) => request('/restaurants', { params }),
     restaurant: (id, addressId) => request(`/restaurants/${id}`, { params: addressId ? { address_id: addressId } : undefined }),
     menu: (id) => request(`/restaurants/${id}/menu`),

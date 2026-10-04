@@ -255,6 +255,10 @@ return [
         'percent' => 'Процент (%)',
         'fixed' => 'Фиксированная сумма (сум)',
     ],
+    'banner_target' => [
+        'none' => 'Ничего',
+        'restaurant' => 'Меню ресторана',
+    ],
     'staff_role' => [
         'platform_admin' => 'Администратор платформы',
         'restaurant_owner' => 'Владелец ресторана',

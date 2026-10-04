@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\AddressController;
 use App\Http\Controllers\Api\AgentController;
+use App\Http\Controllers\Api\BannerController;
 use App\Http\Controllers\Api\GeoController;
 use App\Http\Controllers\Api\MeController;
 use App\Http\Controllers\Api\OrderController;
@@ -38,6 +39,7 @@ Route::middleware('telegram.initdata')->group(function () {
         Route::get('/districts', [GeoController::class, 'districts']);
         Route::get('/geo/reverse', [GeoController::class, 'reverse']);
 
+        Route::get('/banners', [BannerController::class, 'index']);
         Route::get('/restaurants', [RestaurantController::class, 'index']);
         Route::get('/restaurants/{restaurant}', [RestaurantController::class, 'show']);
         Route::get('/restaurants/{restaurant}/menu', [RestaurantController::class, 'menu']);

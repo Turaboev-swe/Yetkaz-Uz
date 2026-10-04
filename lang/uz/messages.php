@@ -257,6 +257,10 @@ return [
         'percent' => 'Foiz (%)',
         'fixed' => "Belgilangan summa (so'm)",
     ],
+    'banner_target' => [
+        'none' => 'Hech narsa',
+        'restaurant' => 'Restoran menyusi',
+    ],
     'staff_role' => [
         'platform_admin' => 'Platforma admini',
         'restaurant_owner' => 'Restoran egasi',
