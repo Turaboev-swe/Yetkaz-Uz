@@ -7,6 +7,7 @@ use App\Models\Concerns\HasGeneratedLocation;
 use App\Support\WorkHours;
 use Carbon\CarbonImmutable;
 use Database\Factories\RestaurantFactory;
+use DateTimeInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -164,6 +165,12 @@ class Restaurant extends Model
     /** is_open bayrog'i VA joriy vaqt (Asia/Tashkent) work_hours ichida. */
     public function isOpenNow(): bool
     {
+        return $this->isOpenAt(CarbonImmutable::now());
+    }
+
+    /** isOpenNow() — berilgan lahza uchun (ish vaqti Asia/Tashkent bo'yicha solishtiriladi). */
+    public function isOpenAt(DateTimeInterface $at): bool
+    {
         if (! $this->is_open) {
             return false;
         }
@@ -172,7 +179,7 @@ class Restaurant extends Model
 
         // Jadval bo'sh bo'lsa faqat is_open bayrog'iga tayanamiz.
         return $hours->isEmpty()
-            || $hours->isOpenAt(CarbonImmutable::now(config('app.display_timezone')));
+            || $hours->isOpenAt(CarbonImmutable::instance($at)->setTimezone(config('app.display_timezone')));
     }
 
     /** Reyting ommaviy ko'rsatiladigan minimal shart (Claude.md). */

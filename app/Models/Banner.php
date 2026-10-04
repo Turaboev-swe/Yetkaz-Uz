@@ -77,7 +77,8 @@ class Banner extends Model
     /**
      * Mijozga ko'rsatiladiganlar: faol, muddati ichida (ends_at — shu lahzani
      * ham o'z ichiga oladi, promo-kod bilan bir xil), restoran banneri bo'lsa —
-     * restoran faol (`is_open`).
+     * restoran `is_open`. Ish vaqti (work_hours) bu yerda EMAS — u JSON jadval,
+     * BannerFeed uni PHP'da `Restaurant::isOpenAt()` bilan tekshiradi.
      */
     public function scopeVisibleAt(Builder $query, CarbonInterface $now): Builder
     {
@@ -93,8 +94,9 @@ class Banner extends Model
     }
 
     /**
-     * Panel ro'yxatidagi holat — `scopeVisibleAt` bilan bir xil shartlar, birinchi
+     * Panel ro'yxatidagi holat — BannerFeed bilan bir xil shartlar, birinchi
      * mos kelmagani: off | scheduled | expired | restaurant_closed | live.
+     * restaurant_closed — `is_open` o'chiq YOKI hozir ish vaqtidan tashqari.
      */
     public function statusAt(CarbonInterface $now): string
     {
@@ -102,7 +104,7 @@ class Banner extends Model
             ! $this->is_active => 'off',
             $this->starts_at->gt($now) => 'scheduled',
             $this->ends_at !== null && $this->ends_at->lt($now) => 'expired',
-            $this->target_type === BannerTarget::Restaurant && ! $this->restaurant?->is_open => 'restaurant_closed',
+            $this->target_type === BannerTarget::Restaurant && ! $this->restaurant?->isOpenAt($now) => 'restaurant_closed',
             default => 'live',
         };
     }

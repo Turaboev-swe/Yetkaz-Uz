@@ -40,7 +40,7 @@ class BannerResource extends Resource
     public static function getEloquentQuery(): Builder
     {
         // Ro'yxatda restoran nomi va holati ko'rsatiladi — N+1 bo'lmasin.
-        return parent::getEloquentQuery()->with('restaurant:id,name,is_open');
+        return parent::getEloquentQuery()->with('restaurant:id,name,is_open,work_hours');
     }
 
     public static function form(Form $form): Form
@@ -90,7 +90,7 @@ class BannerResource extends Resource
                 ->preload()
                 ->visible(fn (Forms\Get $get): bool => $get('target_type') === BannerTarget::Restaurant->value)
                 ->required(fn (Forms\Get $get): bool => $get('target_type') === BannerTarget::Restaurant->value)
-                ->helperText("Restoran yopiq (\"Ochiq\" o'chirilgan) bo'lsa, banner mijozga ko'rsatilmaydi."),
+                ->helperText("Restoran yopiq bo'lsa (\"Ochiq\" o'chirilgan yoki ish vaqtidan tashqari), banner mijozga ko'rsatilmaydi."),
 
             Forms\Components\Toggle::make('is_active')->label('Faol')->default(true)->columnSpanFull(),
 

@@ -71,6 +71,45 @@ class BannerFeedTest extends TestCase
         $this->assertSame([$banner->id], $this->idsAt('2026-10-01 12:00'));
     }
 
+    public function test_restaurant_banner_is_hidden_outside_working_hours_in_tashkent_time(): void
+    {
+        // 2026-10-01 — payshanba. Ish vaqti 09:00–23:00 (Toshkent).
+        $restaurant = Restaurant::factory()->create([
+            'is_open' => true,
+            'work_hours' => ['thu' => [['09:00', '23:00']]],
+        ]);
+        $banner = Banner::factory()->forRestaurant($restaurant)->create(['starts_at' => $this->tashkent('2026-09-01 00:00')]);
+        $plain = Banner::factory()->create(['starts_at' => $this->tashkent('2026-09-01 00:00'), 'sort_order' => 9]);
+
+        $this->assertSame([$plain->id], $this->idsAt('2026-10-01 08:59:59'));
+        $this->assertSame([$banner->id, $plain->id], $this->idsAt('2026-10-01 09:00:00'));
+        $this->assertSame([$banner->id, $plain->id], $this->idsAt('2026-10-01 22:59:59'));
+        $this->assertSame([$plain->id], $this->idsAt('2026-10-01 23:00:00'));
+        // Juma — jadvalda yo'q, restoran butun kun yopiq.
+        $this->assertSame([$plain->id], $this->idsAt('2026-10-02 12:00:00'));
+    }
+
+    public function test_overnight_working_hours_are_respected(): void
+    {
+        // Payshanba 18:00–02:00 (Toshkent) — tungi oraliq.
+        $restaurant = Restaurant::factory()->create([
+            'is_open' => true,
+            'work_hours' => ['thu' => [['18:00', '02:00']]],
+        ]);
+        $banner = Banner::factory()->forRestaurant($restaurant)->create(['starts_at' => $this->tashkent('2026-09-01 00:00')]);
+
+        $this->assertSame([], $this->idsAt('2026-10-01 17:59'));
+        $this->assertSame([$banner->id], $this->idsAt('2026-10-01 23:30'));
+    }
+
+    public function test_restaurant_without_a_schedule_relies_on_is_open_only(): void
+    {
+        $restaurant = Restaurant::factory()->create(['is_open' => true, 'work_hours' => []]);
+        $banner = Banner::factory()->forRestaurant($restaurant)->create(['starts_at' => $this->tashkent('2026-09-01 00:00')]);
+
+        $this->assertSame([$banner->id], $this->idsAt('2026-10-01 03:00'));
+    }
+
     public function test_ordered_by_sort_order_then_creation(): void
     {
         $start = ['starts_at' => $this->tashkent('2026-10-01 00:00')];
@@ -91,5 +130,10 @@ class BannerFeedTest extends TestCase
         $this->assertSame('scheduled', Banner::factory()->make(['starts_at' => $now->copy()->addHour()])->statusAt($now));
         $this->assertSame('expired', Banner::factory()->make(['starts_at' => $now->copy()->subDay(), 'ends_at' => $now->copy()->subSecond()])->statusAt($now));
         $this->assertSame('restaurant_closed', Banner::factory()->forRestaurant($closed)->make(['starts_at' => $now->copy()->subHour()])->statusAt($now));
+
+        // is_open yoqilgan, lekin ish vaqtidan tashqari — panel ham "Restoran yopiq" deydi.
+        $afterHours = Restaurant::factory()->create(['is_open' => true, 'work_hours' => ['thu' => [['18:00', '23:00']]]]);
+        $this->assertSame('restaurant_closed', Banner::factory()->forRestaurant($afterHours)->make(['starts_at' => $now->copy()->subHour()])->statusAt($now));
+        $this->assertSame('live', Banner::factory()->forRestaurant($afterHours)->make(['starts_at' => $now->copy()->subHour()])->statusAt($this->tashkent('2026-10-01 19:00')));
     }
 }

@@ -81,6 +81,23 @@ class BannerApiTest extends TestCase
         $this->fetch()->assertOk()->assertJsonCount(1, 'data');
     }
 
+    public function test_banner_of_a_restaurant_outside_working_hours_is_hidden(): void
+    {
+        // Hozir yakshanba 12:00 (Toshkent). Restoran is_open yoqilgan, lekin
+        // yakshanba 18:00 dan ishlaydi.
+        $restaurant = Restaurant::factory()->create([
+            'is_open' => true,
+            'work_hours' => ['sun' => [['18:00', '23:00']]],
+        ]);
+        Banner::factory()->forRestaurant($restaurant)->create();
+
+        $this->fetch()->assertOk()->assertExactJson(['data' => []]);
+
+        Carbon::setTestNow(Carbon::parse('2026-10-04 18:00', 'Asia/Tashkent'));
+
+        $this->fetch()->assertOk()->assertJsonCount(1, 'data')->assertJsonPath('data.0.restaurant_id', $restaurant->id);
+    }
+
     public function test_empty_list_when_there_are_no_banners(): void
     {
         $this->fetch()->assertOk()->assertExactJson(['data' => []]);
