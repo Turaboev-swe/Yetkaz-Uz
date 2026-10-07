@@ -73,6 +73,7 @@ class UsersOverviewStats extends StatsOverviewWidget
 
         $previous = User::query()
             ->whereHas('orders', fn ($q) => $q
+                ->excludingTest()
                 ->where('status', OrderStatus::Delivered->value)
                 ->where('delivered_at', '>=', ReportPeriod::trailing(60)->fromUtc())
                 ->where('delivered_at', '<', ReportPeriod::trailing(30)->fromUtc()))

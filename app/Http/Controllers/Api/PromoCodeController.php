@@ -29,7 +29,7 @@ class PromoCodeController extends Controller
             'subtotal' => ['required', 'integer', 'min:0'], // savat summasi, tiyinда
         ]);
 
-        $restaurant = Restaurant::query()->findOrFail($data['restaurant_id']);
+        $restaurant = Restaurant::query()->visibleTo($request->user())->findOrFail($data['restaurant_id']);
         $result = $this->promoCodes->quote($data['promo_code'], $restaurant, (int) $data['subtotal'], $request->user());
 
         return response()->json(['data' => [

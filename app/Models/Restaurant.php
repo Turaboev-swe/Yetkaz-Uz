@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\PosType;
 use App\Models\Concerns\HasGeneratedLocation;
+use App\Support\TestAccess;
 use App\Support\WorkHours;
 use Carbon\CarbonImmutable;
 use Database\Factories\RestaurantFactory;
@@ -15,6 +16,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
+use Illuminate\Database\Query\Builder as QueryBuilder;
+use Illuminate\Support\Facades\DB;
 
 class Restaurant extends Model
 {
@@ -40,6 +43,7 @@ class Restaurant extends Model
         'min_order_amount',
         'delivery_fee',
         'is_open',
+        'is_test',
         'work_hours',
         'pos_type',
         'printer_host',
@@ -70,6 +74,7 @@ class Restaurant extends Model
             'min_order_amount' => 'integer',
             'delivery_fee' => 'integer',
             'is_open' => 'boolean',
+            'is_test' => 'boolean',
             'work_hours' => 'array',
             'pos_type' => PosType::class,
             'pos_credentials' => 'encrypted:array',
@@ -155,6 +160,32 @@ class Restaurant extends Model
     public function scopeOpen(Builder $query): Builder
     {
         return $query->where('is_open', true);
+    }
+
+    /**
+     * Mijozga ko'rinadigan restoranlar: test restoran (is_test) faqat
+     * TEST_TELEGRAM_IDS dagi hisoblarga (TestAccess). Ro'yxat bo'sh bo'lsa —
+     * hech kimga.
+     */
+    public function scopeVisibleTo(Builder $query, ?User $user): Builder
+    {
+        return TestAccess::isTester($user)
+            ? $query
+            : $query->where($this->qualifyColumn('is_test'), false);
+    }
+
+    public function isVisibleTo(?User $user): bool
+    {
+        return ! $this->is_test || TestAccess::isTester($user);
+    }
+
+    /**
+     * Test restoranlar id'lari — `whereNotIn(..., Restaurant::testIdsQuery())`
+     * uchun subquery. DB::table — Eloquent global scope'larini chetlab.
+     */
+    public static function testIdsQuery(): QueryBuilder
+    {
+        return DB::table('restaurants')->select('id')->where('is_test', true);
     }
 
     public function workHours(): WorkHours

@@ -49,12 +49,13 @@ class UserResource extends Resource
     public static function getEloquentQuery(): Builder
     {
         return parent::getEloquentQuery()
-            ->withCount('orders')
+            ->withCount(['orders' => fn (Builder $q) => $q->excludingTest()])
+            // Test restoran (is_test) buyurtmalari statistikaga kirmaydi — excludingTest().
             // "Oxirgi buyurtma" / "Jami xarid" — faqat yetkazilgan buyurtmalardan,
             // bitta so'rovda (N+1 yo'q). withSum null qaytaradi (delivered
             // buyurtma bo'lmasa) — ustunda shuni 0 so'мга aylantiramiz.
-            ->withMax(['orders as last_delivered_at' => fn (Builder $q) => $q->where('status', OrderStatus::Delivered->value)], 'delivered_at')
-            ->withSum(['orders as delivered_total_tiyin' => fn (Builder $q) => $q->where('status', OrderStatus::Delivered->value)], 'total');
+            ->withMax(['orders as last_delivered_at' => fn (Builder $q) => $q->excludingTest()->where('status', OrderStatus::Delivered->value)], 'delivered_at')
+            ->withSum(['orders as delivered_total_tiyin' => fn (Builder $q) => $q->excludingTest()->where('status', OrderStatus::Delivered->value)], 'total');
     }
 
     public static function table(Table $table): Table
@@ -89,7 +90,7 @@ class UserResource extends Resource
 
                 Tables\Columns\TextColumn::make('orders_count')
                     ->label('Buyurtmalar')
-                    ->state(fn (User $record): int => $record->orders_count ?? $record->orders()->count())
+                    ->state(fn (User $record): int => $record->orders_count ?? $record->orders()->excludingTest()->count())
                     ->sortable(),
 
                 Tables\Columns\TextColumn::make('last_delivered_at')
@@ -97,7 +98,7 @@ class UserResource extends Resource
                     // orders_count'dagi kabi zaxira — aggregat yuklanmagan
                     // (masalan getEloquentQuery() dan tashqari) holatda ham to'g'ri.
                     ->state(fn (User $record) => $record->last_delivered_at
-                        ?? $record->orders()->where('status', OrderStatus::Delivered->value)->max('delivered_at'))
+                        ?? $record->orders()->excludingTest()->where('status', OrderStatus::Delivered->value)->max('delivered_at'))
                     ->since()
                     ->placeholder('—')
                     ->sortable(),
@@ -105,7 +106,7 @@ class UserResource extends Resource
                 Tables\Columns\TextColumn::make('delivered_total_tiyin')
                     ->label('Jami xarid')
                     ->state(fn (User $record) => $record->delivered_total_tiyin
-                        ?? $record->orders()->where('status', OrderStatus::Delivered->value)->sum('total'))
+                        ?? $record->orders()->excludingTest()->where('status', OrderStatus::Delivered->value)->sum('total'))
                     ->formatStateUsing(fn (?int $state): string => Money::soms($state ?? 0))
                     ->sortable(),
 
@@ -186,7 +187,7 @@ class UserResource extends Resource
             Infolists\Components\TextEntry::make('language')->label('Til')
                 ->formatStateUsing(fn (?string $state): string => $state ? __("messages.settings.lang_{$state}") : '—'),
             Infolists\Components\TextEntry::make('orders_count')->label('Jami buyurtmalar')
-                ->state(fn (User $record): int => $record->orders()->count()),
+                ->state(fn (User $record): int => $record->orders()->excludingTest()->count()),
             Infolists\Components\TextEntry::make('created_at')->label("Ro'yxatdan o'tgan")->dateTime('d.m.Y H:i'),
             Infolists\Components\RepeatableEntry::make('addresses')->label('Manzillar')
                 ->schema([

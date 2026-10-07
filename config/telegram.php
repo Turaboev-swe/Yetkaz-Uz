@@ -36,4 +36,14 @@ return [
     */
     'dev_init_data' => env('TELEGRAM_DEV_INIT_DATA'),
 
+    /*
+    | Test restoran (restaurants.is_test) ko'radigan Telegram hisoblar —
+    | vergul bilan ajratilgan telegram_id ro'yxati. Bo'sh bo'lsa test restoran
+    | HECH KIMGA ko'rinmaydi (xavfsiz standart). Qarang: App\Support\TestAccess.
+    */
+    'test_telegram_ids' => array_values(array_filter(
+        array_map('trim', explode(',', (string) env('TEST_TELEGRAM_IDS', ''))),
+        fn (string $id) => ctype_digit($id),
+    )),
+
 ];

@@ -133,6 +133,12 @@ class Order extends Model
         return $query->whereIn('status', OrderStatus::activeValues());
     }
 
+    /** Test restoran (is_test) buyurtmalarisiz — hisobot va statistika uchun. */
+    public function scopeExcludingTest(Builder $query): Builder
+    {
+        return $query->whereNotIn($this->qualifyColumn('restaurant_id'), Restaurant::testIdsQuery());
+    }
+
     /** RestaurantScope tomonidan chaqiriladi (restaurant_owner uchun). */
     public function scopeForRestaurant(Builder $query, int $restaurantId): Builder
     {

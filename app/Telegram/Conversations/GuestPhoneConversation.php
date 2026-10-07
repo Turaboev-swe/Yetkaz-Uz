@@ -109,8 +109,9 @@ class GuestPhoneConversation extends Conversation
         $restaurantId = $this->restaurantId
             ?? app(LastRestaurantStore::class)->get((int) $bot->userId());
 
+        // Test restoran (is_test) — faqat TEST_TELEGRAM_IDS dagi hisoblarga.
         $restaurant = $restaurantId !== null
-            ? Restaurant::query()->find($restaurantId)
+            ? Restaurant::query()->visibleTo($this->user($bot))->find($restaurantId)
             : null;
 
         $keyboard = MiniApp::button(

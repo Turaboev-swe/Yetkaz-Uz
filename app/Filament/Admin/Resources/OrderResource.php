@@ -7,11 +7,13 @@ use App\Enums\OrderStatus;
 use App\Enums\PaymentStatus;
 use App\Filament\Admin\Resources\OrderResource\Pages;
 use App\Models\Order;
+use App\Models\Restaurant;
 use Filament\Infolists;
 use Filament\Infolists\Infolist;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 
 /**
  * Platforma admini barcha restoranlarning buyurtmalarini ko'radi (faqat ko'rish).
@@ -36,7 +38,10 @@ class OrderResource extends Resource
             ->defaultSort('created_at', 'desc')
             ->columns([
                 Tables\Columns\TextColumn::make('order_number')->label('Raqam')->searchable(),
-                Tables\Columns\TextColumn::make('restaurant.name')->label('Restoran')->searchable()->sortable(),
+                Tables\Columns\TextColumn::make('restaurant.name')->label('Restoran')->searchable()->sortable()
+                    // Test restoran buyurtmasi ko'rinadi, lekin ajralib turadi (hisobotlarga kirmaydi).
+                    ->formatStateUsing(fn (string $state, Order $record): string => $record->restaurant?->is_test ? "🧪 Test · {$state}" : $state)
+                    ->color(fn (Order $record): ?string => $record->restaurant?->is_test ? 'warning' : null),
                 Tables\Columns\TextColumn::make('user.full_name')->label('Mijoz')->placeholder('—'),
                 Tables\Columns\TextColumn::make('status')->label('Holat')->badge()
                     ->formatStateUsing(fn (OrderStatus $state) => $state->label()),
@@ -57,6 +62,15 @@ class OrderResource extends Resource
                 Tables\Filters\SelectFilter::make('restaurant_id')->label('Restoran')->relationship('restaurant', 'name'),
                 Tables\Filters\SelectFilter::make('status')
                     ->options(collect(OrderStatus::cases())->mapWithKeys(fn ($c) => [$c->value => $c->label()])),
+                Tables\Filters\TernaryFilter::make('is_test')->label('🧪 Test buyurtmalar')
+                    ->placeholder('Hammasi')
+                    ->trueLabel('Faqat test')
+                    ->falseLabel('Testsiz (haqiqiy)')
+                    ->queries(
+                        true: fn (Builder $query) => $query->whereIn('restaurant_id', Restaurant::testIdsQuery()),
+                        false: fn (Builder $query) => $query->excludingTest(),
+                        blank: fn (Builder $query) => $query,
+                    ),
             ])
             ->actions([
                 Tables\Actions\ViewAction::make(),
@@ -67,7 +81,8 @@ class OrderResource extends Resource
     {
         return $infolist->schema([
             Infolists\Components\TextEntry::make('order_number')->label('Raqam'),
-            Infolists\Components\TextEntry::make('restaurant.name')->label('Restoran'),
+            Infolists\Components\TextEntry::make('restaurant.name')->label('Restoran')
+                ->formatStateUsing(fn (string $state, Order $record): string => $record->restaurant?->is_test ? "🧪 Test · {$state}" : $state),
             Infolists\Components\TextEntry::make('user.full_name')->label('Mijoz'),
             Infolists\Components\TextEntry::make('user.phone')->label('Telefon'),
             Infolists\Components\TextEntry::make('status')->label('Holat')->badge()

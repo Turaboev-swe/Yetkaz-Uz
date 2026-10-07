@@ -25,7 +25,7 @@ class SearchController extends Controller
         $address = $this->resolveUserAddress($request);
 
         return SearchResultResource::collection(
-            $this->search->search($validated['q'], $address),
+            $this->search->search($validated['q'], $address, $request->user()),
         );
     }
 }

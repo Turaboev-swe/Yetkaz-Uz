@@ -54,7 +54,9 @@ class OrderService
             throw new PhoneRequiredException;
         }
 
-        $restaurant = Restaurant::query()->findOrFail($data['restaurant_id']);
+        // Test restoran (is_test) — faqat TEST_TELEGRAM_IDS dagi hisoblar. Boshqalarga
+        // u "mavjud emas" (404): havola yoki qo'lda yuborilgan restaurant_id ham o'tmaydi.
+        $restaurant = Restaurant::query()->visibleTo($user)->findOrFail($data['restaurant_id']);
 
         if (! $restaurant->isOpenNow()) {
             throw ValidationException::withMessages(['restaurant' => __('messages.restaurant_closed')]);
@@ -151,7 +153,7 @@ class OrderService
      */
     public function estimateEta(User $user, array $data): EtaEstimate
     {
-        $restaurant = Restaurant::query()->findOrFail($data['restaurant_id']);
+        $restaurant = Restaurant::query()->visibleTo($user)->findOrFail($data['restaurant_id']);
         $type = DeliveryType::from($data['delivery_type']);
 
         $distanceKm = null;
@@ -179,7 +181,7 @@ class OrderService
      */
     public function estimateDeliveryFee(User $user, array $data): array
     {
-        $restaurant = Restaurant::query()->findOrFail($data['restaurant_id']);
+        $restaurant = Restaurant::query()->visibleTo($user)->findOrFail($data['restaurant_id']);
         $type = DeliveryType::from($data['delivery_type']);
 
         $distanceKm = null;

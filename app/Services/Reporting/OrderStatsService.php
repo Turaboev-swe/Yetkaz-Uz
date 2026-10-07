@@ -3,6 +3,7 @@
 namespace App\Services\Reporting;
 
 use App\Enums\OrderStatus;
+use App\Models\Restaurant;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -19,6 +20,10 @@ use Illuminate\Support\Facades\DB;
  * faqat RESTORAN qoplaydigan qism kamayadi; ulush 0% bo'lsa daromad chegirmasiz
  * summaga teng. Faqat yetkazilgan buyurtmalar. Chegirma taqsimoti buyurtmadagi
  * snapshot'dan — promo_codes'dan emas.
+ *
+ * Test restoran (restaurants.is_test) buyurtmalari platforma hisobotlariga
+ * KIRMAYDI ($restaurantId = null yoki topRestaurants). Bitta restoran
+ * so'ralganda esa — o'sha restoranning o'z ma'lumoti (scopeRestaurant()).
  */
 class OrderStatsService
 {
@@ -68,6 +73,7 @@ class OrderStatsService
     {
         return DB::table('orders as o')
             ->join('restaurants as r', 'r.id', '=', 'o.restaurant_id')
+            ->whereNotIn('o.restaurant_id', Restaurant::testIdsQuery())
             ->whereBetween('o.created_at', [$period->fromUtc(), $period->toUtc()])
             ->groupBy('o.restaurant_id', 'r.name')
             ->orderByDesc('orders')
@@ -123,9 +129,7 @@ class OrderStatsService
                 SUM(o.discount_platform_amount) AS platform_amount_tiyin
             ');
 
-        if ($restaurantId !== null) {
-            $q->where('o.restaurant_id', $restaurantId);
-        }
+        $this->scopeRestaurant($q, $restaurantId, 'o.restaurant_id');
 
         return $q->get()->map(fn ($r) => [
             'restaurant_id' => (int) $r->restaurant_id,
@@ -167,9 +171,7 @@ class OrderStatsService
                 ROUND(100.0 * COUNT(*) FILTER (WHERE o.dispatch_failed_at IS NOT NULL) / NULLIF(COUNT(*), 0), 1) AS print_failed_pct
             ");
 
-        if ($restaurantId !== null) {
-            $q->where('o.restaurant_id', $restaurantId);
-        }
+        $this->scopeRestaurant($q, $restaurantId, 'o.restaurant_id');
 
         return $q->get()->map(fn ($r) => [
             'restaurant_id' => (int) $r->restaurant_id,
@@ -206,9 +208,7 @@ class OrderStatsService
                 SUM((e->>'qty')::int * (e->>'price')::bigint) AS revenue_tiyin
             ");
 
-        if ($restaurantId !== null) {
-            $q->where('o.restaurant_id', $restaurantId);
-        }
+        $this->scopeRestaurant($q, $restaurantId, 'o.restaurant_id');
 
         return $q->get()->map(fn ($r) => [
             'product_id' => (int) $r->product_id,
@@ -241,11 +241,23 @@ class OrderStatsService
         $q = DB::table('orders')
             ->whereBetween('created_at', [$period->fromUtc(), $period->toUtc()]);
 
-        if ($restaurantId !== null) {
-            $q->where('restaurant_id', $restaurantId);
-        }
+        $this->scopeRestaurant($q, $restaurantId, 'restaurant_id');
 
         return $q;
+    }
+
+    /**
+     * Bitta restoran so'ralsa — faqat uning buyurtmalari (test restoran o'z
+     * panelida o'z statistikasini ko'radi). Platforma bo'yicha (null) — test
+     * restoran (is_test) buyurtmalari CHIQARILADI: ular hisobotga kirmaydi.
+     */
+    private function scopeRestaurant(Builder $q, ?int $restaurantId, string $column): void
+    {
+        if ($restaurantId !== null) {
+            $q->where($column, $restaurantId);
+        } else {
+            $q->whereNotIn($column, Restaurant::testIdsQuery());
+        }
     }
 
     private function toMinutes(int|float|string|null $seconds): ?float

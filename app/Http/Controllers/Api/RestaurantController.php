@@ -46,6 +46,7 @@ class RestaurantController extends Controller
                 $validated['district_id'] ?? null,
                 (bool) ($validated['include_closed'] ?? false),
                 isset($validated['delivery_type']) ? DeliveryType::from($validated['delivery_type']) : DeliveryType::Delivery,
+                $request->user(),
             ),
         );
     }
@@ -53,9 +54,12 @@ class RestaurantController extends Controller
     /**
      * GET /api/restaurants/{restaurant}?address_id= — bitta restoran.
      * `address_id` berilsa `distance_km` ham qaytadi (rasmiylashtirish ekrani uchun).
+     * Test restoran testerdan boshqasiga 404 (mavjudligi ham oshkor qilinmaydi).
      */
     public function show(Request $request, Restaurant $restaurant): RestaurantResource
     {
+        abort_unless($restaurant->isVisibleTo($request->user()), 404);
+
         $restaurant->load('district.region');
 
         if ($request->filled('address_id')) {
@@ -69,8 +73,10 @@ class RestaurantController extends Controller
     }
 
     /** GET /api/restaurants/{restaurant}/menu — faol kategoriyalar + mavjud taomlar. */
-    public function menu(Restaurant $restaurant): AnonymousResourceCollection
+    public function menu(Request $request, Restaurant $restaurant): AnonymousResourceCollection
     {
+        abort_unless($restaurant->isVisibleTo($request->user()), 404);
+
         return CategoryResource::collection(
             $this->menuService->forRestaurant($restaurant),
         );

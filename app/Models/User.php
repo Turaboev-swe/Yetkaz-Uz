@@ -64,6 +64,11 @@ class User extends Authenticatable
         return $query->where('telegram_id', $telegramId);
     }
 
+    /*
+     * Faol / Nofaol / Qaytgan — statistika: test restoran (is_test) buyurtmalari
+     * hisobga olinmaydi (Order::excludingTest).
+     */
+
     /**
      * "Faol mijoz" — /admin "Mijozlar": so'nggi `$days` kun ichida kamida
      * bitta `delivered` buyurtmasi bor. Bekor qilingan va boshqa statuslar
@@ -72,6 +77,7 @@ class User extends Authenticatable
     public function scopeActiveSince(Builder $query, int $days): Builder
     {
         return $query->whereHas('orders', fn (Builder $q) => $q
+            ->excludingTest()
             ->where('status', OrderStatus::Delivered->value)
             ->where('delivered_at', '>=', ReportPeriod::trailing($days)->fromUtc()));
     }
@@ -84,8 +90,9 @@ class User extends Authenticatable
     public function scopeInactiveFor(Builder $query, int $days): Builder
     {
         return $query
-            ->whereHas('orders', fn (Builder $q) => $q->where('status', OrderStatus::Delivered->value))
+            ->whereHas('orders', fn (Builder $q) => $q->excludingTest()->where('status', OrderStatus::Delivered->value))
             ->whereDoesntHave('orders', fn (Builder $q) => $q
+                ->excludingTest()
                 ->where('status', OrderStatus::Delivered->value)
                 ->where('delivered_at', '>=', ReportPeriod::trailing($days)->fromUtc()));
     }
@@ -95,7 +102,7 @@ class User extends Authenticatable
     {
         return $query->whereHas(
             'orders',
-            fn (Builder $q) => $q->where('status', OrderStatus::Delivered->value),
+            fn (Builder $q) => $q->excludingTest()->where('status', OrderStatus::Delivered->value),
             '>=',
             2,
         );

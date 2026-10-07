@@ -43,6 +43,9 @@ class RestaurantResource extends Resource
                     ->helperText('Yangi buyurtmalar shu Telegram chatga keladi. Egasi botга /id yozib oladi.')
                     ->maxLength(32),
                 Forms\Components\Toggle::make('is_open')->label('Ochiq')->default(true),
+                Forms\Components\Checkbox::make('is_test')->label('🧪 Test restoran')
+                    ->helperText("Faqat TEST_TELEGRAM_IDS dagi hisoblarga ko'rinadi, hisobotlarga kirmaydi")
+                    ->default(false),
             ])->columns(2),
 
             Forms\Components\Section::make('Joylashuv')
@@ -106,7 +109,8 @@ class RestaurantResource extends Resource
         return $table
             ->columns([
                 Tables\Columns\ImageColumn::make('logo_url')->label('')->disk('public')->circular(),
-                Tables\Columns\TextColumn::make('name')->label('Nomi')->searchable()->sortable(),
+                Tables\Columns\TextColumn::make('name')->label('Nomi')->searchable()->sortable()
+                    ->description(fn (Restaurant $record): ?string => $record->is_test ? '🧪 Test restoran' : null),
                 Tables\Columns\TextColumn::make('district.name')->label('Tuman')->sortable(),
                 Tables\Columns\TextColumn::make('district.region.name')->label('Viloyat')->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('pos_type')->label('POS')
@@ -118,6 +122,7 @@ class RestaurantResource extends Resource
             ->filters([
                 Tables\Filters\SelectFilter::make('district_id')->label('Tuman')
                     ->relationship('district', 'name')->searchable(),
+                Tables\Filters\TernaryFilter::make('is_test')->label('🧪 Test restoran'),
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),

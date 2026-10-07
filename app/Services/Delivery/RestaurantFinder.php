@@ -5,6 +5,7 @@ namespace App\Services\Delivery;
 use App\Enums\DeliveryType;
 use App\Models\Address;
 use App\Models\Restaurant;
+use App\Models\User;
 use Illuminate\Support\Collection;
 
 /**
@@ -34,6 +35,8 @@ class RestaurantFinder
      *                               Yopiqlar `is_open_now = false` bilan belgilanadi.
      * @param  DeliveryType  $type  delivery — restoranning o'z radiusi; pickup —
      *                              kengroq FIKS radius, restoran radiusi qo'llanmaydi.
+     * @param  User|null  $viewer  test restoran (is_test) faqat TEST_TELEGRAM_IDS dagi
+     *                             hisoblarga; null — hech kimga ko'rsatilmaydi.
      * @return Collection<int, Restaurant>
      */
     public function deliveringTo(
@@ -41,9 +44,11 @@ class RestaurantFinder
         ?int $districtId = null,
         bool $includeClosed = false,
         DeliveryType $type = DeliveryType::Delivery,
+        ?User $viewer = null,
     ): Collection {
         $restaurants = Restaurant::query()
             ->select('restaurants.*')
+            ->visibleTo($viewer)
             ->when(! $includeClosed, fn ($q) => $q->where('is_open', true))
             ->when($districtId, fn ($q) => $q->where('district_id', $districtId))
             ->when(

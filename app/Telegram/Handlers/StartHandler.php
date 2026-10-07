@@ -63,10 +63,10 @@ class StartHandler
         // 2. Restoran chuqur havolasi: ?start=r_{id}
         if ($payload['restaurant_id'] !== null) {
             if ($user->profile_completed) {
-                $this->openMenu($bot, $payload['restaurant_id'], guest: false);
+                $this->openMenu($bot, $user, $payload['restaurant_id'], guest: false);
             } else {
                 // Mehmon: to'liq ro'yxatdan o'tkazMAYmiz — menyu ochiladi.
-                $this->openMenu($bot, $payload['restaurant_id'], guest: true);
+                $this->openMenu($bot, $user, $payload['restaurant_id'], guest: true);
             }
 
             return;
@@ -90,7 +90,7 @@ class StartHandler
     {
         // Allaqachon to'liq — hech qachon qayta so'ramaymiz, to'g'ridan-to'g'ri menyuga.
         if ($user->profile_completed && filled($user->phone)) {
-            $this->openMenu($bot, $restaurantId ?? $this->lastRestaurant->get($from->id), guest: false);
+            $this->openMenu($bot, $user, $restaurantId ?? $this->lastRestaurant->get($from->id), guest: false);
 
             return;
         }
@@ -99,10 +99,12 @@ class StartHandler
         GuestPhoneConversation::begin($bot, data: ['restaurantId' => $restaurantId]);
     }
 
-    private function openMenu(Nutgram $bot, ?int $restaurantId, bool $guest): void
+    private function openMenu(Nutgram $bot, User $user, ?int $restaurantId, bool $guest): void
     {
+        // Test restoran (is_test) testerdan boshqasiga mavjud bo'lmagan restoran kabi:
+        // nomi ham, ?r=id ham oshkor qilinmaydi — umumiy "Ochish" tugmasi.
         $restaurant = $restaurantId !== null
-            ? Restaurant::query()->find($restaurantId)
+            ? Restaurant::query()->visibleTo($user)->find($restaurantId)
             : null;
 
         $params = [];

@@ -4,6 +4,8 @@ namespace App\Services\Search;
 
 use App\Models\Address;
 use App\Models\Product;
+use App\Models\User;
+use App\Support\TestAccess;
 use Illuminate\Support\Collection;
 
 /**
@@ -15,8 +17,12 @@ use Illuminate\Support\Collection;
  */
 class ProductSearchService
 {
-    /** @return Collection<int, Product>  har element `distance_km` bilan, `category.restaurant` yuklangan */
-    public function search(string $term, Address $address): Collection
+    /**
+     * @param  User|null  $viewer  test restoran (is_test) taomlari faqat TEST_TELEGRAM_IDS
+     *                             dagi hisoblarga; null — hech kimga.
+     * @return Collection<int, Product> har element `distance_km` bilan, `category.restaurant` yuklangan
+     */
+    public function search(string $term, Address $address, ?User $viewer = null): Collection
     {
         $term = trim($term);
 
@@ -32,6 +38,7 @@ class ProductSearchService
             ->where('products.is_available', true)
             ->where('categories.is_active', true)
             ->where('restaurants.is_open', true)
+            ->when(! TestAccess::isTester($viewer), fn ($q) => $q->where('restaurants.is_test', false))
             ->whereRaw(
                 'ST_DWithin(restaurants.location, ST_SetSRID(ST_MakePoint(?, ?), 4326)::geography, restaurants.delivery_radius_km * 1000)',
                 [$lng, $lat],
