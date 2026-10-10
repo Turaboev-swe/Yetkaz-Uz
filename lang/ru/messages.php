@@ -74,6 +74,7 @@ return [
         'saved_suggestion' => "Спасибо! Ваше предложение будет рассмотрено, постараемся внедрить его при возможности.",
         'saved_complaint' => "Извините! Ваша жалоба принята, скоро свяжемся с вами.",
         'admin_notify' => "💬 Новое сообщение: :type_label\nПользователь: :name (:phone)\n\n:message",
+        'reply' => "💬 Ответ от команды Yetkaz Uz\n\nВаше предложение / жалоба:\n«:excerpt»\n\n:reply",
     ],
 
     'feedback_type' => [

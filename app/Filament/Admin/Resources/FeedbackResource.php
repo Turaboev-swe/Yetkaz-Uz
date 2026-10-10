@@ -2,10 +2,15 @@
 
 namespace App\Filament\Admin\Resources;
 
+use App\Enums\FeedbackStatus;
 use App\Enums\FeedbackType;
 use App\Filament\Admin\Resources\FeedbackResource\Pages;
 use App\Models\Feedback;
+use App\Services\Feedback\FeedbackReplyService;
+use Filament\Facades\Filament;
+use Filament\Forms;
 use Filament\Infolists;
+use Filament\Notifications\Notification;
 use Filament\Infolists\Infolist;
 use Filament\Resources\Resource;
 use Filament\Tables;
@@ -59,8 +64,18 @@ class FeedbackResource extends Resource
                     ->label('Matn')
                     ->limit(60)
                     ->wrap(),
+
+                Tables\Columns\TextColumn::make('status')
+                    ->label('Holat')
+                    ->badge()
+                    ->formatStateUsing(fn (FeedbackStatus $state): string => $state->label())
+                    ->color(fn (FeedbackStatus $state): string => $state->color()),
             ])
             ->filters([
+                SelectFilter::make('status')
+                    ->label('Holat')
+                    ->options(collect(FeedbackStatus::cases())->mapWithKeys(fn (FeedbackStatus $s) => [$s->value => $s->label()])->all()),
+
                 SelectFilter::make('type')
                     ->label('Turi')
                     ->options([
@@ -70,6 +85,7 @@ class FeedbackResource extends Resource
             ])
             ->actions([
                 Tables\Actions\ViewAction::make()->label('Ko\'rish'),
+                static::replyAction(),
             ])
             ->bulkActions([])
             ->emptyStateHeading("Hali fikr-mulohaza yo'q");
@@ -84,7 +100,64 @@ class FeedbackResource extends Resource
             Infolists\Components\TextEntry::make('user.full_name')->label('Foydalanuvchi')->placeholder('—'),
             Infolists\Components\TextEntry::make('user.phone')->label('Telefon')->placeholder('—'),
             Infolists\Components\TextEntry::make('message')->label('Matn')->columnSpanFull(),
+
+            Infolists\Components\Section::make('Admin javobi')
+                ->columns(2)
+                ->columnSpanFull()
+                ->schema([
+                    Infolists\Components\TextEntry::make('status')->label('Holat')
+                        ->formatStateUsing(fn (FeedbackStatus $state): string => $state->label()),
+                    Infolists\Components\TextEntry::make('reply_delivered')->label('Yetkazilishi')
+                        ->state(fn (Feedback $record): string => match ($record->reply_delivered) {
+                            true => '✅ Yetkazildi',
+                            false => '❌ Yetkazilmadi (bot bloklangan)',
+                            null => $record->admin_reply === null ? '—' : '⏳ Yuborilmoqda',
+                        })
+                        ->visible(fn (Feedback $record): bool => $record->admin_reply !== null),
+                    Infolists\Components\TextEntry::make('admin_reply')->label('Javob')->columnSpanFull()
+                        ->placeholder('Hali javob berilmagan'),
+                    Infolists\Components\TextEntry::make('repliedBy.name')->label('Kim javob berdi')
+                        ->visible(fn (Feedback $record): bool => $record->admin_reply !== null),
+                    Infolists\Components\TextEntry::make('replied_at')->label('Qachon')->dateTime('d.m.Y H:i')
+                        ->visible(fn (Feedback $record): bool => $record->admin_reply !== null),
+                ]),
         ]);
+    }
+
+    /** "Javob berish" (yangi) yoki "Qayta javob" (eskisi o'rniga saqlanadi). */
+    public static function replyAction(): Tables\Actions\Action
+    {
+        return Tables\Actions\Action::make('reply')
+            ->label(fn (Feedback $record): string => $record->status === FeedbackStatus::Answered ? 'Qayta javob' : 'Javob berish')
+            ->icon('heroicon-o-paper-airplane')
+            ->authorize('reply')
+            ->modalHeading(fn (Feedback $record): string => $record->status === FeedbackStatus::Answered ? 'Qayta javob (eskisi o‘rniga saqlanadi)' : 'Mijozga javob')
+            ->modalDescription(fn (Feedback $record): string => $record->message)
+            ->form(static::replyFormSchema())
+            ->action(function (Feedback $record, array $data): void {
+                static::sendReply($record, $data);
+            });
+    }
+
+    /** @return array<int, Forms\Components\Component> */
+    public static function replyFormSchema(): array
+    {
+        return [
+            Forms\Components\Textarea::make('reply')
+                ->label('Javob matni')
+                ->required()
+                ->rule('regex:/\S/u')
+                ->maxLength(3000)
+                ->rows(6),
+        ];
+    }
+
+    /** @param array{reply: string} $data */
+    public static function sendReply(Feedback $record, array $data): void
+    {
+        app(FeedbackReplyService::class)->reply($record, Filament::auth()->user(), $data['reply']);
+
+        Notification::make()->title('Javob mijozga yuborilmoqda')->success()->send();
     }
 
     public static function getPages(): array

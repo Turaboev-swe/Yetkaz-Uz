@@ -75,6 +75,7 @@ return [
         'saved_suggestion' => "Rahmat! Taklifingiz ko‘rib chiqiladi va imkon qadar joriy qilishga harakat qilamiz.",
         'saved_complaint' => "Kechirasiz! Shikoyatingiz qabul qilindi, tez orada aloqaga chiqamiz.",
         'admin_notify' => "💬 Yangi :type_label\nFoydalanuvchi: :name (:phone)\n\n:message",
+        'reply' => "💬 Yetkaz Uz jamoasidan javob\n\nSizning taklifingiz / shikoyatingiz:\n«:excerpt»\n\n:reply",
     ],
 
     'feedback_type' => [

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\FeedbackStatus;
 use App\Enums\FeedbackType;
 use Database\Factories\FeedbackFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -24,6 +25,11 @@ class Feedback extends Model
         'user_id',
         'type',
         'message',
+        'status',
+        'admin_reply',
+        'replied_at',
+        'replied_by',
+        'reply_delivered',
         'created_at',
     ];
 
@@ -31,8 +37,17 @@ class Feedback extends Model
     {
         return [
             'type' => FeedbackType::class,
+            'status' => FeedbackStatus::class,
+            'replied_at' => 'datetime',
+            'reply_delivered' => 'boolean',
             'created_at' => 'datetime',
         ];
+    }
+
+    /** @return BelongsTo<Staff, Feedback> */
+    public function repliedBy(): BelongsTo
+    {
+        return $this->belongsTo(Staff::class, 'replied_by');
     }
 
     /** @return BelongsTo<User, Feedback> */

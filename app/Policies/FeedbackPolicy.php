@@ -21,6 +21,11 @@ class FeedbackPolicy
         return $staff->isPlatformAdmin();
     }
 
+    public function reply(Staff $staff, Feedback $feedback): bool
+    {
+        return $staff->isPlatformAdmin();
+    }
+
     public function create(Staff $staff): bool
     {
         return false;
