@@ -222,17 +222,36 @@ class OrderStatsService
      * Kunlik buyurtmalar (grafik) — oraliqдаги har Toshkent kalendar kuni uchun
      * qator, bo'sh kun = 0. Kun chegarasi summary() bilan bir xil (ReportPeriod).
      *
-     * @return Collection<int, array{date:string, orders:int}>
+     * Holat bo'yicha ajratilgan (bitta so'rovda): delivered + cancelled +
+     * in_progress (qolgan barcha statuslar) = orders.
+     *
+     * @return Collection<int, array{date:string, orders:int, delivered:int, cancelled:int, in_progress:int}>
      */
     public function ordersPerDay(ReportPeriod $period, ?int $restaurantId = null): Collection
     {
-        $counts = $this->orders($period, $restaurantId)
-            ->selectRaw(ReportPeriod::localDateSql('created_at').' AS d, COUNT(*) AS orders')
+        $rows = $this->orders($period, $restaurantId)
+            ->selectRaw(ReportPeriod::localDateSql('created_at')." AS d,
+                COUNT(*) AS orders,
+                COUNT(*) FILTER (WHERE status = 'delivered') AS delivered,
+                COUNT(*) FILTER (WHERE status = 'cancelled') AS cancelled")
             ->groupBy('d')
-            ->pluck('orders', 'd');
+            ->get()
+            ->keyBy('d');
 
-        return collect($period->dates())
-            ->map(fn (string $date) => ['date' => $date, 'orders' => (int) ($counts[$date] ?? 0)]);
+        return collect($period->dates())->map(function (string $date) use ($rows) {
+            $r = $rows[$date] ?? null;
+            $orders = (int) ($r->orders ?? 0);
+            $delivered = (int) ($r->delivered ?? 0);
+            $cancelled = (int) ($r->cancelled ?? 0);
+
+            return [
+                'date' => $date,
+                'orders' => $orders,
+                'delivered' => $delivered,
+                'cancelled' => $cancelled,
+                'in_progress' => $orders - $delivered - $cancelled,
+            ];
+        });
     }
 
     /** @return Builder */

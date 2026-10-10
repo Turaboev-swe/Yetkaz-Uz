@@ -4,11 +4,13 @@ namespace App\Filament\Admin\Widgets;
 
 use App\Services\Reporting\OrderStatsService;
 use App\Services\Reporting\ReportPeriod;
+use Filament\Support\RawJs;
 use Filament\Widgets\ChartWidget;
 use Illuminate\Support\Carbon;
 
 /**
- * /admin Dashboard — oxirgi 30 kun kunlik buyurtma soni.
+ * /admin Dashboard — oxirgi 30 kun, kunlik buyurtmalar holat bo'yicha
+ * (ustma-ust ustun: yetkazilgan / bekor qilingan / jarayonda). Ustun balandligi = kunlik jami.
  */
 class OrdersTrendChart extends ChartWidget
 {
@@ -18,7 +20,7 @@ class OrdersTrendChart extends ChartWidget
 
     protected function getType(): string
     {
-        return 'line';
+        return 'bar';
     }
 
     protected function getData(): array
@@ -27,15 +29,33 @@ class OrdersTrendChart extends ChartWidget
             ->ordersPerDay(ReportPeriod::custom(now()->subDays(29), now()));
 
         return [
-            'datasets' => [[
-                'label' => 'Buyurtmalar',
-                'data' => $series->pluck('orders')->all(),
-                'borderColor' => 'rgb(245, 158, 11)',
-                'backgroundColor' => 'rgba(245, 158, 11, 0.1)',
-                'fill' => true,
-                'tension' => 0.3,
-            ]],
+            'datasets' => [
+                ['label' => 'Yetkazilgan', 'data' => $series->pluck('delivered')->all(), 'backgroundColor' => '#22C55E'],
+                ['label' => 'Bekor qilingan', 'data' => $series->pluck('cancelled')->all(), 'backgroundColor' => '#EF4444'],
+                ['label' => 'Jarayonda', 'data' => $series->pluck('in_progress')->all(), 'backgroundColor' => '#F5A623'],
+            ],
             'labels' => $series->map(fn ($r) => Carbon::parse($r['date'])->format('d.m'))->all(),
         ];
+    }
+
+    protected function getOptions(): array|RawJs|null
+    {
+        return RawJs::make(<<<'JS'
+        {
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+                legend: { display: true },
+                tooltip: {
+                    callbacks: {
+                        footer: (items) => 'Jami: ' + items.reduce((sum, i) => sum + i.parsed.y, 0),
+                    },
+                },
+            },
+            scales: {
+                x: { stacked: true },
+                y: { stacked: true, beginAtZero: true, ticks: { precision: 0 } },
+            },
+        }
+        JS);
     }
 }

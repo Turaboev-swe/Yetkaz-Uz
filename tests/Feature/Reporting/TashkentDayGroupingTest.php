@@ -4,6 +4,7 @@ namespace Tests\Feature\Reporting;
 
 use App\Enums\OrderStatus;
 use App\Filament\Admin\Resources\UserResource\Pages\ListUsers;
+use App\Filament\Admin\Widgets\OrdersTrendChart;
 use App\Filament\Admin\Widgets\UsersOverviewStats;
 use App\Filament\Restaurant\Pages\Ratings;
 use App\Models\District;
@@ -123,6 +124,55 @@ class TashkentDayGroupingTest extends TestCase
         $this->assertCount(30, $period->dates());
         $this->assertSame('2026-09-03', $period->dates()[0]);
         $this->assertSame(1, $this->perDay($period)['2026-10-02']);
+    }
+
+    public function test_per_day_splits_statuses_and_sums_to_total(): void
+    {
+        $this->orderAt('2026-10-01 10:00', OrderStatus::Delivered);
+        $this->orderAt('2026-10-01 11:00', OrderStatus::Delivered);
+        $this->orderAt('2026-10-01 12:00', OrderStatus::Cancelled);
+        $this->orderAt('2026-10-01 13:00', OrderStatus::Preparing);
+        $this->orderAt('2026-10-01 14:00', OrderStatus::New);
+        $this->orderAt('2026-10-03 10:00', OrderStatus::Delivered);
+
+        $rows = $this->stats->ordersPerDay(ReportPeriod::custom('2026-10-01', '2026-10-03'), $this->restaurant->id)->keyBy('date');
+
+        $this->assertSame(['orders' => 5, 'delivered' => 2, 'cancelled' => 1, 'in_progress' => 2], collect($rows['2026-10-01'])->except('date')->all());
+        $this->assertSame(['orders' => 0, 'delivered' => 0, 'cancelled' => 0, 'in_progress' => 0], collect($rows['2026-10-02'])->except('date')->all());
+        $this->assertSame(['orders' => 1, 'delivered' => 1, 'cancelled' => 0, 'in_progress' => 0], collect($rows['2026-10-03'])->except('date')->all());
+        foreach ($rows as $r) {
+            $this->assertSame($r['orders'], $r['delivered'] + $r['cancelled'] + $r['in_progress']);
+        }
+    }
+
+    public function test_status_split_respects_tashkent_day_boundary(): void
+    {
+        $this->orderAt('2026-10-01 23:30', OrderStatus::Delivered);
+        $this->orderAt('2026-10-02 00:30', OrderStatus::Cancelled);
+
+        $rows = $this->stats->ordersPerDay(ReportPeriod::custom('2026-10-01', '2026-10-02'), $this->restaurant->id)->keyBy('date');
+
+        $this->assertSame([1, 0, 0], [$rows['2026-10-01']['delivered'], $rows['2026-10-01']['cancelled'], $rows['2026-10-01']['in_progress']]);
+        $this->assertSame([0, 1, 0], [$rows['2026-10-02']['delivered'], $rows['2026-10-02']['cancelled'], $rows['2026-10-02']['in_progress']]);
+    }
+
+    public function test_admin_chart_is_stacked_bar_with_three_series_and_excludes_test_restaurants(): void
+    {
+        Carbon::setTestNow(self::tashkent('2026-10-02 12:00'));
+        $test = Restaurant::factory()->for(District::factory())->create(['is_test' => true]);
+        $this->orderAt('2026-10-02 10:00', OrderStatus::Delivered);
+        $this->orderAt('2026-10-02 10:30', OrderStatus::Cancelled);
+        $this->orderAt('2026-10-02 11:00', OrderStatus::New);
+        Order::factory()->forRestaurant($test)->placedAt(self::tashkent('2026-10-02 10:00'))->create(['status' => OrderStatus::Delivered]);
+
+        $widget = new OrdersTrendChart;
+        $data = (new ReflectionMethod($widget, 'getData'))->invoke($widget);
+
+        $this->assertSame('bar', (new ReflectionMethod($widget, 'getType'))->invoke($widget));
+        $this->assertSame(['Yetkazilgan', 'Bekor qilingan', 'Jarayonda'], array_column($data['datasets'], 'label'));
+        $this->assertSame('#F5A623', $data['datasets'][2]['backgroundColor']);
+        $this->assertCount(30, $data['labels']);
+        $this->assertSame([1, 1, 1], array_map(fn ($d) => end($d['data']), $data['datasets']));
     }
 
     public function test_users_widget_today_counts_tashkent_morning_registrations(): void
