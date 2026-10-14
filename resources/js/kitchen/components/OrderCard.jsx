@@ -112,10 +112,16 @@ export default function OrderCard({ order, onAdvance, onCancel, busy, couriers =
 
             <div className="mt-3 text-[15px]">
                 <div className="font-semibold">{order.customer.name || 'Ism yo‘q'}</div>
-                {order.customer.phone && (
-                    <a href={`tel:${order.customer.phone}`} className="text-[15px] font-medium" style={{ color: '#60a5fa' }}>
-                        📞 {order.customer.phone}
+                {order.customer.contact_phone && (
+                    <a href={`tel:${order.customer.contact_phone}`} className="text-[15px] font-medium" style={{ color: '#60a5fa' }}>
+                        📞 {order.customer.contact_phone}
                     </a>
+                )}
+                {order.customer.phones_differ && order.customer.phone && (
+                    <div className="text-[13px] text-gray-400">
+                        📱 Telegram:{' '}
+                        <a href={`tel:${order.customer.phone}`} style={{ color: '#60a5fa' }}>{order.customer.phone}</a>
+                    </div>
                 )}
             </div>
 

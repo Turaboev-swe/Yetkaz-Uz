@@ -31,6 +31,7 @@ class Order extends Model
         'items',
         'address_snapshot',
         'note',
+        'contact_phone',
         'courier_name',
         'courier_phone',
         'courier_staff_id',
@@ -108,6 +109,24 @@ class Order extends Model
     public function hasDiscount(): bool
     {
         return $this->discount_amount > 0;
+    }
+
+    /**
+     * Oshxona va kuryer qo'ng'iroq qiladigan raqam: buyurtmadagi aloqa raqami,
+     * yo'q bo'lsa (eski buyurtmalar) mijozning Telegram raqami.
+     */
+    public function contactPhone(): ?string
+    {
+        return filled($this->contact_phone) ? $this->contact_phone : ($this->user?->phone ?: null);
+    }
+
+    /** Aloqa raqami Telegram raqamidan farq qiladimi (ikkalasini ko'rsatish kerakmi). */
+    public function hasDistinctContactPhone(): bool
+    {
+        $contact = preg_replace('/\D+/', '', (string) $this->contact_phone);
+        $telegram = preg_replace('/\D+/', '', (string) $this->user?->phone);
+
+        return $contact !== '' && $telegram !== '' && $contact !== $telegram;
     }
 
     /** @return BelongsTo<Address, Order> */

@@ -53,8 +53,11 @@ class KitchenOrderMessage
         $lines[] = '';
 
         $lines[] = '👤 '.$esc($order->user?->full_name ?: '—');
-        if (filled($order->user?->phone)) {
-            $lines[] = '📞 '.$esc($order->user->phone);
+        if (filled($order->contactPhone())) {
+            $lines[] = '📞 '.$esc($order->contactPhone());
+        }
+        if ($order->hasDistinctContactPhone()) {
+            $lines[] = '📱 Telegram: '.$esc($order->user->phone);
         }
 
         if (! $order->delivery_type->isPickup()) {

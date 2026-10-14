@@ -190,6 +190,10 @@ return [
     'cart_kept' => 'Savatingiz saqlanadi.',
     'min_order_not_met' => "Minimal buyurtma summasi: :amount so'm.",
     'restaurant_closed' => 'Restoran hozir yopiq.',
+
+    'contact_phone' => [
+        'invalid' => 'Qo‘ng‘iroq uchun raqam noto‘g‘ri — masalan 90 111 22 33 yoki +998901112233 kabi kiriting.',
+    ],
     // Promokod qabul qilinmagan sabab (PromoCodeError)
     'promo_code_error' => [
         'not_found' => 'Bunday promokod topilmadi.',

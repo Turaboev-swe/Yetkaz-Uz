@@ -137,6 +137,18 @@ Bu qoidalarni buzmang, ular loyihaning asosi.
   qo'lda yozdirilmaydi.
 - Ism, telefon va lokatsiya **bir marta** so'raladi. `profile_completed = true`
   bo'lgach, boshqa hech qachon so'ralmaydi.
+- **Istisno — aloqa raqami (`contact_phone`).** `users.phone` (Telegram raqami)
+  faqat `request_contact` orqali olinadi va qo'lda hech qachon o'zgartirilmaydi.
+  Telegram raqami boshqa birovniki yoki o'lik bo'lishi mumkin, shuning uchun mijoz
+  buyurtma rasmiylashtirishda (va buyurtma chatida, "raqam ishlamayapti" holatida)
+  **alohida aloqa raqamini** qo'lda kiritishi mumkin. U faqat ikki maydonda
+  saqlanadi: `orders.contact_phone` (shu buyurtma uchun) va `users.contact_phone`
+  (keyingi buyurtmalar uchun standart — oxirgi ishlatilgani). Bu raqam `users.phone`
+  ni hech qachon almashtirmaydi va profil ma'lumoti hisoblanmaydi (ro'yxatdan
+  o'tishda so'ralmaydi). Format: `+998` + aynan 9 raqam; normallashtirish faqat
+  `App\Support\Phone` orqali (boshidagi `8`/`0` faqat jami 10 xonali raqamda
+  olib tashlanadi), tekshiruv server tomonda majburiy. Oshxona va kuryer shu
+  raqamga qo'ng'iroq qiladi; u Telegram raqamidan farq qilsa, ikkalasi ko'rsatiladi.
 - Profilni o'zgartirish faqat "Sozlamalar" bo'limida bo'ladi.
 - Foydalanuvchi bir nechta manzil saqlashi mumkin ("Uy", "Ish"), biri `is_default`.
 

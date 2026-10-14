@@ -7,6 +7,7 @@ import { useSession } from '../store/session';
 import { useCart, cartItems, cartTotal, cartCount } from '../store/cart';
 import { som, somLabel, distanceLabel } from '../lib/format';
 import { resolvedAddress } from '../lib/address';
+import { normalizeUzPhone } from '../lib/phone';
 import { Spinner, ErrorState } from '../components/States';
 
 /** Bugungi ish vaqti "09:00–23:00" ko'rinishida (ixtiyoriy). */
@@ -46,6 +47,11 @@ export default function Checkout() {
     const promoInputRef = useRef('');
     promoInputRef.current = promoInput;
 
+    // Qo'ng'iroq uchun raqam: null = tegilmagan (saqlangan raqam ko'rsatiladi).
+    // Submit ref'dan o'qiydi (MainButton eski closure'ni ushlab qoladi).
+    const [contactInput, setContactInput] = useState(null);
+    const contactRef = useRef('');
+
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState(null);
     // Buyurtma berish uchun telefon kerak (mehmon / QR orqali kirgan) — botga qaytariladi.
@@ -80,6 +86,17 @@ export default function Checkout() {
         [rid, mode, addressId],
     );
 
+    const me = data.data?.[1]?.data;
+    // Oldindan to'ldirish: saqlangan aloqa raqami, bo'lmasa Telegram raqami (users.phone) —
+    // faqat O'zbekiston raqami bo'lsa. Chet el raqamida maydon bo'sh ochiladi.
+    const savedContact = normalizeUzPhone(me?.contact_phone) ?? normalizeUzPhone(me?.phone) ?? '';
+    const contactValue = contactInput ?? savedContact;
+    const contactNormalized = normalizeUzPhone(contactValue);
+    const contactInvalid = !contactNormalized;
+    // Qizil xato faqat mijoz biror narsa yozib, u noto'g'ri bo'lganda; bo'sh maydonda — oddiy maslahat.
+    const contactTyped = contactValue.trim() !== '';
+    contactRef.current = contactNormalized ?? '';
+
     const applyPromo = async () => {
         const code = promoInput.trim().toUpperCase();
         if (!code || promoChecking) return;
@@ -108,6 +125,10 @@ export default function Checkout() {
 
     const submit = async () => {
         if (submitting) return;
+        if (!contactRef.current) {
+            notify('error');
+            return;
+        }
         // Kod yozilgan-u "Qo'llash" bosilmagan — jimgina to'liq narxda buyurtma
         // bermaymiz (backend ham noto'g'ri kodda buyurtmani rad etadi).
         if (!promoRef.current && promoInputRef.current.trim()) {
@@ -123,6 +144,7 @@ export default function Checkout() {
                 address_id: mode === 'delivery' ? addressId : null,
                 payment_method: 'cash',
                 note: noteRef.current.trim() || null,
+                contact_phone: contactRef.current,
                 promo_code: promoRef.current?.code ?? null,
                 items: cartItems(carts, rid),
             });
@@ -152,7 +174,7 @@ export default function Checkout() {
     };
 
     const restaurant = data.data?.[0]?.data;
-    const addresses = data.data?.[1]?.data?.addresses || [];
+    const addresses = me?.addresses || [];
     const estimate = data.data?.[2]?.data;
     const address = addresses.find((a) => a.id === addressId);
     const belowMin = restaurant && total < restaurant.min_order_amount;
@@ -184,11 +206,11 @@ export default function Checkout() {
         }
         return setMainButton({
             text: belowMin ? `Yana ${somLabel(shortfall)} qo‘shing` : `Tasdiqlash — ${somLabel(payable)}`,
-            active: !belowMin,
+            active: !belowMin && !contactInvalid,
             onClick: submit,
         });
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [data.loading, submitting, belowMin, shortfall, payable, phoneRequired]);
+    }, [data.loading, submitting, belowMin, shortfall, payable, phoneRequired, contactInvalid]);
 
     if (data.loading) return <Spinner />;
     if (data.error) return <ErrorState error={data.error} onRetry={data.reload} />;
@@ -250,6 +272,34 @@ export default function Checkout() {
             {/* To'lov */}
             <Section title="To‘lov usuli">
                 <Row icon="💵" title="Naqd pul" subtitle="Kuryerga / kassaga to‘lanadi" trailing="✓" />
+            </Section>
+
+            {/* Qo'ng'iroq uchun raqam */}
+            <Section title="Qo‘ng‘iroq uchun raqam">
+                <input
+                    type="tel"
+                    inputMode="tel"
+                    autoComplete="tel"
+                    value={contactValue}
+                    onChange={(e) => setContactInput(e.target.value)}
+                    maxLength={20}
+                    placeholder="+998 90 111 22 33"
+                    className="w-full rounded-xl px-3 py-2 text-[14px] outline-none"
+                    style={{ background: 'var(--tg-section-bg)', color: 'var(--tg-text)' }}
+                />
+                {contactInvalid && contactTyped ? (
+                    <p className="mt-1.5 text-[12px]" style={{ color: 'var(--tg-destructive)' }}>
+                        Raqam noto‘g‘ri — masalan 90 111 22 33 yoki +998901112233.
+                    </p>
+                ) : contactInvalid ? (
+                    <p className="mt-1.5 text-[12px]" style={{ color: 'var(--tg-hint)' }}>
+                        O‘zbekiston raqamingizni kiriting. Oshxona va kuryer shu raqamga qo‘ng‘iroq qiladi.
+                    </p>
+                ) : (
+                    <p className="mt-1.5 text-[12px]" style={{ color: 'var(--tg-hint)' }}>
+                        Oshxona va kuryer shu raqamga qo‘ng‘iroq qiladi
+                    </p>
+                )}
             </Section>
 
             {/* Izoh */}
@@ -371,7 +421,7 @@ export default function Checkout() {
             {!isInsideTelegram() && !phoneRequired && (
                 <button
                     onClick={submit}
-                    disabled={belowMin || submitting}
+                    disabled={belowMin || submitting || contactInvalid}
                     className="h-12 w-full rounded-xl text-[15px] font-semibold disabled:opacity-50"
                     style={{ background: 'var(--tg-button)', color: 'var(--tg-button-text)' }}
                 >

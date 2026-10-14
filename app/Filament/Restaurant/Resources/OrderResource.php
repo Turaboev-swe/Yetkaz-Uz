@@ -77,6 +77,13 @@ class OrderResource extends Resource
     {
         return $infolist->schema([
             Infolists\Components\TextEntry::make('order_number')->label('Raqam'),
+            Infolists\Components\TextEntry::make('contact_phone')
+                ->label('Aloqa raqami')
+                ->state(fn (Order $record): ?string => $record->contactPhone())
+                ->placeholder('—'),
+            Infolists\Components\TextEntry::make('user.phone')
+                ->label('Telegram raqami')
+                ->visible(fn (Order $record): bool => $record->hasDistinctContactPhone()),
             Infolists\Components\TextEntry::make('status')
                 ->label('Holat')
                 ->formatStateUsing(fn (OrderStatus $state) => $state->label())

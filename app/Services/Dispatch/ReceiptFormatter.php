@@ -64,7 +64,10 @@ class ReceiptFormatter
             if ($extra) {
                 $p->text(implode(', ', $extra));
             }
-            $p->text('Tel: '.($order->user->phone ?? '-'));
+            $p->text('Tel: '.($order->contactPhone() ?? '-'));
+            if ($order->hasDistinctContactPhone()) {
+                $p->text('Tel (Telegram): '.$order->user->phone);
+            }
             $p->rule();
         }
 

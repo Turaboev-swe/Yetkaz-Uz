@@ -44,6 +44,7 @@ class OrderService
     /**
      * @param  array{restaurant_id:int, delivery_type:string, address_id?:int|null,
      *               payment_method?:string, note?:string|null, promo_code?:string|null,
+     *               contact_phone?:string|null,
      *               items:array<int, array{product_id:int, qty:int}>}  $data
      */
     public function place(User $user, array $data): Order
@@ -110,6 +111,7 @@ class OrderService
                 'items' => $lines,
                 'address_snapshot' => $address ? $this->addressSnapshot($address) : null,
                 'note' => $data['note'] ?? null,
+                'contact_phone' => $data['contact_phone'] ?? $user->contact_phone ?? $user->phone,
                 'subtotal' => $subtotal,
                 'delivery_fee' => $deliveryFee,
                 'total' => $subtotal + $deliveryFee - $promo->discountAmount,
@@ -127,6 +129,12 @@ class OrderService
                 'changed_by' => "user:{$user->id}",
                 'changed_at' => now(),
             ]);
+
+            // Oxirgi ishlatilgan aloqa raqami keyingi buyurtmalar uchun standart bo'ladi.
+            // users.phone (Telegram raqami) bunda o'zgarmaydi.
+            if (filled($data['contact_phone'] ?? null) && $user->contact_phone !== $data['contact_phone']) {
+                $user->update(['contact_phone' => $data['contact_phone']]);
+            }
 
             return $order;
         });

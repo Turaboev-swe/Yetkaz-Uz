@@ -33,8 +33,12 @@ class KitchenOrderResource extends JsonResource
 
             'customer' => [
                 'name' => $this->user?->full_name,
+                // Telegram raqami (request_contact). Mijozning Telegram username'i
+                // oshxonaga HECH QACHON berilmaydi (maxfiylik).
                 'phone' => $this->user?->phone,
-                'username' => $this->user?->username,
+                // Qo'ng'iroq uchun raqam (eski buyurtmalarda Telegram raqamiga teng).
+                'contact_phone' => $this->contactPhone(),
+                'phones_differ' => $this->hasDistinctContactPhone(),
             ],
 
             'address' => $this->delivery_type->isPickup() ? null : [

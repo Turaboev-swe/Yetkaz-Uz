@@ -17,6 +17,8 @@ class UserResource extends JsonResource
             'telegram_id' => $this->telegram_id,
             'full_name' => $this->full_name,
             'phone' => $this->phone,
+            // Qo'lda kiritilgan aloqa raqami (buyurtmada oshxona/kuryer shunga qo'ng'iroq qiladi).
+            'contact_phone' => $this->contact_phone,
             'language' => $this->language,
             'profile_completed' => $this->profile_completed,
             'addresses' => AddressResource::collection($this->whenLoaded('addresses')),

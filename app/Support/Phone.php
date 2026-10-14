@@ -4,9 +4,9 @@ namespace App\Support;
 
 /**
  * O'zbekiston telefon raqamini tekshirish/normallashtirish — OPERATSION
- * ma'lumot uchun (masalan, Royal Taxi haydovchisi). Mijozning o'z raqami
- * faqat `request_contact` orqali olinadi (Claude.md) — bu qoida BUNGA
- * tegishli emas, chunki bu yerda xodim boshqa birovning raqamini yozadi.
+ * ma'lumot uchun: Royal Taxi haydovchisi va mijozning aloqa raqami
+ * (`contact_phone`). Mijozning Telegram raqami (`users.phone`) esa faqat
+ * `request_contact` orqali olinadi (CLAUDE.md) — bu sinf uni o'zgartirmaydi.
  */
 final class Phone
 {
@@ -15,9 +15,10 @@ final class Phone
      * tozalaydi. Qabul qilinadigan kirishlar:
      *   - "+998901112233" / "998901112233" — kod allaqachon bor, faqat
      *     uzunlik tekshiriladi, hech narsa qo'shilmaydi.
-     *   - "0901112233"    — mahalliy format (boshida 0) — 0 olib tashlanib,
-     *     +998 qo'shiladi.
-     *   - "901112233"     — kodsiz, aynan 9 xonali mobil raqam — +998 qo'shiladi.
+     *   - "0901112233" / "8901112233" — mahalliy format: JAMI 10 xonali va
+     *     boshida 0 yoki 8 — o'sha raqam olib tashlanib, +998 qo'shiladi.
+     *   - "901112233"     — kodsiz, aynan 9 xonali mobil raqam — +998 qo'shiladi
+     *     ("881112233" kabi 9 xonali raqamdagi 8 prefiks EMAS, o'zgarmaydi).
      *   - Boshqa hamma narsa (uzunlik/format mos kelmasa) — null.
      *
      * @return string|null +998XXXXXXXXX (13 belgi) — yaroqsiz bo'lsa null.
@@ -30,7 +31,7 @@ final class Phone
             return '+'.$digits;
         }
 
-        if (str_starts_with($digits, '0') && strlen($digits) === 10) {
+        if ((str_starts_with($digits, '0') || str_starts_with($digits, '8')) && strlen($digits) === 10) {
             return '+998'.substr($digits, 1);
         }
 

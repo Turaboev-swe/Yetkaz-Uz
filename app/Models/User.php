@@ -22,6 +22,7 @@ class User extends Authenticatable
         'telegram_id',
         'full_name',
         'phone',
+        'contact_phone',
         'username',
         'language',
         'profile_completed',

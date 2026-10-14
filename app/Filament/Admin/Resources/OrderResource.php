@@ -84,7 +84,8 @@ class OrderResource extends Resource
             Infolists\Components\TextEntry::make('restaurant.name')->label('Restoran')
                 ->formatStateUsing(fn (string $state, Order $record): string => $record->restaurant?->is_test ? "🧪 Test · {$state}" : $state),
             Infolists\Components\TextEntry::make('user.full_name')->label('Mijoz'),
-            Infolists\Components\TextEntry::make('user.phone')->label('Telefon'),
+            Infolists\Components\TextEntry::make('contact_phone')->label('Aloqa raqami')->placeholder('—'),
+            Infolists\Components\TextEntry::make('user.phone')->label('Telegram raqami'),
             Infolists\Components\TextEntry::make('status')->label('Holat')->badge()
                 ->formatStateUsing(fn (OrderStatus $state) => $state->label()),
             Infolists\Components\TextEntry::make('total')->label('Summa')
