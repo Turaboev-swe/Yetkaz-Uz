@@ -89,18 +89,27 @@ class OrderChatTest extends TestCase
         }
     }
 
-    public function test_chat_stays_open_one_hour_after_delivery_or_cancellation_then_closes(): void
+    public function test_chat_closes_immediately_when_the_order_is_delivered_or_cancelled(): void
     {
-        $this->assertTrue($this->chat->isOpen(Order::factory()->for($this->restaurant)->for($this->customer)->delivered(now()->subMinutes(59))->create()));
-        $this->assertFalse($this->chat->isOpen(Order::factory()->for($this->restaurant)->for($this->customer)->delivered(now()->subMinutes(61))->create()));
-        $this->assertTrue($this->chat->isOpen(Order::factory()->for($this->restaurant)->for($this->customer)->cancelled(now()->subMinutes(10))->create()));
-        $this->assertFalse($this->chat->isOpen(Order::factory()->for($this->restaurant)->for($this->customer)->cancelled(now()->subHours(3))->create()));
+        $factory = fn () => Order::factory()->for($this->restaurant)->for($this->customer);
+
+        // Hozirgina yetkazilgan/bekor qilingan — 1 soatlik oyna yo'q, darhol yopiq.
+        $this->assertFalse($this->chat->isOpen($factory()->delivered(now())->create()));
+        $this->assertFalse($this->chat->isOpen($factory()->delivered(now()->subMinute())->create()));
+        $this->assertFalse($this->chat->isOpen($factory()->cancelled(now())->create()));
+        $this->assertFalse($this->chat->isOpen($factory()->cancelled(now()->subMinutes(10))->create()));
+
+        // Faol buyurtma ochiq qoladi, statusi o'zgargach yopiladi.
+        $order = $this->order(['status' => OrderStatus::OnTheWay]);
+        $this->assertTrue($this->chat->isOpen($order));
+        $order->update(['status' => OrderStatus::Delivered, 'delivered_at' => now()]);
+        $this->assertFalse($this->chat->isOpen($order->fresh()));
     }
 
     public function test_messages_are_rejected_when_chat_is_closed(): void
     {
         Queue::fake();
-        $closed = Order::factory()->for($this->restaurant)->for($this->customer)->delivered(now()->subHours(2))->create();
+        $closed = Order::factory()->for($this->restaurant)->for($this->customer)->delivered(now())->create();
 
         $this->assertSame('closed', $this->reason(fn () => $this->chat->sendFromCustomer($closed, $this->customer, 'Salom')));
         $this->assertSame('closed', $this->reason(fn () => $this->chat->sendFromRestaurant($closed, $this->owner, 'Salom')));
@@ -404,11 +413,43 @@ class OrderChatTest extends TestCase
     public function test_button_on_closed_chat_does_not_start_a_conversation(): void
     {
         Queue::fake();
-        $closed = Order::factory()->for($this->restaurant)->for($this->customer)->delivered(now()->subHours(3))->create();
+        $closed = Order::factory()->for($this->restaurant)->for($this->customer)->delivered(now())->create();
 
-        $this->pressChatButton($closed->id);
+        $bot = $this->pressChatButton($closed->id);
 
         $this->assertNull(app(PendingOrderChatStore::class)->pending(self::CUSTOMER_TG));
+        $bot->assertRaw(fn ($request) => str_contains((string) $request->getBody(), 'show_alert')
+            && str_contains((string) $request->getBody(), 'Buyurtma yakunlangan. Muammo yoki taklif bo‘lsa'));
+    }
+
+    public function test_writing_to_a_finished_order_points_to_feedback_section_in_both_languages(): void
+    {
+        Queue::fake();
+        $order = $this->order();
+        app(PendingOrderChatStore::class)->remember(self::CUSTOMER_TG, $order->id);
+        $order->update(['status' => OrderStatus::Delivered, 'delivered_at' => now()]); // suhbat paytida yetkazildi
+
+        $bot = $this->customerSays('Hali shu yerdaman');
+
+        $bot->assertReplyText('Buyurtma yakunlangan. Muammo yoki taklif bo‘lsa, «💬 Taklif va shikoyat» bo‘limi orqali yozing.');
+        $this->assertNull(app(PendingOrderChatStore::class)->pending(self::CUSTOMER_TG), 'suhbat tugaydi');
+        $this->assertSame(0, OrderMessage::count());
+
+        // Ruscha
+        $this->customer->update(['language' => 'ru']);
+        app(PendingOrderChatStore::class)->remember(self::CUSTOMER_TG, $order->id);
+        $this->customerSays('Я ещё здесь')->assertReplyText('Заказ завершён. Если есть проблема или предложение, напишите через раздел «💬 Отзывы и жалобы».');
+    }
+
+    public function test_kitchen_api_rejects_messages_for_a_finished_order(): void
+    {
+        Queue::fake();
+        $order = $this->order(['status' => OrderStatus::Delivered, 'delivered_at' => now()]);
+
+        $this->actingAs($this->owner, 'staff')->postJson("/kitchen/orders/{$order->id}/messages", ['body' => 'Salom'])
+            ->assertStatus(422)->assertJsonPath('reason', 'closed');
+        $this->actingAs($this->owner, 'staff')->postJson("/kitchen/orders/{$order->id}/phone-unreachable")->assertStatus(422);
+        $this->assertSame(0, OrderMessage::count());
     }
 
     public function test_menu_button_ends_the_chat_conversation(): void

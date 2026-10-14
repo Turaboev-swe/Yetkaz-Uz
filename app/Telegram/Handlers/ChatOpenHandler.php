@@ -3,6 +3,7 @@
 namespace App\Telegram\Handlers;
 
 use App\Models\Order;
+use App\Services\Chat\OrderChatException;
 use App\Services\Chat\OrderChatService;
 use App\Services\Chat\PendingOrderChatStore;
 use SergiX44\Nutgram\Nutgram;
@@ -30,7 +31,7 @@ class ChatOpenHandler
         }
 
         if (! $this->chat->isOpen($order)) {
-            $bot->answerCallbackQuery(text: __('messages.order_chat.errors.closed'), show_alert: true);
+            $bot->answerCallbackQuery(text: OrderChatException::text('closed'), show_alert: true);
 
             return;
         }

@@ -2,7 +2,6 @@
 
 namespace App\Services\Chat;
 
-use App\Enums\OrderStatus;
 use App\Events\OrderContactPhoneChanged;
 use App\Events\OrderMessageCreated;
 use App\Jobs\NotifyRestaurantOfCustomerMessage;
@@ -19,7 +18,7 @@ use Illuminate\Support\Facades\RateLimiter;
  * Buyurtma doirasidagi mijoz <-> restoran chati (faqat matn).
  *
  * Qoidalar:
- *  - chat buyurtma faol bo'lganda ochiq + yetkazilgan/bekor qilingandan keyin 1 soat;
+ *  - chat faqat buyurtma faol bo'lganda ochiq; yetkazilgan/bekor qilingan zahoti yopiladi (ikkala tomon);
  *  - xabar <= 500 belgi (kesilmaydi, rad etiladi); boshqaruv/bidi belgilari tozalanadi;
  *  - har buyurtma + yuboruvchi tomoni uchun daqiqasiga 10 xabar;
  *  - mijoz faqat o'z buyurtmasiga, xodim faqat o'z restorani buyurtmasiga yozadi.
@@ -30,25 +29,16 @@ class OrderChatService
 {
     public const MAX_LENGTH = 500;
 
-    public const GRACE_MINUTES = 60;
-
     private const RATE_PER_MINUTE = 10;
 
     public const QUICK_REPLIES = ['accepted', 'clarify_address', 'unreachable'];
 
     public function __construct(private readonly PendingOrderChatStore $pending) {}
 
+    /** Chat faqat buyurtma faol bo'lganda ochiq: delivered/cancelled bo'lishi bilan darhol yopiladi. */
     public function isOpen(Order $order): bool
     {
-        if ($order->status->isActive()) {
-            return true;
-        }
-
-        $closedAt = $order->status === OrderStatus::Cancelled
-            ? ($order->cancelled_at ?? $order->updated_at)
-            : ($order->delivered_at ?? $order->updated_at);
-
-        return $closedAt !== null && $closedAt->gt(now()->subMinutes(self::GRACE_MINUTES));
+        return $order->status->isActive();
     }
 
     public function sendFromCustomer(Order $order, User $user, string $text): CustomerChatResult

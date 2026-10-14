@@ -223,7 +223,7 @@ return [
         ],
         'errors' => [
             'forbidden' => 'Bu buyurtma chatiga yozishga ruxsat yo‘q.',
-            'closed' => 'Bu buyurtma bo‘yicha chat yopilgan.',
+            'closed' => 'Buyurtma yakunlangan. Muammo yoki taklif bo‘lsa, «:section» bo‘limi orqali yozing.',
             'empty' => 'Xabar bo‘sh bo‘lishi mumkin emas.',
             'too_long' => 'Xabar 500 belgidan oshmasin.',
             'throttled' => 'Juda tez-tez yozmoqdasiz, bir daqiqa kuting.',
