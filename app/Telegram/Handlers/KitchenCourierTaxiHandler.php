@@ -5,6 +5,7 @@ namespace App\Telegram\Handlers;
 use App\Models\Order;
 use App\Telegram\Conversations\KitchenCourierPhoneConversation;
 use App\Telegram\Handlers\Concerns\ResolvesKitchenStaff;
+use App\Telegram\Support\KitchenOrderMessage;
 use SergiX44\Nutgram\Nutgram;
 
 /**
@@ -35,6 +36,13 @@ class KitchenCourierTaxiHandler
         }
 
         $bot->answerCallbackQuery();
+
+        // per_km restoran: mijoz yetkazish haqini ilovada to'lagan — taksi haqini restoran to'laydi.
+        $warning = KitchenOrderMessage::courierWarning($order, 'taxi');
+        if ($warning !== null) {
+            $bot->sendMessage($warning);
+        }
+
         KitchenCourierPhoneConversation::begin($bot, data: [$order->id, $expected]);
     }
 }

@@ -105,6 +105,9 @@ return [
         'royal_taxi' => 'Royal Taxi',
         // Yetkazish haqi taksiga alohida to'lanadigan buyurtmada (bepul zonadan tashqarida)
         'taxi_fee_note' => 'Yetkazish haqini taksi haydovchisiga to‘laysiz.',
+        // Yetkazish haqi taksiga alohida bo'lgan buyurtmada o'z kuryer chiqsa
+        'on_the_way_own_free' => '🛵 Buyurtmangiz (:n) kuryerimiz bilan yo‘lga chiqdi. Kuryer: :courier. Yetkazish uchun to‘lov qilish shart emas.',
+        'no_payment_needed' => 'Yetkazish uchun to‘lov qilish shart emas.',
         'courier' => 'Kuryer',
         'restaurant' => 'Restoran',
         'delivered' => '🎉 Buyurtmangiz (:n) yetkazildi. Yoqimli ishtaha!',
@@ -186,6 +189,9 @@ return [
         'courier_dispatched_own' => "🛵 Yo'lga chiqdi — :order. Kuryer: :name",
         'courier_dispatched_own_none' => "🛵 Yo'lga chiqdi — :order.",
         'courier_dispatched_taxi' => "🚕 Yo'lga chiqdi — :order. Royal Taxi: :phone",
+        // Kuryer tanlash ogohlantirishlari (mijoz to'lovi buyurtma paytida belgilangan, o'zgarmaydi)
+        'warn_own_free' => 'Bu buyurtmada yetkazish mijoz uchun bepul — kuryer mijozdan pul olmasin',
+        'warn_taxi_prepaid' => 'Mijoz yetkazish haqini ilovada to‘lagan — taksi haqini restoran to‘laydi, mijozdan olmang',
         // Qabul qilinmagan buyurtma — platforma adminiga (AlertAdminOfUnacceptedOrder)
         'escalation_admin' => "🆘 <b>Qabul qilinmagan buyurtma</b>\n\n🏪 Restoran: :restaurant\n🧾 Buyurtma: :order\n⏱ Kutmoqda: :minutes daqiqa\n☎️ Restoran: :restaurant_phone\n📞 Mijoz: :customer_phone",
     ],

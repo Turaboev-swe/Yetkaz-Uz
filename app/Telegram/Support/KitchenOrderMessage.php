@@ -34,6 +34,24 @@ class KitchenOrderMessage
         return "kadv:{$order->id}:{$order->status->value}";
     }
 
+    /**
+     * Kuryer tanlash ekranidagi ogohlantirish (bot; /kitchen xuddi shu qoidani JSX'da qo'llaydi).
+     * Mijoz to'lovi buyurtma paytida belgilangan — kuryer tanlovi uni o'zgartirmaydi, bu faqat
+     * xodimni ikki marta pul olishdan saqlaydi.
+     *
+     * @param  string  $courier  'own' (o'z kuryer) | 'taxi' (Royal Taxi)
+     */
+    public static function courierWarning(Order $order, string $courier): ?string
+    {
+        $key = match (true) {
+            $courier === 'own' && $order->delivery_paid_to_taxi => 'warn_own_free',
+            $courier === 'taxi' && ! $order->delivery_paid_to_taxi && $order->delivery_fee > 0 => 'warn_taxi_prepaid',
+            default => null,
+        };
+
+        return $key === null ? null : '⚠️ '.__("messages.kitchen_bot.$key", [], 'uz');
+    }
+
     public function text(Order $order): string
     {
         $t = fn (string $key, array $r = []): string => (string) __("messages.kitchen_bot.$key", $r, $this->locale);

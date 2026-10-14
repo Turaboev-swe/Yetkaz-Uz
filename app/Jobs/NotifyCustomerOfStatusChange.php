@@ -109,6 +109,18 @@ class NotifyCustomerOfStatusChange implements ShouldQueue
         $name = trim((string) $order->courier_name);
         $phone = trim((string) $order->courier_phone);
 
+        // Yetkazish haqi taksiga alohida to'lanadigan (bepul zonadan tashqari) buyurtmada o'z
+        // kuryer chiqsa: mijoz to'lov qilmasligi aytiladi, taksi haqida hech narsa yozilmaydi.
+        // To'lov buyurtma paytida snapshot — kuryer tanlovi uni o'zgartirmaydi.
+        $noPayment = (bool) $order->delivery_paid_to_taxi;
+
+        if ($noPayment && ($name !== '' || $phone !== '')) {
+            return __('messages.order_notify.on_the_way_own_free', [
+                'n' => $num,
+                'courier' => implode(' — ', array_filter([$name, $phone])),
+            ]);
+        }
+
         $contact = [];
         if ($name !== '') {
             $contact[] = '🚴 '.__('messages.order_notify.courier').': '.$name;
@@ -121,6 +133,9 @@ class NotifyCustomerOfStatusChange implements ShouldQueue
             $contact[] = '📞 '.__('messages.order_notify.restaurant').': '.$order->restaurant->phone;
         }
 
-        return $contact === [] ? $base : $base."\n\n".implode("\n", $contact);
+        $text = $contact === [] ? $base : $base."\n\n".implode("\n", $contact);
+
+        // "Kuryersiz davom etish" tanlangan bo'lsa ham to'lov shart emasligi aytiladi.
+        return $noPayment ? $text."\n\n".__('messages.order_notify.no_payment_needed') : $text;
     }
 }

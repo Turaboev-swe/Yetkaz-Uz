@@ -350,6 +350,11 @@ export default function OrderCard({ order, onAdvance, onCancel, onChatRead = () 
                             <>
                                 <div className="text-[17px] font-bold">Xodimni tanlang</div>
                                 <div className="mt-1 text-[13px] text-gray-400">Mijozga kuryer ismi va telefoni yuboriladi.</div>
+                                {order.delivery_paid_to_taxi && (
+                                    <div className="mt-2 rounded-lg px-3 py-2 text-[13px] font-semibold" style={{ background: '#3f2d0a', color: '#fde68a' }}>
+                                        ⚠️ Bu buyurtmada yetkazish mijoz uchun bepul — kuryer mijozdan pul olmasin
+                                    </div>
+                                )}
 
                                 <select
                                     value={courierId}
@@ -400,6 +405,11 @@ export default function OrderCard({ order, onAdvance, onCancel, onChatRead = () 
                                 <div className="mt-1 text-[13px] text-gray-400">
                                     Haydovchining telefon raqamini kiriting — +998 shart emas, o‘zi qo‘shiladi.
                                 </div>
+                                {!order.delivery_paid_to_taxi && order.delivery_fee > 0 && (
+                                    <div className="mt-2 rounded-lg px-3 py-2 text-[13px] font-semibold" style={{ background: '#3f2d0a', color: '#fde68a' }}>
+                                        ⚠️ Mijoz yetkazish haqini ilovada to‘lagan — taksi haqini restoran to‘laydi, mijozdan olmang
+                                    </div>
+                                )}
 
                                 <input
                                     type="tel"

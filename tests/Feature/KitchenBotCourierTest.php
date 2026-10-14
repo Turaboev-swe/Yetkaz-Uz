@@ -51,6 +51,9 @@ class KitchenBotCourierTest extends TestCase
         return Order::factory()->for($this->restaurant)->for(User::factory())->create(array_replace([
             'status' => OrderStatus::Preparing,
             'delivery_type' => DeliveryType::Delivery,
+            // Factory narxi tasodifiy; fee > 0 bo'lsa Royal Taxi tanlovida ogohlantirish ham yuboriladi.
+            'delivery_fee' => 0,
+            'delivery_paid_to_taxi' => false,
         ], $attrs));
     }
 

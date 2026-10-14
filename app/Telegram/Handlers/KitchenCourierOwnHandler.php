@@ -5,6 +5,7 @@ namespace App\Telegram\Handlers;
 use App\Models\Order;
 use App\Models\Staff;
 use App\Telegram\Handlers\Concerns\ResolvesKitchenStaff;
+use App\Telegram\Support\KitchenOrderMessage;
 use SergiX44\Nutgram\Nutgram;
 use SergiX44\Nutgram\Telegram\Types\Keyboard\InlineKeyboardButton;
 use SergiX44\Nutgram\Telegram\Types\Keyboard\InlineKeyboardMarkup;
@@ -53,6 +54,9 @@ class KitchenCourierOwnHandler
             callback_data: "kcourierpick:{$order->id}:{$expected}:0",
         ));
 
-        $bot->sendMessage(text: $t('courier_pick_staff').' '.$order->order_number, reply_markup: $keyboard);
+        $text = $t('courier_pick_staff').' '.$order->order_number;
+        $warning = KitchenOrderMessage::courierWarning($order, 'own');
+
+        $bot->sendMessage(text: $warning === null ? $text : $text."\n\n".$warning, reply_markup: $keyboard);
     }
 }
