@@ -97,7 +97,7 @@ class OrderNotificationTest extends TestCase
 
             return str_contains($body, 'Ali Valiyev')
                 && str_contains($body, '+998901112233')
-                && str_contains($body, '@ali_v')
+                && ! str_contains($body, 'ali_v') // mijozning @username'i egasiga berilmaydi
                 && str_contains($body, 'Bobur 12')
                 && str_contains($body, '555111222');
         });

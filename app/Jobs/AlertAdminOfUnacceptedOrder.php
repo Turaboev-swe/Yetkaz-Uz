@@ -99,7 +99,9 @@ class AlertAdminOfUnacceptedOrder implements ShouldQueue
             'order' => e($order->order_number),
             'minutes' => max(1, (int) $order->created_at->diffInMinutes(now())),
             'restaurant_phone' => e($order->restaurant?->phone ?: '—'),
-            'customer_phone' => e($order->user?->phone ?: '—'),
+            // Asosiy raqam — aloqa raqami; farq qilsa Telegram raqami ham (admin uchun).
+            'customer_phone' => e($order->contactPhone() ?: '—')
+                .($order->hasDistinctContactPhone() ? ' · 📱 Telegram: '.e($order->user->phone) : ''),
         ], 'uz');
 
         foreach ($chatIds as $chatId) {

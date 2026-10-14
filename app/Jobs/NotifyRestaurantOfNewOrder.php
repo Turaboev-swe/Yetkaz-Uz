@@ -19,7 +19,8 @@ use SergiX44\Nutgram\Telegram\Properties\ParseMode;
  * Yangi buyurtma — restoran egasiga Telegram xabari.
  *
  * Manzil `restaurants.notify_chat_id` da. Bo'sh bo'lsa — jimgina o'tadi.
- * Xabarda: mijoz ismi, telefoni, @username, yetkazish manzili + lokatsiya pin.
+ * Xabarda: mijoz ismi, aloqa raqami (farq qilsa Telegram raqami ham), yetkazish
+ * manzili + lokatsiya pin. Mijozning @username'i yuborilmaydi.
  */
 class NotifyRestaurantOfNewOrder implements ShouldQueue
 {
@@ -121,10 +122,14 @@ class NotifyRestaurantOfNewOrder implements ShouldQueue
         $lines[] = '';
 
         $lines[] = '👤 <b>'.$e($user->full_name ?: 'Ism yo‘q').'</b>';
-        if ($user->phone) {
-            $lines[] = '📞 '.$e($user->phone);
+        // Asosiy raqam — aloqa raqami (yo'q bo'lsa Telegram raqami); farq qilsa Telegram raqami ham.
+        // Mijozning @username'i oshxonaga/egasiga berilmaydi (oshxona kartasi va chat bilan bir xil qoida).
+        if (filled($order->contactPhone())) {
+            $lines[] = '📞 '.$e($order->contactPhone());
         }
-        $lines[] = '💬 '.($user->username ? '@'.$e($user->username) : 'username yo‘q');
+        if ($order->hasDistinctContactPhone()) {
+            $lines[] = '📱 Telegram: '.$e($user->phone);
+        }
 
         $snap = $order->address_snapshot;
         if (! $order->delivery_type->isPickup() && $snap) {
