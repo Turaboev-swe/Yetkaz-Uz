@@ -89,11 +89,12 @@ class OrderService
             ]);
         }
 
-        $deliveryFee = $this->feeCalculator->calculate($restaurant, $type, $distanceKm);
+        $deliveryQuote = $this->feeCalculator->quote($restaurant, $type, $distanceKm);
+        $deliveryFee = $deliveryQuote->fee;
         $maxPrep = max(array_map(fn ($l) => $l['prep'], $lines) ?: [(int) $restaurant->avg_prep_time_min]);
         $eta = $this->eta->estimate($restaurant, $type, $distanceKm, $maxPrep)->minutes;
 
-        $order = DB::transaction(function () use ($user, $restaurant, $address, $type, $lines, $subtotal, $deliveryFee, $eta, $distanceKm, $data) {
+        $order = DB::transaction(function () use ($user, $restaurant, $address, $type, $lines, $subtotal, $deliveryFee, $deliveryQuote, $eta, $distanceKm, $data) {
             // Promokod — tekshirish va buyurtma yozish BITTA tranzaksiyada, kod
             // qatori qulflangan holda (limitlar uchun poyga holatiga qarshi —
             // PromoCodeService::applyForOrder). Faqat taomlar summasidan
@@ -114,6 +115,8 @@ class OrderService
                 'contact_phone' => $data['contact_phone'] ?? $user->contact_phone ?? $user->phone,
                 'subtotal' => $subtotal,
                 'delivery_fee' => $deliveryFee,
+                // SNAPSHOT: restoran sozlamasi keyin o'zgarsa ham bu buyurtma o'zgarmaydi.
+                'delivery_paid_to_taxi' => $deliveryQuote->paidToTaxi,
                 'total' => $subtotal + $deliveryFee - $promo->discountAmount,
                 ...$promo->toOrderAttributes(),
                 'payment_method' => PaymentMethod::from($data['payment_method'] ?? 'cash'),
@@ -185,7 +188,7 @@ class OrderService
      * shuning uchun bu yerda ko'rsatilgan narx buyurtma yaratilganda o'zgarmaydi.
      *
      * @param  array{restaurant_id:int, delivery_type:string, address_id?:int|null}  $data
-     * @return array{delivery_fee:int, distance_km:?float}
+     * @return array{delivery_fee:int, delivery_paid_to_taxi:bool, distance_km:?float}
      */
     public function estimateDeliveryFee(User $user, array $data): array
     {
@@ -200,8 +203,11 @@ class OrderService
             }
         }
 
+        $quote = $this->feeCalculator->quote($restaurant, $type, $distanceKm);
+
         return [
-            'delivery_fee' => $this->feeCalculator->calculate($restaurant, $type, $distanceKm),
+            'delivery_fee' => $quote->fee,
+            'delivery_paid_to_taxi' => $quote->paidToTaxi,
             'distance_km' => $distanceKm,
         ];
     }

@@ -2,6 +2,7 @@
 
 namespace App\Filament\Admin\Resources;
 
+use App\Enums\BeyondFreeZoneDelivery;
 use App\Enums\PosType;
 use App\Filament\Admin\Resources\RestaurantResource\Pages;
 use App\Filament\Support\RestaurantLocationForm;
@@ -66,7 +67,16 @@ class RestaurantResource extends Resource
                 Forms\Components\TextInput::make('free_delivery_radius_km')
                     ->label('Bepul yetkazish radiusi (km)')
                     ->helperText("Shundan keyin pullik bo'ladi. Yuqoridagi \"Yetkazish radiusi\"dan BOSHQA narsa — bo'sh qoldirilsa bepul radius yo'q.")
-                    ->numeric()->minValue(0),
+                    ->numeric()->minValue(0)
+                    // Royal Taxi rejimida "bepul zona" chegarasi shu radius — usiz taksi rejimi ma'nosiz.
+                    ->required(fn (Forms\Get $get): bool => $get('beyond_free_zone_delivery') === BeyondFreeZoneDelivery::Taxi->value),
+                Forms\Components\Select::make('beyond_free_zone_delivery')
+                    ->label('Bepul zonadan tashqarida yetkazish')
+                    ->options(collect(BeyondFreeZoneDelivery::cases())->mapWithKeys(fn ($c) => [$c->value => $c->label()]))
+                    ->default(BeyondFreeZoneDelivery::PerKm->value)
+                    ->native(false)->live()->required()
+                    ->helperText("Km bo'yicha narx — hozirgidek. Royal Taxi — zonadan tashqarida ilovada yetkazish narxi 0 bo'ladi, mijoz taksi haqini haydovchiga alohida to'laydi (ikki marta to'lamaydi). Bepul zonada yetkazish baribir bepul. Eski buyurtmalar o'zgarmaydi.")
+                    ->columnSpanFull(),
                 Forms\Components\TextInput::make('price_per_km')
                     ->label("Km narxi (so'm)")
                     ->helperText("To'ldirilsa, masofaga qarab hisoblanadi. Bo'sh qoldirilsa — pastdagi qat'iy narx ishlatiladi.")

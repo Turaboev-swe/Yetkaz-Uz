@@ -103,6 +103,8 @@ return [
         'on_the_way' => '🛵 Buyurtmangiz (:n) yo‘lga chiqdi.',
         'on_the_way_taxi' => '🚕 Buyurtmangiz (:n) Royal Taxi orqali yo‘lga chiqdi.',
         'royal_taxi' => 'Royal Taxi',
+        // Yetkazish haqi taksiga alohida to'lanadigan buyurtmada (bepul zonadan tashqarida)
+        'taxi_fee_note' => 'Yetkazish haqini taksi haydovchisiga to‘laysiz.',
         'courier' => 'Kuryer',
         'restaurant' => 'Restoran',
         'delivered' => '🎉 Buyurtmangiz (:n) yetkazildi. Yoqimli ishtaha!',
@@ -117,6 +119,7 @@ return [
         'subtotal' => 'Taomlar',
         'delivery' => 'Yetkazish',
         'free' => 'bepul',
+        'delivery_taxi' => 'Royal Taxi — haydovchiga alohida',
         'discount' => 'Chegirma',
         'total' => 'Jami',
         'som' => "so'm",
@@ -149,6 +152,7 @@ return [
         'map' => 'Xaritada ko‘rish',
         'note' => 'Izoh',
         // Egasi DM'i va /kitchen kartasi bilan bir xil matn.
+        'taxi_fee' => '🚕 Yetkazish haqi: mijoz taksiga alohida to‘laydi',
         'to_collect' => '💵 Mijozdan olinadi',
         'cash' => 'naqd',
         'discount' => 'Chegirma: −:amount',

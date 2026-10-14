@@ -48,6 +48,8 @@ class OrderController extends Controller
             // Pul — tiyinda. Buyurtma yaratilganda ham xuddi shu qiymat chiqadi
             // (bitta manba — DeliveryFeeCalculator).
             'delivery_fee' => $delivery['delivery_fee'],
+            // Royal Taxi rejimida bepul zonadan tashqarida: narx 0, taksi haqi alohida.
+            'delivery_paid_to_taxi' => $delivery['delivery_paid_to_taxi'],
             'distance_km' => $delivery['distance_km'] !== null ? round($delivery['distance_km'], 2) : null,
         ]]);
     }

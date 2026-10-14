@@ -50,7 +50,11 @@ export default function OrderSuccess() {
                 ))}
                 <div className="mt-2 flex justify-between border-t pt-2 text-[13px]" style={{ borderColor: 'var(--tg-bg)', color: 'var(--tg-hint)' }}>
                     <span>Yetkazish</span>
-                    <span>{o.delivery_fee === 0 ? (pickup ? '—' : 'Bepul') : somLabel(o.delivery_fee)}</span>
+                    <span>
+                        {o.delivery_paid_to_taxi
+                            ? 'Royal Taxi — haydovchiga alohida'
+                            : o.delivery_fee === 0 ? (pickup ? '—' : 'Bepul') : somLabel(o.delivery_fee)}
+                    </span>
                 </div>
                 {o.discount_amount > 0 && (
                     <div className="flex justify-between text-[13px]" style={{ color: 'var(--tg-hint)' }}>

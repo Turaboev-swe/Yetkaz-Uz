@@ -149,7 +149,9 @@ class NotifyRestaurantOfNewOrder implements ShouldQueue
         $lines[] = '';
         $lines[] = 'Taomlar: '.$som($order->subtotal).' so‘m';
         if (! $order->delivery_type->isPickup()) {
-            $lines[] = 'Yetkazish: '.($order->delivery_fee > 0 ? $som($order->delivery_fee).' so‘m' : 'bepul');
+            $lines[] = $order->delivery_paid_to_taxi
+                ? '🚕 Yetkazish haqi: mijoz taksiga alohida to‘laydi'
+                : 'Yetkazish: '.($order->delivery_fee > 0 ? $som($order->delivery_fee).' so‘m' : 'bepul');
         }
         // Chegirmasiz Taomlar + Yetkazish != olinadigan summa bo'lib qolardi. Restoran/
         // platforma taqsimoti bu yerda KO'RSATILMAYDI — faqat hisobotlarda.

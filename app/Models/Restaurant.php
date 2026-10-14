@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\BeyondFreeZoneDelivery;
 use App\Enums\PosType;
 use App\Models\Concerns\HasGeneratedLocation;
 use App\Support\TestAccess;
@@ -40,6 +41,7 @@ class Restaurant extends Model
         'delivery_radius_km',
         'free_delivery_radius_km',
         'price_per_km',
+        'beyond_free_zone_delivery',
         'min_order_amount',
         'delivery_fee',
         'is_open',
@@ -70,6 +72,7 @@ class Restaurant extends Model
             'cached_ratings_count' => 'integer',
             'delivery_radius_km' => 'float',
             'free_delivery_radius_km' => 'float',
+            'beyond_free_zone_delivery' => BeyondFreeZoneDelivery::class,
             'price_per_km' => 'integer',
             'min_order_amount' => 'integer',
             'delivery_fee' => 'integer',

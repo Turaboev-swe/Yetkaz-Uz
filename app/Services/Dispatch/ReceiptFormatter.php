@@ -77,6 +77,12 @@ class ReceiptFormatter
         if ($order->hasDiscount()) {
             $p->columns('Chegirma:', '-'.$som($order->discount_amount));
         }
+        if ($order->delivery_paid_to_taxi) {
+            // Faqat taomlar summasi olinadi; yetkazish haqini mijoz taksiga alohida to'laydi.
+            foreach ($this->wrap('Yetkazish haqi: mijoz taksiga alohida tolaydi') as $line) {
+                $p->text($line);
+            }
+        }
         $p->bold(true)->size(0, 1)->columns('MIJOZDAN OLINADI:', $som($order->total))->size(0, 0)->bold(false);
         $p->text('Tolov: naqd');
         $p->feed(1)->align('center')->text('yetkaz.uz')->feed(3)->cut();

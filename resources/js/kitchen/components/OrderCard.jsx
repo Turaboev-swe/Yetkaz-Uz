@@ -216,6 +216,12 @@ export default function OrderCard({ order, onAdvance, onCancel, onChatRead = () 
                 </div>
             )}
 
+            {order.delivery_paid_to_taxi && (
+                <div className="mt-2 text-[13px] font-semibold text-amber-300">
+                    🚕 Yetkazish haqi: mijoz taksiga alohida to‘laydi
+                </div>
+            )}
+
             <div className="mt-3 flex items-center justify-between text-[13px] text-gray-400">
                 <span>💵 Mijozdan olinadi: <b className="text-gray-200">{som(order.total)} so‘m</b> · naqd</span>
                 {order.eta_minutes ? <span>≈ {order.eta_minutes} daq</span> : null}

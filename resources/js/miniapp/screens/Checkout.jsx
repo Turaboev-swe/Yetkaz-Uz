@@ -182,6 +182,8 @@ export default function Checkout() {
     // Backend hisoblaydi (masofaga qarab bo'lishi mumkin) — buyurtma yaratilganda
     // xuddi shu qiymat chiqadi, mijoz tomonidan taxmin qilinmaydi.
     const deliveryFee = estimate?.delivery_fee ?? 0;
+    // Royal Taxi rejimida bepul zonadan tashqarida: ilovada narx 0, taksi haqi alohida (jami faqat taomlar).
+    const paidToTaxi = Boolean(estimate?.delivery_paid_to_taxi);
     // Chegirma faqat taomlar summasidan (backend ham shunday) — yetkazishga ta'sir qilmaydi.
     const discount = promo?.discount ?? 0;
     const payable = total + deliveryFee - discount;
@@ -371,15 +373,24 @@ export default function Checkout() {
             {/* Hisob */}
             <Section title={`Taxminan ${eta}`}>
                 <Line label={`Taomlar (${count})`} value={somLabel(total)} />
-                <Line
-                    label="Yetkazish"
-                    value={
-                        mode === 'pickup'
-                            ? '—'
-                            : (deliveryFee === 0 ? 'Bepul' : somLabel(deliveryFee))
-                              + (estimate?.distance_km != null ? ` (${distanceLabel(estimate.distance_km)})` : '')
-                    }
-                />
+                {mode !== 'pickup' && paidToTaxi ? (
+                    <>
+                        <Line label="🚕 Yetkazish" value="Royal Taxi orqali" />
+                        <p className="pb-1 text-[12px]" style={{ color: 'var(--tg-hint)' }}>
+                            Yetkazish haqini taksi haydovchisiga alohida to‘laysiz
+                        </p>
+                    </>
+                ) : (
+                    <Line
+                        label="Yetkazish"
+                        value={
+                            mode === 'pickup'
+                                ? '—'
+                                : (deliveryFee === 0 ? 'Bepul' : somLabel(deliveryFee))
+                                  + (estimate?.distance_km != null ? ` (${distanceLabel(estimate.distance_km)})` : '')
+                        }
+                    />
+                )}
                 {discount > 0 && <Line label="Chegirma" value={`−${somLabel(discount)}`} />}
                 <div className="mt-2 flex justify-between border-t pt-2 text-[15px] font-bold" style={{ borderColor: 'var(--tg-bg)', color: 'var(--tg-text)' }}>
                     <span>Jami</span>

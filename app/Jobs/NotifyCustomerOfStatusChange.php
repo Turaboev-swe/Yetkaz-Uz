@@ -95,7 +95,13 @@ class NotifyCustomerOfStatusChange implements ShouldQueue
             $base = __('messages.order_notify.on_the_way_taxi', ['n' => $num]);
             $phone = trim((string) $order->courier_phone);
 
-            return $phone === '' ? $base : $base."\n\n".'📞 '.__('messages.order_notify.royal_taxi').': '.$phone;
+            $text = $phone === '' ? $base : $base."\n\n".'📞 '.__('messages.order_notify.royal_taxi').': '.$phone;
+
+            // Faqat yetkazish haqi taksiga alohida to'lanadigan buyurtmada. Bepul zonada
+            // taksi tanlansa — restoran o'zi to'laydi, mijozga hech narsa yozilmaydi.
+            return $order->delivery_paid_to_taxi
+                ? $text."\n\n".__('messages.order_notify.taxi_fee_note')
+                : $text;
         }
 
         $base = __('messages.order_notify.on_the_way', ['n' => $num]);

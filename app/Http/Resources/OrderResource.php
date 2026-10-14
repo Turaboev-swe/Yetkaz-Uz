@@ -28,6 +28,7 @@ class OrderResource extends JsonResource
             // Pul — tiyinda. `total` chegirma AYIRILGAN holda.
             'subtotal' => $this->subtotal,
             'delivery_fee' => $this->delivery_fee,
+            'delivery_paid_to_taxi' => (bool) $this->delivery_paid_to_taxi,
             'discount_amount' => $this->discount_amount,
             'total' => $this->total,
 

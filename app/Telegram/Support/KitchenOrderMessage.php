@@ -88,6 +88,9 @@ class KitchenOrderMessage
         if ($order->hasDiscount()) {
             $lines[] = $t('discount', ['amount' => $som((int) $order->discount_amount).' '.$t('som')]);
         }
+        if ($order->delivery_paid_to_taxi) {
+            $lines[] = $t('taxi_fee');
+        }
         $lines[] = '<b>'.$t('to_collect').': '.$som((int) $order->total).' '.$t('som').'</b> · '.$t('cash');
         $lines[] = $t('status').': '.$esc((string) __("messages.order_status.{$order->status->value}", [], $this->locale));
 

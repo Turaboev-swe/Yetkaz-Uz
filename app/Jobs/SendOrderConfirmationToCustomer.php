@@ -116,7 +116,10 @@ class SendOrderConfirmationToCustomer implements ShouldQueue
         }
         $rows[] = $sep;
         $rows[] = $this->leader($t('subtotal'), $som((int) $order->subtotal));
-        if (! $pickup) {
+        if (! $pickup && $order->delivery_paid_to_taxi) {
+            // Narx ilovada olinmaydi — mijoz taksi haqini haydovchiga alohida to'laydi.
+            $rows[] = $t('delivery').': '.$t('delivery_taxi');
+        } elseif (! $pickup) {
             $rows[] = $this->leader(
                 $t('delivery'),
                 $order->delivery_fee > 0 ? $som((int) $order->delivery_fee) : $t('free'),

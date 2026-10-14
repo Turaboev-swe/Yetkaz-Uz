@@ -68,6 +68,8 @@ class KitchenOrderResource extends JsonResource
 
             'subtotal' => $this->subtotal,
             'delivery_fee' => $this->delivery_fee,
+            // Yetkazish haqi taksiga alohida to'lanadi (olinadigan summaga kirmaydi).
+            'delivery_paid_to_taxi' => (bool) $this->delivery_paid_to_taxi,
             // Restoran/platforma taqsimoti ATAYLAB yo'q — oshxona panelida ko'rsatilmaydi
             // (bu JSON Reverb orqali oshxona kanaliga ham ketadi). Faqat hisobotlarda.
             'discount_amount' => $this->discount_amount,
