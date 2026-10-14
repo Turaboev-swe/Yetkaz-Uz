@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { echo } from './lib/echo';
 import { api } from './lib/api';
-import { enableSound, soundReady, startAlarm, pauseAlarm, stopAlarm } from './lib/sound';
+import { enableSound, soundReady, startAlarm, pauseAlarm, stopAlarm, ping } from './lib/sound';
+import { chatBus } from './lib/chatBus';
 import { pushSupported, enablePush, disablePush } from './lib/push';
 import OrderCard from './components/OrderCard';
 
@@ -98,6 +99,33 @@ export default function App() {
                 );
             });
 
+            // Buyurtma chati: yangi xabar (ochiq panelga + o'qilmagan belgi + ovoz).
+            ch.listen('.order.message', (e) => {
+                if (!e.message) return;
+                chatBus.publish(e.order_id, e.message);
+                if (e.message.sender === 'customer') {
+                    setOrders((cur) =>
+                        cur.map((o) => (o.id === e.order_id ? { ...o, chat: { ...o.chat, unread: e.unread ?? (o.chat?.unread || 0) + 1 } } : o)),
+                    );
+                    ping();
+                }
+            });
+
+            // Mijoz chatda yangi aloqa raqamini yubordi.
+            ch.listen('.order.contact_phone', (e) => {
+                setOrders((cur) =>
+                    cur.map((o) =>
+                        o.id === e.order_id
+                            ? {
+                                  ...o,
+                                  customer: { ...o.customer, contact_phone: e.contact_phone, phones_differ: e.phones_differ },
+                                  chat: { ...o.chat, awaiting_phone: false },
+                              }
+                            : o,
+                    ),
+                );
+            });
+
             ch.listen('.order.dispatch_failed', (e) => {
                 setOrders((cur) => cur.map((o) => (o.id === e.id ? { ...o, dispatch_failed: true } : o)));
             });
@@ -148,6 +176,10 @@ export default function App() {
             setBusyId(null);
         }
     };
+
+    const markChatRead = useCallback((id) => {
+        setOrders((cur) => cur.map((o) => (o.id === id && o.chat?.unread ? { ...o, chat: { ...o.chat, unread: 0 } } : o)));
+    }, []);
 
     const cancel = async (id, reason) => {
         setBusyId(id);
@@ -239,6 +271,7 @@ export default function App() {
                             order={o}
                             onAdvance={advance}
                             onCancel={cancel}
+                            onChatRead={markChatRead}
                             busy={busyId === o.id}
                             couriers={couriersBy[o.restaurant?.id] || []}
                             showRestaurant={MULTI}

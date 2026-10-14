@@ -2,6 +2,7 @@
 
 namespace App\Telegram\Handlers;
 
+use App\Services\Chat\PendingOrderChatStore;
 use App\Services\Feedback\FeedbackService;
 use App\Services\Feedback\PendingFeedbackStore;
 use App\Services\Ordering\PendingRatingStore;
@@ -39,6 +40,7 @@ class MenuHandler
         private readonly PendingRatingStore $pendingRating,
         private readonly PendingFeedbackStore $pendingFeedback,
         private readonly FeedbackService $feedbacks,
+        private readonly PendingOrderChatStore $pendingChat,
     ) {}
 
     public function __invoke(Nutgram $bot): void
@@ -51,10 +53,17 @@ class MenuHandler
             if ($text !== '' && $text === __("messages.main_menu.{$key}")) {
                 $this->pendingRating->forget($userId);
                 $this->pendingFeedback->forget($userId);
+                $this->pendingChat->forget($userId);
                 app($handler)($bot);
 
                 return;
             }
+        }
+
+        // 2a. Faol buyurtma chati ("Oshxonaga yozish" bosilgan) — eng yangi niyat,
+        //     reyting izohidan OLDIN. Chat TTL tugagach reyting izohi yana ishlaydi.
+        if ($text !== '' && app(ChatMessageHandler::class)($bot, $text)) {
+            return;
         }
 
         // 2. Kutilayotgan reyting izohi — boshqa har qanday matn logikasidan OLDIN.

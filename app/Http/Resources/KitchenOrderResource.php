@@ -3,6 +3,7 @@
 namespace App\Http\Resources;
 
 use App\Models\Order;
+use App\Services\Chat\OrderChatService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -13,6 +14,7 @@ class KitchenOrderResource extends JsonResource
     public function toArray(Request $request): array
     {
         $snap = $this->address_snapshot ?? [];
+        $chat = app(OrderChatService::class);
 
         return [
             'id' => $this->id,
@@ -48,6 +50,14 @@ class KitchenOrderResource extends JsonResource
                 'apartment' => $snap['apartment'] ?? null,
                 'lat' => $snap['lat'] ?? null,
                 'lng' => $snap['lng'] ?? null,
+            ],
+
+            // Buyurtma chati: ochiqmi, o'qilmagan mijoz xabarlari, "raqam ishlamayapti" kutilyaptimi.
+            // `unread_messages_count` ro'yxatda withCount bilan keladi; boshqa joylarda alohida hisoblanadi.
+            'chat' => [
+                'open' => $chat->isOpen($this->resource),
+                'unread' => $this->unread_messages_count ?? $chat->unreadCount($this->resource),
+                'awaiting_phone' => $chat->isAwaitingPhone($this->resource),
             ],
 
             'items' => $this->items, // [{product_id, name, price, qty, prep, note}]

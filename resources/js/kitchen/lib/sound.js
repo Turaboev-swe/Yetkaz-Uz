@@ -55,6 +55,35 @@ export function startAlarm() {
     }
 }
 
+/**
+ * Qisqa "ding-dong" — mijoz chatga yozganda (buyurtma signalidan farqli, takrorlanmaydi).
+ * Ovoz ruxsati olingan bo'lsagina (enableSound) ishlaydi.
+ */
+export function ping() {
+    if (!unlocked) return;
+    try {
+        const Ctx = window.AudioContext || window.webkitAudioContext;
+        if (!Ctx) return;
+        const ctx = new Ctx();
+        [880, 1175].forEach((freq, i) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.value = freq;
+            const t = ctx.currentTime + i * 0.18;
+            gain.gain.setValueAtTime(0.0001, t);
+            gain.gain.exponentialRampToValueAtTime(0.3, t + 0.02);
+            gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.16);
+            osc.connect(gain).connect(ctx.destination);
+            osc.start(t);
+            osc.stop(t + 0.18);
+        });
+        setTimeout(() => ctx.close(), 800);
+    } catch {
+        // ovoz muhim emas
+    }
+}
+
 /** Vaqtincha to'xtatish ("🔕 Ovozni to'xtatish") — pozitsiya saqlanadi. */
 export function pauseAlarm() {
     el?.pause();

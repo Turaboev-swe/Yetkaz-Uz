@@ -4,8 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Enums\CourierType;
 use App\Enums\OrderStatus;
+use App\Http\Controllers\Concerns\AuthorizesKitchenOrders;
 use App\Http\Resources\KitchenOrderResource;
 use App\Models\Order;
+use App\Models\OrderMessage;
 use App\Models\Staff;
 use App\Services\Ordering\OrderStatusService;
 use App\Support\Phone;
@@ -23,6 +25,8 @@ use Symfony\Component\HttpFoundation\Response;
  */
 class KitchenController extends Controller
 {
+    use AuthorizesKitchenOrders;
+
     public function __construct(private readonly OrderStatusService $status) {}
 
     /** Sahifa (React ilova). */
@@ -83,6 +87,10 @@ class KitchenController extends Controller
             ->whereIn('restaurant_id', $this->staff()->restaurantIds())
             ->whereIn('status', OrderStatus::activeValues())
             ->with(['user', 'restaurant:id,name'])
+            // O'qilmagan mijoz xabarlari soni (chat belgisi) — N+1 siz, bitta so'rovda.
+            ->withCount(['messages as unread_messages_count' => fn ($q) => $q
+                ->where('sender_type', OrderMessage::SENDER_CUSTOMER)
+                ->whereNull('read_at')])
             ->orderBy('created_at')
             ->get();
 
@@ -208,31 +216,5 @@ class KitchenController extends Controller
         $this->status->cancel($order, $data['reason'], "kitchen:{$staff->id}");
 
         return (new KitchenOrderResource($order->fresh(['user', 'restaurant:id,name'])))->response();
-    }
-
-    /**
-     * Buyurtma RestaurantScope'siz topiladi (egasining scope'i faqat asosiy
-     * restoranni ko'radi), ruxsat esa xodimning biriktirilgan restoranlari
-     * bo'yicha tekshiriladi. Biriktirilmagan restoran buyurtmasi — avvalgidek:
-     * egasiga 404 (scope uni "ko'rmas" edi), oshxona xodimiga 403.
-     */
-    private function manageableOrder(Staff $staff, int $orderId): Order
-    {
-        $order = Order::withoutGlobalScopes()->findOrFail($orderId);
-
-        if (! $staff->canManageRestaurant($order->restaurant_id)) {
-            abort($staff->isRestaurantOwner() ? Response::HTTP_NOT_FOUND : Response::HTTP_FORBIDDEN);
-        }
-
-        return $order;
-    }
-
-    private function staff(): Staff
-    {
-        $staff = auth('staff')->user();
-
-        abort_unless($staff instanceof Staff && $staff->canManageKitchen(), Response::HTTP_FORBIDDEN);
-
-        return $staff;
     }
 }

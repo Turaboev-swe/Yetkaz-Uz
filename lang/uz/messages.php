@@ -194,6 +194,31 @@ return [
     'contact_phone' => [
         'invalid' => 'Qo‘ng‘iroq uchun raqam noto‘g‘ri — masalan 90 111 22 33 yoki +998901112233 kabi kiriting.',
     ],
+
+    // Buyurtma chati (mijoz <-> restoran)
+    'order_chat' => [
+        'button' => '💬 Oshxonaga yozish',
+        'reply_button' => '✍️ Javob yozish',
+        'prompt' => "Buyurtma :n bo‘yicha xabaringizni yozing (:max belgigacha). Oshxona uni shu yerda o‘qiydi.",
+        'sent' => '✅ Oshxonaga yuborildi.',
+        'from_restaurant' => ":restaurant · Buyurtma #:n:\n:body",
+        'phone_unreachable' => 'Raqamingizga ulanib bo‘lmadi, iltimos, to‘g‘ri raqamni yozing.',
+        'phone_updated' => '✅ Aloqa raqamingiz yangilandi: :phone',
+        'owner_notify' => "💬 Mijozdan xabar — :restaurant\nBuyurtma #:n\n\n«:excerpt»",
+        'open_panel' => '🖥 Panelni ochish',
+        'quick' => [
+            'accepted' => 'Buyurtma qabul qilindi',
+            'clarify_address' => 'Manzilni aniqlashtiring',
+            'unreachable' => 'Raqamingizga ulanib bo‘lmadi',
+        ],
+        'errors' => [
+            'forbidden' => 'Bu buyurtma chatiga yozishga ruxsat yo‘q.',
+            'closed' => 'Bu buyurtma bo‘yicha chat yopilgan.',
+            'empty' => 'Xabar bo‘sh bo‘lishi mumkin emas.',
+            'too_long' => 'Xabar 500 belgidan oshmasin.',
+            'throttled' => 'Juda tez-tez yozmoqdasiz, bir daqiqa kuting.',
+        ],
+    ],
     // Promokod qabul qilinmagan sabab (PromoCodeError)
     'promo_code_error' => [
         'not_found' => 'Bunday promokod topilmadi.',

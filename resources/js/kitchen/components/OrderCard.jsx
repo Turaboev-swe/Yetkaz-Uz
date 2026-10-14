@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import { som, agoLabel, nextActionLabel, isValidUzPhone } from '../lib/format';
+import { api } from '../lib/api';
+import ChatPanel from './ChatPanel';
 
 const CANCEL_PRESETS = ['Taom tugab qoldi', 'Restoran hozir band'];
 
@@ -19,7 +21,7 @@ const RESTAURANT_COLORS = [
     { background: '#713f12', color: '#fde68a' },
 ];
 
-export default function OrderCard({ order, onAdvance, onCancel, busy, couriers = [], showRestaurant = false }) {
+export default function OrderCard({ order, onAdvance, onCancel, onChatRead = () => {}, busy, couriers = [], showRestaurant = false }) {
     const [, tick] = useState(0);
     useEffect(() => {
         const t = setInterval(() => tick((n) => n + 1), 15000);
@@ -38,6 +40,26 @@ export default function OrderCard({ order, onAdvance, onCancel, busy, couriers =
     const [courierId, setCourierId] = useState('');
     const [taxiPhone, setTaxiPhone] = useState('');
     const taxiPhoneValid = isValidUzPhone(taxiPhone);
+
+    // Buyurtma chati va "Raqam ishlamayapti"
+    const [chatOpen, setChatOpen] = useState(false);
+    const [phoneBusy, setPhoneBusy] = useState(false);
+    const [phoneError, setPhoneError] = useState(null);
+    const unread = order.chat?.unread || 0;
+
+    const phoneUnreachable = async () => {
+        if (phoneBusy) return;
+        setPhoneBusy(true);
+        setPhoneError(null);
+        try {
+            await api.phoneUnreachable(order.id);
+            setChatOpen(true);
+        } catch (e) {
+            setPhoneError(e.message);
+        } finally {
+            setPhoneBusy(false);
+        }
+    };
 
     // Bekor qilish modali
     const [cancelOpen, setCancelOpen] = useState(false);
@@ -124,6 +146,29 @@ export default function OrderCard({ order, onAdvance, onCancel, busy, couriers =
                     </div>
                 )}
             </div>
+
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+                <button
+                    onClick={() => setChatOpen((v) => !v)}
+                    className="relative rounded-lg bg-gray-800 px-3 py-1.5 text-[13px] font-bold text-gray-200 hover:bg-gray-700"
+                >
+                    💬 Chat
+                    {unread > 0 && (
+                        <span className="ml-1.5 rounded-full bg-red-600 px-1.5 py-0.5 text-[11px] font-extrabold text-white">{unread}</span>
+                    )}
+                </button>
+                {order.chat?.open && (
+                    <button
+                        onClick={phoneUnreachable}
+                        disabled={phoneBusy}
+                        className="rounded-lg bg-gray-800 px-3 py-1.5 text-[13px] font-bold text-amber-300 hover:bg-gray-700 disabled:opacity-50"
+                    >
+                        📵 Raqam ishlamayapti
+                    </button>
+                )}
+            </div>
+            {phoneError && <p className="mt-1 text-[12px] text-red-400">{phoneError}</p>}
+            {chatOpen && <ChatPanel order={order} onRead={onChatRead} />}
 
             {!pickup && addr && (
                 <div className="mt-2 text-[14px] text-gray-300">

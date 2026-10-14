@@ -75,6 +75,20 @@ final class Keyboards
         );
     }
 
+    /**
+     * Buyurtma chati tugmasi (inline): "💬 Oshxonaga yozish" yoki (restoran javobida)
+     * "✍️ Javob yozish". Ikkalasi ham aynan shu buyurtmaga bog'langan `chat:{orderId}`.
+     * `$locale` berilsa (navbat job'lari) — global locale o'zgartirilmaydi.
+     */
+    public static function orderChat(int $orderId, ?string $locale = null, bool $reply = false): InlineKeyboardMarkup
+    {
+        $label = __($reply ? 'messages.order_chat.reply_button' : 'messages.order_chat.button', [], $locale);
+
+        return InlineKeyboardMarkup::make()->addRow(
+            InlineKeyboardButton::make($label, callback_data: "chat:{$orderId}"),
+        );
+    }
+
     /** Til tanlash — Sozlamalar bo'limida (inline). */
     public static function languageChoice(): InlineKeyboardMarkup
     {

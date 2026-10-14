@@ -2,6 +2,7 @@
 
 /** @var Nutgram $bot */
 
+use App\Telegram\Handlers\ChatOpenHandler;
 use App\Telegram\Handlers\FeedbackTypeHandler;
 use App\Telegram\Handlers\IdHandler;
 use App\Telegram\Handlers\KitchenCallbackHandler;
@@ -85,6 +86,11 @@ $bot->onCallbackQueryData('kcourierpick:{orderId}:{expected}:{staffId}', Kitchen
 $bot->onCallbackQueryData('rate:{orderId}:{star}', RateOrderHandler::class)
     ->where('orderId', '\d+')
     ->where('star', '[1-5]');
+
+// Buyurtma chati: "Oshxonaga yozish" / "Javob yozish" (RequireRegistration'dan TASHQARIDA,
+// egalik `order.user` bo'yicha tekshiriladi). Keyingi matn MenuHandler'da ushlanadi.
+$bot->onCallbackQueryData('chat:{orderId}', ChatOpenHandler::class)
+    ->where('orderId', '\d+');
 
 // Ro'yxatdan o'tgan foydalanuvchi uchun menyu amallari.
 $bot->group(function (Nutgram $bot) {

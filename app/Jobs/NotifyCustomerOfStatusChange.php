@@ -5,6 +5,7 @@ namespace App\Jobs;
 use App\Enums\CourierType;
 use App\Enums\OrderStatus;
 use App\Models\Order;
+use App\Telegram\Support\Keyboards;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -47,7 +48,11 @@ class NotifyCustomerOfStatusChange implements ShouldQueue
         }
 
         try {
-            $bot->sendMessage(text: $text, chat_id: $order->user->telegram_id);
+            $bot->sendMessage(
+                text: $text,
+                chat_id: $order->user->telegram_id,
+                reply_markup: Keyboards::orderChat($order->id),
+            );
         } catch (TelegramException $e) {
             $m = strtolower($e->getMessage());
             if (str_contains($m, 'chat not found') || str_contains($m, 'bot was blocked') || str_contains($m, 'deactivated')) {

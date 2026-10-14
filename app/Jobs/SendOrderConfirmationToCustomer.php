@@ -5,6 +5,7 @@ namespace App\Jobs;
 use App\Models\Order;
 use App\Services\Eta\EtaEstimate;
 use App\Support\OrderAddress;
+use App\Telegram\Support\Keyboards;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -60,6 +61,10 @@ class SendOrderConfirmationToCustomer implements ShouldQueue
                 text: $this->receipt($order),
                 chat_id: $order->user->telegram_id,
                 parse_mode: ParseMode::HTML,
+                reply_markup: Keyboards::orderChat(
+                    $order->id,
+                    in_array($order->user->language, ['uz', 'ru'], true) ? $order->user->language : 'uz',
+                ),
             );
         } catch (TelegramException $e) {
             $m = strtolower($e->getMessage());

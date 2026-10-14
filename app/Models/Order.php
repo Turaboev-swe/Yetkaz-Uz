@@ -141,6 +141,12 @@ class Order extends Model
         return $this->belongsTo(Staff::class, 'courier_staff_id');
     }
 
+    /** @return HasMany<OrderMessage> */
+    public function messages(): HasMany
+    {
+        return $this->hasMany(OrderMessage::class)->orderBy('created_at')->orderBy('id');
+    }
+
     /** @return HasMany<OrderStatusHistory> */
     public function statusHistory(): HasMany
     {
