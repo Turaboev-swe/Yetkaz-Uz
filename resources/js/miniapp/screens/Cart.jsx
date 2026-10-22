@@ -4,6 +4,7 @@ import { showBackButton, setMainButton, hideMainButton, isInsideTelegram } from 
 import { useCart, cartLines, cartCount, cartTotal } from '../store/cart';
 import { som, somLabel } from '../lib/format';
 import QtyControl from '../components/QtyControl';
+import ProductImage from '../components/ProductImage';
 
 export default function Cart() {
     const { rid: ridParam } = useParams();
@@ -54,6 +55,12 @@ export default function Cart() {
             <div className="space-y-2">
                 {lines.map((l) => (
                     <div key={l.product_id} className="flex items-center gap-3 rounded-2xl p-3" style={{ background: 'var(--tg-section-bg)' }}>
+                        <ProductImage
+                            photoUrl={l.photo_url}
+                            restaurantLogoUrl={l.logo_url}
+                            name={l.name}
+                            className="h-12 w-12 shrink-0"
+                        />
                         <div className="min-w-0 flex-1">
                             <div className="text-[14px] font-semibold" style={{ color: 'var(--tg-text)' }}>{l.name}</div>
                             <div className="text-[13px]" style={{ color: 'var(--tg-hint)' }}>{somLabel(l.price)}</div>
@@ -61,7 +68,7 @@ export default function Cart() {
                         <div className="w-[104px] shrink-0">
                             <QtyControl
                                 qty={l.qty}
-                                onAdd={() => add(rid, { id: l.product_id, price: l.price, name: l.name })}
+                                onAdd={() => add(rid, { id: l.product_id, price: l.price, name: l.name, photo_url: l.photo_url }, l.logo_url)}
                                 onRemove={() => remove(rid, l.product_id)}
                             />
                         </div>

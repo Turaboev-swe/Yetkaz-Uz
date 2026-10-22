@@ -1,5 +1,5 @@
 import BottomSheet from './BottomSheet';
-import Thumb from './Thumb';
+import ProductImage from './ProductImage';
 import QtyControl from './QtyControl';
 import { som } from '../lib/format';
 
@@ -8,7 +8,7 @@ import { som } from '../lib/format';
  * savatga qo'shish. Kartochkaning rasmi yoki nomi bosilganda ochiladi.
  * Yopish: fon, pastga surish, Telegram BackButton (Menu ekranida ulanadi).
  */
-export default function DishDetailSheet({ product, qty, onAdd, onRemove, onClose }) {
+export default function DishDetailSheet({ product, restaurantLogoUrl, qty, onAdd, onRemove, onClose }) {
     const description = product?.description?.trim();
 
     return (
@@ -16,15 +16,22 @@ export default function DishDetailSheet({ product, qty, onAdd, onRemove, onClose
             {product && (
                 <>
                     {product.photo_url ? (
-                        // Rasmlar kvadrat (600/800px) — ekran kengligida sifat buzilmaydi.
-                        <img
-                            src={product.photo_url}
-                            alt={product.name}
-                            className="-mx-4 mb-3 aspect-square w-[calc(100%+2rem)] max-w-none object-cover"
+                        // Rasmlar kvadrat (600/800px) — ekran kengligida sifat buzilmaydi. Rasm
+                        // yuklanmasa ham xuddi shu kvadrat tarelkaga almashadi (layout siljimaydi).
+                        <ProductImage
+                            photoUrl={product.photo_url}
+                            restaurantLogoUrl={restaurantLogoUrl}
+                            name={product.name}
+                            shape="square"
+                            className="-mx-4 mb-3 aspect-square w-[calc(100%+2rem)] max-w-none"
                         />
                     ) : (
                         <div className="mb-3 flex justify-center">
-                            <Thumb name={product.name} className="h-24 w-24" />
+                            <ProductImage
+                                restaurantLogoUrl={restaurantLogoUrl}
+                                name={product.name}
+                                className="h-24 w-24"
+                            />
                         </div>
                     )}
 

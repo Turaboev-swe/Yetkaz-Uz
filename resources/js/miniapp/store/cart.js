@@ -5,7 +5,7 @@ import { persist } from 'zustand/middleware';
  * Savat mahalliy (localStorage). Har restoran uchun alohida — foydalanuvchi
  * restoran almashtirsa, oldingi savat saqlanadi.
  *
- * carts: { [restaurantId]: { [productId]: { qty, price, name } } }
+ * carts: { [restaurantId]: { [productId]: { qty, price, name, photo_url?, logo_url? } } }
  *
  * Buyurtma yaratilgach shu restoran savati tozalanadi (clear).
  */
@@ -14,7 +14,8 @@ export const useCart = create(
         (set) => ({
             carts: {},
 
-            add: (rid, product) =>
+            // `logoUrl` — restoran logosi (rasmsiz taom tarelkasi uchun), savatga qo'shilayotganda saqlanadi.
+            add: (rid, product, logoUrl) =>
                 set((state) => {
                     const line = state.carts[rid]?.[product.id];
                     return {
@@ -26,6 +27,11 @@ export const useCart = create(
                                     qty: (line?.qty || 0) + 1,
                                     price: product.price,
                                     name: product.name,
+                                    // Savatdagi rasm uchun (ProductImage). Eski (rasm saqlanmagan) qatorlarda
+                                    // yo'q — tarelka placeholder chiqadi; savatdagi "+" uni o'chirib yubormaydi.
+                                    photo_url: product.photo_url ?? line?.photo_url ?? null,
+                                    // Eski qatorlarda yo'q -> ProductImage Yetkaz logosini ko'rsatadi.
+                                    logo_url: logoUrl ?? line?.logo_url ?? null,
                                 },
                             },
                         },
@@ -73,12 +79,14 @@ export function cartItems(carts, rid) {
     }));
 }
 
-/** @returns {{product_id:number, name:string, price:number, qty:number}[]} — ko'rsatish uchun */
+/** @returns {{product_id:number, name:string, price:number, qty:number, photo_url:?string, logo_url:?string}[]} — ko'rsatish uchun */
 export function cartLines(carts, rid) {
     return Object.entries(carts?.[rid] || {}).map(([productId, line]) => ({
         product_id: Number(productId),
         name: line.name,
         price: line.price,
         qty: line.qty,
+        photo_url: line.photo_url ?? null,
+        logo_url: line.logo_url ?? null,
     }));
 }

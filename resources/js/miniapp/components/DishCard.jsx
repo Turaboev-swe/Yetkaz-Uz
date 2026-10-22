@@ -1,13 +1,18 @@
-import Thumb from './Thumb';
+import ProductImage from './ProductImage';
 import QtyControl from './QtyControl';
 import { som } from '../lib/format';
 
 /** Rasm yoki nom bosilsa `onOpen` (tafsilot oynasi); qo'shish tugmasi darhol savatga qo'shadi. */
-export default function DishCard({ product, qty, onAdd, onRemove, onOpen }) {
+export default function DishCard({ product, restaurantLogoUrl, qty, onAdd, onRemove, onOpen }) {
     return (
         <div className="flex flex-col rounded-2xl p-2.5" style={{ background: 'var(--tg-section-bg)' }}>
             <button type="button" onClick={onOpen} className="mb-2 flex justify-center" aria-label={product.name}>
-                <Thumb url={product.photo_url} name={product.name} className="h-24 w-24" />
+                <ProductImage
+                    photoUrl={product.photo_url}
+                    restaurantLogoUrl={restaurantLogoUrl}
+                    name={product.name}
+                    className="h-24 w-24"
+                />
             </button>
 
             <div className="mb-1 flex items-baseline gap-1.5 tabular-nums">

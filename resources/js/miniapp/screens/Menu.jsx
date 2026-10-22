@@ -103,8 +103,9 @@ export default function Menu() {
                                             <DishCard
                                                 key={p.id}
                                                 product={p}
+                                                restaurantLogoUrl={restaurant?.logo_url}
                                                 qty={cartQty(carts, rid, p.id)}
-                                                onAdd={() => add(rid, p)}
+                                                onAdd={() => add(rid, p, restaurant?.logo_url)}
                                                 onRemove={() => remove(rid, p.id)}
                                                 onOpen={() => setDetail(p)}
                                             />
@@ -119,8 +120,9 @@ export default function Menu() {
 
             <DishDetailSheet
                 product={detail}
+                restaurantLogoUrl={restaurant?.logo_url}
                 qty={detail ? cartQty(carts, rid, detail.id) : 0}
-                onAdd={() => add(rid, detail)}
+                onAdd={() => add(rid, detail, restaurant?.logo_url)}
                 onRemove={() => remove(rid, detail.id)}
                 onClose={() => setDetail(null)}
             />
