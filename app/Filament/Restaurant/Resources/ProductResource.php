@@ -185,6 +185,15 @@ class ProductResource extends Resource
                     ->disk('public')
                     ->circular(),
 
+                // Rasm yo'q bo'lsa bo'sh joy o'rniga aniq belgi (Mini App'dagi tarelka/logo mantiqi
+                // panelga ko'chirilmaydi — panelda rasm yo'qligi ochiq ko'rinishi kerak).
+                Tables\Columns\TextColumn::make('photo_missing')
+                    ->label('')
+                    ->state(fn (Product $record): ?string => blank(trim((string) $record->photo_url)) ? "Rasm yo'q" : null)
+                    ->badge()
+                    ->color('warning')
+                    ->icon('heroicon-o-photo'),
+
                 Tables\Columns\TextColumn::make('name')
                     ->label('Nomi')
                     ->searchable()
@@ -226,6 +235,13 @@ class ProductResource extends Resource
                     ->relationship('category', 'name'),
                 Tables\Filters\TernaryFilter::make('is_available')
                     ->label('Mavjudlik'),
+                Tables\Filters\Filter::make('no_photo')
+                    ->label('Rasmsiz mahsulotlar')
+                    ->toggle()
+                    // null, bo'sh yoki faqat bo'shliqdan iborat qiymat.
+                    ->query(fn (Builder $query): Builder => $query->where(
+                        fn (Builder $q) => $q->whereNull('photo_url')->orWhereRaw("TRIM(photo_url) = ''"),
+                    )),
                 Tables\Filters\Filter::make('nutrition_pending')
                     ->label('Tasdiq kutayotganlar')
                     ->toggle()
