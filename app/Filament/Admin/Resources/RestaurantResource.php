@@ -172,6 +172,14 @@ class RestaurantResource extends Resource
                     ->visible(fn (Forms\Get $get) => $get('pos_type') === PosType::EscPos->value),
                 Forms\Components\TextInput::make('printer_port')->label('Printer port')->numeric()->default(9100)
                     ->visible(fn (Forms\Get $get) => $get('pos_type') === PosType::EscPos->value),
+                Forms\Components\Select::make('receipt_paper_mm')->label('Chek qog\'ozi')
+                    ->options([58 => '58 mm (32 belgi)', 80 => '80 mm (42 belgi)'])
+                    ->default(80)->required()->native(false)
+                    ->visible(fn (Forms\Get $get) => $get('pos_type') === PosType::EscPos->value),
+                Forms\Components\TextInput::make('receipt_codepage')->label('Kodlash jadvali (ESC t n)')
+                    ->helperText('Xprinter/Epson-mos printerlar uchun 16 (WPC1252). Chekka faqat ASCII yoziladi (kirill lotinga o\'giriladi, emoji olib tashlanadi). Tekshirish: php artisan print-agent:test-receipt <restoran> --table')
+                    ->numeric()->minValue(0)->maxValue(255)->default(16)->required()
+                    ->visible(fn (Forms\Get $get) => $get('pos_type') === PosType::EscPos->value),
                 Forms\Components\TextInput::make('print_agent_token')->label('Print agent tokeni')
                     ->helperText('Oshxona kompyuteridagi agent shu token bilan ulanadi. Bo\'sh qoldirilsa chek chiqmaydi.')
                     ->visible(fn (Forms\Get $get) => $get('pos_type') === PosType::EscPos->value)

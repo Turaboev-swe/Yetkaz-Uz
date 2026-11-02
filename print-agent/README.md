@@ -67,6 +67,41 @@ Almashtirish kerak bo'lsa: `--rotate`.
 | `simulate` | Chekni `output/<raqam>.txt` ga yozadi va konsolga chiqaradi. Printer shart emas. |
 | `network` | ESC/POS baytlarini `PRINTER_HOST:PRINTER_PORT` (odatda `:9100`) ga yuboradi. |
 
+## Chek formati va sinov cheki
+
+Chek **backend'da** tuziladi (agent faqat baytlarni printerga uzatadi). Sozlamalar —
+`/admin` → Restoranlar → restoran → «POS» (pos_type = escpos bo'lganda):
+
+| Sozlama | Qiymat |
+|---|---|
+| Chek qog'ozi | **80 mm** (42 belgi, standart) yoki **58 mm** (32 belgi) |
+| Kodlash jadvali (`ESC t n`) | standart **16** (WPC1252, Xprinter/Epson-mos) |
+
+Chekka **faqat ASCII** yoziladi: kirill harflar lotinga o'giriladi (o'qilishi uchun:
+«Плов» → «Plov», «ў» → «o'»), emoji va boshqa belgilar olib tashlanadi — shuning uchun
+printerning kodlash jadvaliga bog'liq «iflos» belgilar chiqmaydi. Chekda mijoz ismi va
+telefon (olib ketish buyurtmasida ham), to'lov usuli bor.
+
+**Sinov cheki** (haqiqiy printerni sozlashda): uzun nom, kirill, emoji va `'` bilan namunaviy chek:
+
+```bash
+docker compose -f docker-compose.prod.yml exec app php artisan print-agent:test-receipt "Donix"
+docker compose -f docker-compose.prod.yml exec app php artisan print-agent:test-receipt "Donix" --table   # + 0x80-0xFF kodlash jadvali
+docker compose -f docker-compose.prod.yml exec app php artisan print-agent:test-receipt "Donix" --dry     # yubormasdan faqat matn
+```
+
+Chek tepasidagi `1234567890…` chizig'i qog'oz kengligiga to'liq sig'ishi kerak. Sig'masa — kenglik
+sozlamasi noto'g'ri. Agent o'chiq bo'lsa sinov cheki **navbatga olinmaydi**.
+
+## Monitoring (panelda ogohlantirishlar)
+
+- Agent har 30 s da **heartbeat** yuboradi. 2 daqiqadan ko'p jim bo'lsa oshxona panelida qizil
+  «Printer agenti o'chiq» banneri va signal, `/admin` Dashboard'da «Chek printerlari» jadvali chiqadi.
+- Buyurtma yaratilgandan 2 daqiqada `printed_at` to'lmasa — «Chek chiqmadi» belgisi (agent o'chiq,
+  printer ishlamayotgan bo'lsa ham; Reverb xatosiga tayanilmaydi). Agent keyin chop etsa belgi o'zi ketadi.
+- Agent faqat oxirgi **3 soat** ichidagi, bekor qilinmagan va yetkazilmagan buyurtmalarni qayta oladi;
+  eskilari chop etilmaydi, lekin «Chek chiqmadi» bo'lib ko'rinib turadi.
+
 ## Ishonchlilik (qanday kafolatlar bor)
 
 | Holat | Agent nima qiladi |

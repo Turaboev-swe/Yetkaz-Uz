@@ -57,6 +57,8 @@ class Restaurant extends Model
         'printer_port',
         'pos_credentials',
         'print_agent_token',
+        'receipt_paper_mm',
+        'receipt_codepage',
     ];
 
     /** `location` — PostGIS tomonidan lat/lng dan hisoblanadi, qo'lda yozilmaydi. */
@@ -92,6 +94,8 @@ class Restaurant extends Model
             'pos_credentials' => 'encrypted:array',
             'printer_port' => 'integer',
             'print_agent_last_seen_at' => 'datetime',
+            'receipt_paper_mm' => 'integer',
+            'receipt_codepage' => 'integer',
         ];
     }
 
@@ -135,6 +139,26 @@ class Restaurant extends Model
     public function usesPrintAgent(): bool
     {
         return $this->pos_type === PosType::EscPos;
+    }
+
+    /** Chek qog'ozi kengligi, mm (58 yoki 80; standart 80). */
+    public function receiptPaperMm(): int
+    {
+        return (int) ($this->receipt_paper_mm ?? config('print.default_paper_mm'));
+    }
+
+    /** Chek qatoridagi belgilar soni: 58 mm — 32, 80 mm (standart) — 42 (config print.paper_columns). */
+    public function receiptColumns(): int
+    {
+        $columns = (array) config('print.paper_columns');
+
+        return (int) ($columns[$this->receiptPaperMm()] ?? $columns[config('print.default_paper_mm')]);
+    }
+
+    /** ESC t n — printer kodlash jadvali raqami (standart 16 = WPC1252, Xprinter/Epson-mos). */
+    public function receiptCodepage(): int
+    {
+        return (int) ($this->receipt_codepage ?? config('print.default_codepage'));
     }
 
     /** Agent oxirgi heartbeat'dan beri `print.agent_offline_after_seconds` dan kam jim bo'lgan. */
