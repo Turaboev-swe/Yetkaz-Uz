@@ -3,7 +3,6 @@
 namespace App\Filament\Admin\Widgets;
 
 use App\Enums\OrderStatus;
-use App\Enums\PosType;
 use App\Models\Restaurant;
 use Filament\Tables;
 use Filament\Tables\Table;
@@ -24,7 +23,7 @@ class PrintAgentStatus extends TableWidget
 
     public static function canView(): bool
     {
-        return Restaurant::query()->where('pos_type', PosType::EscPos->value)->exists();
+        return Restaurant::query()->withPrintAgent()->exists();
     }
 
     public function table(Table $table): Table
@@ -32,7 +31,7 @@ class PrintAgentStatus extends TableWidget
         return $table
             ->query(
                 Restaurant::query()
-                    ->where('pos_type', PosType::EscPos->value)
+                    ->withPrintAgent()
                     ->withCount(['orders as unprinted_active_count' => fn (Builder $q) => $q
                         ->withoutGlobalScopes()
                         ->whereNull('printed_at')

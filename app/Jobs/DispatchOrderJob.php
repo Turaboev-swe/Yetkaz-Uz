@@ -63,6 +63,17 @@ class DispatchOrderJob implements ShouldQueue
             return;
         }
 
+        // Printeri sozlanmagan restoranda chek kutilmaydi — «Chek chiqmadi» belgisi/signali yo'q.
+        if (! $order->restaurant?->usesPrintAgent()) {
+            Log::warning('[dispatch] yuborish muvaffaqiyatsiz, lekin restoranda print agenti sozlanmagan', [
+                'order' => $order->order_number,
+                'restaurant_id' => $order->restaurant_id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return;
+        }
+
         $order->forceFill(['dispatch_failed_at' => now()])->save();
 
         OrderDispatchFailed::dispatch($order->id, $order->restaurant_id, $order->order_number);

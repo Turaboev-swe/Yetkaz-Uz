@@ -44,7 +44,7 @@ class TestReceipt extends Command
         $dry = (bool) $this->option('dry');
 
         if (! $dry && ! $restaurant->usesPrintAgent()) {
-            $this->error("«{$restaurant->name}» restoranida pos_type = escpos emas (hozir: {$restaurant->pos_type->value}). Avval print-agent:provision.");
+            $this->error("«{$restaurant->name}» restoranida print agenti sozlanmagan (pos_type: {$restaurant->pos_type->value}, token: ".(filled($restaurant->print_agent_token) ? 'bor' : "yo'q")."). Avval print-agent:provision.");
 
             return self::FAILURE;
         }

@@ -135,10 +135,22 @@ class Restaurant extends Model
         return $this->hasMany(Order::class);
     }
 
-    /** Cheklar print agent orqali chiqadimi (pos_type = escpos). */
+    /**
+     * Print agenti SOZLANGANmi: pos_type = escpos VA print_agent_token bor. Faqat shunday restoranda chek
+     * kutiladi — agent o'chiq banneri, signal, «Chek chiqmadi» belgisi va admin jadvali faqat ular uchun.
+     * Printeri yo'q (yoki token berilmagan) restoranda bularning hech biri chiqmaydi.
+     */
     public function usesPrintAgent(): bool
     {
-        return $this->pos_type === PosType::EscPos;
+        return $this->pos_type === PosType::EscPos && filled($this->print_agent_token);
+    }
+
+    /** Print agenti sozlangan restoranlar (usesPrintAgent bilan bir xil shart). */
+    public function scopeWithPrintAgent(Builder $query): Builder
+    {
+        return $query->where('restaurants.pos_type', PosType::EscPos->value)
+            ->whereNotNull('restaurants.print_agent_token')
+            ->where('restaurants.print_agent_token', '!=', '');
     }
 
     /** Chek qog'ozi kengligi, mm (58 yoki 80; standart 80). */

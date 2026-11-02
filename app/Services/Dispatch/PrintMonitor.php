@@ -32,7 +32,7 @@ class PrintMonitor
             ->whereNull('dispatch_failed_at')
             ->where('status', '!=', OrderStatus::Cancelled->value)
             ->where('created_at', '<=', now()->subSeconds((int) config('print.unprinted_after_seconds')))
-            ->whereIn('restaurant_id', Restaurant::query()->where('pos_type', PosType::EscPos->value)->select('id'))
+            ->whereIn('restaurant_id', Restaurant::query()->withPrintAgent()->select('restaurants.id'))
             ->orderBy('id')
             ->each(function (Order $order) use (&$flagged): void {
                 $order->forceFill(['dispatch_failed_at' => now()])->saveQuietly();
@@ -60,7 +60,8 @@ class PrintMonitor
 
         $failed = Order::query()
             ->withoutGlobalScopes()
-            ->whereIn('restaurant_id', $restaurantIds)
+            // Faqat print agenti sozlangan restoranlar: printeri yo'q restoranda «Chek chiqmadi» bo'lmaydi.
+            ->whereIn('restaurant_id', Restaurant::query()->withPrintAgent()->whereIn('restaurants.id', $restaurantIds)->select('restaurants.id'))
             ->whereIn('status', OrderStatus::activeValues())
             ->whereNull('printed_at')
             ->whereNotNull('dispatch_failed_at')

@@ -87,7 +87,8 @@ class KitchenController extends Controller
             ->withoutGlobalScopes()
             ->whereIn('restaurant_id', $this->staff()->restaurantIds())
             ->whereIn('status', OrderStatus::activeValues())
-            ->with(['user', 'restaurant:id,name'])
+            // pos_type/print_agent_token — «Chek chiqmadi» faqat print agenti bor restoranda (Order::printFailed).
+            ->with(['user', 'restaurant:id,name,pos_type,print_agent_token'])
             // O'qilmagan mijoz xabarlari soni (chat belgisi) — N+1 siz, bitta so'rovda.
             ->withCount(['messages as unread_messages_count' => fn ($q) => $q
                 ->where('sender_type', OrderMessage::SENDER_CUSTOMER)

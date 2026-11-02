@@ -4,7 +4,8 @@
     "type": "module",
     "scripts": {
         "build": "vite build",
-        "dev": "vite"
+        "dev": "vite",
+        "test": "node --test resources/js/kitchen/lib/printStatus.test.js"
     },
     "devDependencies": {
         "@vitejs/plugin-react": "^4.3.4",
