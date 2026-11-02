@@ -3,7 +3,8 @@
 Yetkaz print agent — oshxona kompyuterida ishlaydi.
 
 - Reverb'ga (WebSocket) ulanib, faqat o'z restoran `print` kanalini tinglaydi
-- `print.requested` kelganda chekni chop etadi (simulate = fayl, network = printer)
+- `print.requested` kelganda chekni chop etadi (simulate = fayl, network = LAN printer, windows = USB printer
+  Windows spooler orqali RAW, usb-linux = /dev/usb/lp0)
 - LOKAL NAVBAT: SQLite. Printer o'chgan/xato bo'lsa buyurtma yo'qolmaydi —
   qayta ulanganda avtomat chop etiladi
 - Chop etilgach backend'ga tasdiq yuboradi (orders.printed_at); tasdiq yuborilmasa
@@ -18,6 +19,7 @@ Ishonchlilik qoidalari:
 - Kanalga obuna xatosida backoff bilan qayta uriniladi, bo'lmasa WS uzilib qayta ulanadi
   (jim to'xtash yo'q).
 """
+import argparse
 import base64
 import json
 import logging
@@ -52,6 +54,11 @@ REVERB_PATH = os.environ.get("REVERB_PATH", "").rstrip("/")
 PRINTER_MODE = os.environ.get("PRINTER_MODE", "simulate")
 PRINTER_HOST = os.environ.get("PRINTER_HOST", "")
 PRINTER_PORT = int(os.environ.get("PRINTER_PORT", "9100"))
+# windows rejimi: Windows'da o'rnatilgan printer nomi (`python agent.py --list-printers`).
+PRINTER_NAME = os.environ.get("PRINTER_NAME", "").strip()
+# usb-linux rejimi: printer qurilma fayli.
+PRINTER_DEVICE = os.environ.get("PRINTER_DEVICE", "").strip() or "/dev/usb/lp0"
+PRINTER_MODES = ("simulate", "network", "windows", "usb-linux")
 
 # Vaqtlar (soniya). Env orqali o'zgartirish mumkin (asosan testlar uchun).
 QUEUE_RETRY_SECONDS = int(os.environ.get("QUEUE_RETRY_SECONDS", "15"))      # navbatni qayta urinish
@@ -213,11 +220,180 @@ def purge_old(days: int = ACKED_KEEP_DAYS) -> int:
 
 
 # ---------------------------------------------------------------- chop etish
+class PrinterUnavailable(OSError):
+    """
+    Printer ulanmagan / o'chiq / spooler xatosi. OSError: process_queue shunda o'tishni to'xtatadi,
+    buyurtma navbatda qoladi va keyingi urinishda qayta chop etiladi (network rejimidagidek).
+    """
+
+
+class PrinterConfigError(RuntimeError):
+    """Sozlama xatosi (PRINTER_NAME bo'sh, pywin32 yo'q ...) — matni foydalanuvchiga ko'rsatiladi."""
+
+
+# Windows printer holat bitlari (winspool.h PRINTER_STATUS_*): shular bo'lsa printer hozir chop eta olmaydi.
+_WIN_STATUS_PROBLEMS = {
+    0x00000001: "pauza qilingan",
+    0x00000002: "xato",
+    0x00000008: "qog'oz tiqilgan",
+    0x00000010: "qog'oz tugagan",
+    0x00000040: "qog'oz muammosi",
+    0x00000080: "oflayn (o'chiq yoki USB uzilgan)",
+    0x00001000: "mavjud emas",
+    0x00100000: "foydalanuvchi aralashuvi kerak",
+    0x00400000: "qopqoq ochiq",
+}
+_WIN_ATTRIBUTE_WORK_OFFLINE = 0x00000400  # "Use Printer Offline"
+
+
+def _is_windows() -> bool:
+    return sys.platform == "win32"
+
+
+def _win32print():
+    try:
+        import win32print  # noqa: PLC0415 — faqat Windows'da o'rnatiladi
+    except ImportError as e:
+        raise PrinterConfigError(
+            "pywin32 o'rnatilmagan. Windows'da: pip install -r requirements.txt (yoki pip install pywin32)"
+        ) from e
+    return win32print
+
+
+def list_printers() -> list:
+    """Windows'da o'rnatilgan printerlar nomlari."""
+    wp = _win32print()
+    rows = wp.EnumPrinters(wp.PRINTER_ENUM_LOCAL | wp.PRINTER_ENUM_CONNECTIONS, None, 4)
+    return [(r["pPrinterName"] if isinstance(r, dict) else r[0]) for r in rows]
+
+
+def _printers_hint(names: list) -> str:
+    listing = "\n".join(f"  - {n}" for n in names) or "  (printer topilmadi — Xprinter drayverini o'rnatganingizni tekshiring)"
+    return f"O'rnatilgan printerlar:\n{listing}\n.env ga shu nomlardan birini yozing: PRINTER_NAME=<nom>"
+
+
+def _windows_printer_problem(wp, handle):
+    """Printer hozir chop eta olmasa sababi (matn), aks holda None. Holatni o'qib bo'lmasa — None (yozib ko'ramiz)."""
+    try:
+        info = wp.GetPrinter(handle, 2)
+        status = int(info.get("Status") or 0)
+        attributes = int(info.get("Attributes") or 0)
+    except Exception:  # noqa: BLE001
+        return None
+
+    reasons = [label for bit, label in _WIN_STATUS_PROBLEMS.items() if status & bit]
+    if attributes & _WIN_ATTRIBUTE_WORK_OFFLINE:
+        reasons.append("«Use Printer Offline» yoqilgan")
+
+    return ", ".join(reasons) or None
+
+
+def print_windows(order_number: str, data: bytes):
+    """
+    Windows spooler'ga RAW rejimda yozadi (USB printer uchun). Printer o'chiq/uzilgan bo'lsa yoki spooler xato
+    bersa PrinterUnavailable — buyurtma navbatda qoladi. Holat oldindan tekshiriladi, shunda Windows chop
+    etilmagan ishlarni o'z navbatida to'plab qo'ymaydi.
+    """
+    if not PRINTER_NAME:
+        names = []
+        try:
+            names = list_printers()
+        except PrinterConfigError:
+            pass
+        raise PrinterConfigError("PRINTER_NAME .env da bo'sh.\n" + _printers_hint(names))
+
+    wp = _win32print()
+
+    try:
+        handle = wp.OpenPrinter(PRINTER_NAME)
+    except Exception as e:  # noqa: BLE001
+        raise PrinterUnavailable(f"printer ochilmadi «{PRINTER_NAME}»: {e}") from e
+
+    try:
+        problem = _windows_printer_problem(wp, handle)
+        if problem:
+            raise PrinterUnavailable(f"printer tayyor emas «{PRINTER_NAME}»: {problem}")
+
+        try:
+            wp.StartDocPrinter(handle, 1, (f"Yetkaz {order_number}", None, "RAW"))
+            try:
+                wp.StartPagePrinter(handle)
+                written = wp.WritePrinter(handle, data)
+                wp.EndPagePrinter(handle)
+            finally:
+                wp.EndDocPrinter(handle)
+        except Exception as e:  # noqa: BLE001 — pywintypes.error OSError emas
+            raise PrinterUnavailable(f"spooler xatosi «{PRINTER_NAME}»: {e}") from e
+
+        if written != len(data):
+            raise PrinterUnavailable(f"chek to'liq yozilmadi: {written}/{len(data)} bayt")
+    finally:
+        try:
+            wp.ClosePrinter(handle)
+        except Exception:  # noqa: BLE001
+            pass
+
+
+def print_usb_linux(data: bytes):
+    """Linux: USB printer qurilma fayliga (odatda /dev/usb/lp0) to'g'ridan-to'g'ri yozadi. Fayl yo'q/ruxsat yo'q — OSError."""
+    with open(PRINTER_DEVICE, "wb") as dev:
+        dev.write(data)
+
+
+def validate_printer_config():
+    """Ishga tushishda: sozlama xatosi matni yoki None."""
+    if PRINTER_MODE not in PRINTER_MODES:
+        return f"PRINTER_MODE noto'g'ri: «{PRINTER_MODE}». Mumkin: {', '.join(PRINTER_MODES)}"
+
+    if PRINTER_MODE == "network" and not PRINTER_HOST:
+        return "PRINTER_MODE=network uchun PRINTER_HOST .env da bo'sh"
+
+    if PRINTER_MODE == "windows":
+        if not _is_windows():
+            return "PRINTER_MODE=windows faqat Windows'da ishlaydi (Linux uchun: usb-linux)"
+        try:
+            names = list_printers()
+        except PrinterConfigError as e:
+            return str(e)
+        if not PRINTER_NAME:
+            return "PRINTER_NAME .env da bo'sh.\n" + _printers_hint(names)
+        if PRINTER_NAME not in names:
+            return f"«{PRINTER_NAME}» nomli printer topilmadi.\n" + _printers_hint(names)
+
+    return None
+
+
+def cmd_list_printers() -> int:
+    """`python agent.py --list-printers` — .env ga yoziladigan nomlarni ko'rsatadi (token kerak emas)."""
+    if not _is_windows():
+        print("--list-printers faqat Windows'da ishlaydi (PRINTER_MODE=windows uchun).")
+        return 1
+    try:
+        names = list_printers()
+    except PrinterConfigError as e:
+        print(e)
+        return 1
+
+    print(_printers_hint(names))
+    try:
+        print(f"\nWindows standart printeri: {_win32print().GetDefaultPrinter()}")
+    except Exception:  # noqa: BLE001
+        pass
+
+    return 0
+
+
 def print_receipt(order_number: str, escpos: bytes, text: str):
     if PRINTER_MODE == "network":
         with socket.create_connection((PRINTER_HOST, PRINTER_PORT), timeout=8) as s:
             s.sendall(escpos)
         log(f"printerga yuborildi: {order_number} -> {PRINTER_HOST}:{PRINTER_PORT}")
+    elif PRINTER_MODE == "windows":
+        print_windows(order_number, escpos)
+        log(f"printerga yuborildi: {order_number} -> Windows printer «{PRINTER_NAME}»")
+    elif PRINTER_MODE == "usb-linux":
+        print_usb_linux(escpos)
+        log(f"printerga yuborildi: {order_number} -> {PRINTER_DEVICE}")
     else:
         ts = datetime.now().strftime("%Y%m%d-%H%M%S")
         path = OUTPUT_DIR / f"{order_number}-{ts}.txt"
@@ -471,11 +647,29 @@ def on_close(ws, code, reason):
     log(f"WS uzildi ({code}) — qayta ulanamiz…")
 
 
-def main():
+def main(argv=None):
+    parser = argparse.ArgumentParser(description="Yetkaz print agent")
+    parser.add_argument(
+        "--list-printers",
+        action="store_true",
+        help="Windows'da o'rnatilgan printerlar nomlarini ko'rsatadi (PRINTER_NAME uchun) va chiqadi",
+    )
+    args = parser.parse_args(argv)
+
+    if args.list_printers:
+        return cmd_list_printers()
+
     setup_logging()
 
     if not AGENT_TOKEN or not RESTAURANT_ID:
         raise SystemExit("AGENT_TOKEN va RESTAURANT_ID .env da to'ldirilishi shart")
+
+    config_error = validate_printer_config()
+    if config_error:
+        log(f"SOZLAMA XATOSI: {config_error}")
+        raise SystemExit(f"SOZLAMA XATOSI: {config_error}")
+    if PRINTER_MODE == "usb-linux" and not Path(PRINTER_DEVICE).exists():
+        log(f"ogohlantirish: {PRINTER_DEVICE} topilmadi — printer ulangach chek chiqadi, hozircha navbatda turadi")
 
     log(f"Yetkaz print agent — restoran {RESTAURANT_ID}, rejim: {PRINTER_MODE}")
     log(f"backend: {BACKEND_URL}")
@@ -505,4 +699,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
