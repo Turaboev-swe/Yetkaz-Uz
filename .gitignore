@@ -49,3 +49,7 @@ Thumbs.db
 /print-agent/output/*
 !/print-agent/output/.gitkeep
 /print-agent/.venv
+/print-agent/agent.log*
+/print-agent/service.log*
+/print-agent/.pytest_cache
+/print-agent/tests/__pycache__
