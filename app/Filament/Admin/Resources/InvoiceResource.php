@@ -259,17 +259,29 @@ class InvoiceResource extends Resource
 
     public static function markPaidAction(): Tables\Actions\Action
     {
-        return Tables\Actions\Action::make('markPaid')
+        return self::configureMarkPaid(Tables\Actions\Action::make('markPaid'), fn (RestaurantInvoice $record): RestaurantInvoice => $record);
+    }
+
+    /**
+     * "To'landi" amalining yagona sozlamasi (modal, forma, servis). Hisob-kitoblar jadvali va ko'rish sahifasi
+     * hisobning o'zi bilan ishlaydi; "Joriy oy" sahifasi esa qator (restoran)dan hisobni `$invoiceOf` bilan topadi —
+     * shu tariqa modal va servis takrorlanmaydi.
+     *
+     * @param  \Closure(mixed): RestaurantInvoice  $invoiceOf  amal yozuvidan (record) hisobni topadi
+     */
+    public static function configureMarkPaid(Tables\Actions\Action $action, \Closure $invoiceOf): Tables\Actions\Action
+    {
+        return $action
             ->label('To‘landi')
             ->icon('heroicon-o-check-circle')
             ->color('success')
-            ->authorize('markPaid')
-            ->visible(fn (RestaurantInvoice $record): bool => self::canAddPayment($record))
-            ->modalHeading(fn (RestaurantInvoice $record): string => 'To‘landi — '.$record->restaurant->name)
-            ->modalDescription(fn (RestaurantInvoice $record): string => 'Qolgan qarz ('.Money::soms($record->debt()).') to‘liq to‘lov sifatida yoziladi.')
+            ->authorize(fn ($record): bool => (bool) Filament::auth()->user()?->can('markPaid', $invoiceOf($record)))
+            ->visible(fn ($record): bool => self::canAddPayment($invoiceOf($record)))
+            ->modalHeading(fn ($record): string => 'To‘landi — '.$invoiceOf($record)->restaurant->name)
+            ->modalDescription(fn ($record): string => 'Qolgan qarz ('.Money::soms($invoiceOf($record)->debt()).') to‘liq to‘lov sifatida yoziladi.')
             ->form(self::markPaidFormSchema())
             ->fillForm(fn (): array => self::markPaidDefaults())
-            ->action(fn (RestaurantInvoice $record, array $data) => self::markPaid($record, $data));
+            ->action(fn ($record, array $data) => self::markPaid($invoiceOf($record), $data));
     }
 
     /** Hisobdagi tarif snapshot'i bilan qayta hisoblash (restoranning joriy tarifi ishlatilmaydi). */

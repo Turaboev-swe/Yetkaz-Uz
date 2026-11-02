@@ -64,6 +64,12 @@ class BillingCalculator
         return self::MONTHS[$start->month].' '.$start->year;
     }
 
+    /** Faqat oy nomi: «Oktabr» (yilsiz). */
+    public static function monthName(CarbonInterface|string $period): string
+    {
+        return self::MONTHS[self::monthStart($period)->month];
+    }
+
     /** Hisob-kitob boshlanadigan birinchi oy (Toshkent). */
     public static function startMonth(): CarbonImmutable
     {
@@ -244,18 +250,19 @@ class BillingCalculator
                 [$start->format('Y-m-d H:i:s'), $start->format('Y-m-d H:i:s')],
             );
 
-        // Davr uchun amalda bo'lgan tarif (tarix jadvalidan) va shu davr hisobi — N+1 siz.
+        // Davr uchun amalda bo'lgan tarif (tarix jadvalidan) va shu hamda o'tgan oy hisobi — N+1 siz.
         $periodDate = self::monthStart($period)->format('Y-m-d');
-        $tariff = fn (string $column) => DB::table('restaurant_billing_plans as bp')
+        $prevDate = self::monthStart($period)->subMonth()->format('Y-m-d');
+        $tariff = fn (string $column, string $date) => DB::table('restaurant_billing_plans as bp')
             ->select("bp.{$column}")
             ->whereColumn('bp.restaurant_id', 'restaurants.id')
-            ->where('bp.effective_from', '<=', $periodDate)
+            ->where('bp.effective_from', '<=', $date)
             ->orderByDesc('bp.effective_from')
             ->limit(1);
-        $invoice = fn (string $column) => DB::table('restaurant_invoices as ri')
+        $invoice = fn (string $column, string $date) => DB::table('restaurant_invoices as ri')
             ->select("ri.{$column}")
             ->whereColumn('ri.restaurant_id', 'restaurants.id')
-            ->where('ri.period', $periodDate)
+            ->where('ri.period', $date)
             ->limit(1);
 
         return Restaurant::query()
@@ -263,11 +270,21 @@ class BillingCalculator
             ->addSelect([
                 'billing_orders_count' => $sub('COUNT(*)'),
                 'billing_orders_total' => $sub('COALESCE(SUM(orders.subtotal - orders.discount_restaurant_amount), 0)'),
-                'period_plan' => $tariff('plan'),
-                'period_rate_bp' => $tariff('rate_bp'),
-                'period_monthly_fee' => $tariff('monthly_fee'),
-                'billing_invoice_status' => $invoice('status'),
-                'billing_invoice_amount_due' => $invoice('amount_due'),
+                'period_plan' => $tariff('plan', $periodDate),
+                'period_rate_bp' => $tariff('rate_bp', $periodDate),
+                'period_monthly_fee' => $tariff('monthly_fee', $periodDate),
+                'billing_invoice_id' => $invoice('id', $periodDate),
+                'billing_invoice_status' => $invoice('status', $periodDate),
+                'billing_invoice_amount_due' => $invoice('amount_due', $periodDate),
+                'billing_invoice_amount_paid' => $invoice('amount_paid', $periodDate),
+                'billing_invoice_due_date' => $invoice('due_date', $periodDate),
+                // O'tgan oy: percent keyin to'lanadi — hozir to'lanishi kerak hisob shu.
+                'prev_period_plan' => $tariff('plan', $prevDate),
+                'billing_prev_invoice_id' => $invoice('id', $prevDate),
+                'billing_prev_invoice_status' => $invoice('status', $prevDate),
+                'billing_prev_invoice_amount_due' => $invoice('amount_due', $prevDate),
+                'billing_prev_invoice_amount_paid' => $invoice('amount_paid', $prevDate),
+                'billing_prev_invoice_due_date' => $invoice('due_date', $prevDate),
             ]);
     }
 

@@ -573,10 +573,10 @@ class BillingTariffHistoryTest extends TestCase
         $this->invoices->markPaid($this->invoices->generate($fixedPaid, '2026-11'), \App\Enums\BillingPaymentMethod::Cash, '2026-11-10');
 
         Livewire::test(CurrentMonthBilling::class)
-            ->assertTableColumnStateSet('billing_state', InvoiceStatus::Unpaid->label(), record: $fixedUnpaid->id)
-            ->assertTableColumnStateSet('billing_state', InvoiceStatus::Paid->label(), record: $fixedPaid->id)
-            ->assertTableColumnStateSet('billing_state', 'Hisob yaratilmagan', record: $fixedNone->id)
-            ->assertTableColumnStateSet('billing_state', 'Oy oxirida', record: $percent->id)
+            ->assertTableColumnStateSet('payment_state', 'To‘lanmagan', record: $fixedUnpaid->id)
+            ->assertTableColumnStateSet('payment_state', 'To‘langan', record: $fixedPaid->id)
+            ->assertTableColumnStateSet('payment_state', 'Hisob yaratilmagan', record: $fixedNone->id)
+            ->assertTableColumnStateSet('payment_state', 'Oy oxirida', record: $percent->id)
             ->assertTableColumnStateSet('accrued', "100 000 so'm", record: $fixedUnpaid->id)
             ->assertTableColumnStateSet('accrued', "10 000 so'm", record: $percent->id) // 5% of 200 000 so'm
             ->sortTable('accrued', 'desc')
@@ -591,7 +591,7 @@ class BillingTariffHistoryTest extends TestCase
         $this->setTariff($r, BillingPlan::Fixed, 500, 10_000_000, '2026-12-01');
 
         Livewire::test(CurrentMonthBilling::class)
-            ->assertTableColumnStateSet('billing_state', 'Oy oxirida', record: $r->id)
+            ->assertTableColumnStateSet('payment_state', 'Oy oxirida', record: $r->id)
             ->filterTable('period_plan', 'percent')->assertCanSeeTableRecords([$r])
             ->resetTableFilters()->filterTable('period_plan', 'fixed')->assertCanNotSeeTableRecords([$r]);
     }
