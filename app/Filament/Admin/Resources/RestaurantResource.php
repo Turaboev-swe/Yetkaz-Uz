@@ -172,9 +172,19 @@ class RestaurantResource extends Resource
                     ->visible(fn (Forms\Get $get) => $get('pos_type') === PosType::EscPos->value),
                 Forms\Components\TextInput::make('printer_port')->label('Printer port')->numeric()->default(9100)
                     ->visible(fn (Forms\Get $get) => $get('pos_type') === PosType::EscPos->value),
-                Forms\Components\Select::make('receipt_paper_mm')->label('Chek qog\'ozi')
-                    ->options([58 => '58 mm (32 belgi)', 80 => '80 mm (42 belgi)'])
-                    ->default(80)->required()->native(false)
+                // Qog'oz kengligi (mm) tanlovdan avtomat belgilanadi: 32 -> 58 mm, 42/48 -> 80 mm.
+                Forms\Components\Hidden::make('receipt_paper_mm')->default(80),
+                Forms\Components\Select::make('receipt_columns')->label('Chek qog\'ozi')
+                    ->options([
+                        32 => '58 mm (32 belgi)',
+                        42 => '80 mm (42 belgi)',
+                        48 => '80 mm (48 belgi) — Xprinter XP-80T, Font A',
+                    ])
+                    ->helperText('48 belgi — 80 mm printerning to\'liq kengligi (576 nuqta). Sig\'masa 42 ga qaytaring. Tekshirish: print-agent:test-receipt')
+                    // Eski restoranlarda bo'sh bo'lishi mumkin — qog'oz kengligidan olinadi (qiymat o'zgarmaydi).
+                    ->formatStateUsing(fn ($state, ?Restaurant $record) => $state ?? $record?->receiptColumns() ?? 42)
+                    ->default(42)->required()->native(false)->live()
+                    ->afterStateUpdated(fn ($state, Forms\Set $set) => $set('receipt_paper_mm', (int) $state === 32 ? 58 : 80))
                     ->visible(fn (Forms\Get $get) => $get('pos_type') === PosType::EscPos->value),
                 Forms\Components\TextInput::make('receipt_codepage')->label('Kodlash jadvali (ESC t n)')
                     ->helperText('Xprinter/Epson-mos printerlar uchun 16 (WPC1252). Chekka faqat ASCII yoziladi (kirill lotinga o\'giriladi, emoji olib tashlanadi). Tekshirish: php artisan print-agent:test-receipt <restoran> --table')

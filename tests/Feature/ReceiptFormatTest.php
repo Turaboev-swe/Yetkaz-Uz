@@ -276,7 +276,8 @@ class ReceiptFormatTest extends TestCase
         $r = $this->restaurant();
 
         Livewire::test(EditRestaurant::class, ['record' => $r->getRouteKey()])
-            ->fillForm(['receipt_paper_mm' => 58, 'receipt_codepage' => 19])
+            ->set('data.receipt_columns', 32) // 58 mm tanlandi -> qog'oz kengligi ham 58 bo'ladi
+            ->fillForm(['receipt_codepage' => 19])
             ->call('save')
             ->assertHasNoFormErrors();
 
