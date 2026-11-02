@@ -15,6 +15,10 @@ return [
     'paper_columns' => [58 => 32, 80 => 42],
     'default_paper_mm' => 80,
 
+    // Qatordagi belgilar soni variantlari (restoran sozlamasi `receipt_columns`, bo'sh bo'lsa paper_columns): 58 mm — 32,
+    // 80 mm — 42 (xavfsiz standart) yoki 48 (80 mm printer Font A'da 576 nuqta = 48 belgi, masalan Xprinter XP-80T).
+    'columns_allowed' => [32, 42, 48],
+
     // ESC t n — printer kodlash jadvali (restoran sozlamasi `receipt_codepage`). 16 = WPC1252 (Xprinter/Epson-mos).
     // Chekka faqat ASCII yoziladi, shuning uchun bu qiymat odatda natijaga ta'sir qilmaydi; noto'g'ri qiymat
     // ASCII'ni buzadigan jadvalni (masalan yapon) tanlasa — `print-agent:test-receipt --table` bilan tekshiring.

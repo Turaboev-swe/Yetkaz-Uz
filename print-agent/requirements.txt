@@ -1,3 +1,5 @@
 websocket-client==1.8.0
 requests==2.32.3
 python-dotenv==1.0.1
+# USB printer (PRINTER_MODE=windows) uchun — faqat Windows'da o'rnatiladi
+pywin32==308; sys_platform == "win32"

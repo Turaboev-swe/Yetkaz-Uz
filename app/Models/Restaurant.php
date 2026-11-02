@@ -59,6 +59,7 @@ class Restaurant extends Model
         'print_agent_token',
         'receipt_paper_mm',
         'receipt_codepage',
+        'receipt_columns',
     ];
 
     /** `location` — PostGIS tomonidan lat/lng dan hisoblanadi, qo'lda yozilmaydi. */
@@ -96,6 +97,7 @@ class Restaurant extends Model
             'print_agent_last_seen_at' => 'datetime',
             'receipt_paper_mm' => 'integer',
             'receipt_codepage' => 'integer',
+            'receipt_columns' => 'integer',
         ];
     }
 
@@ -159,10 +161,18 @@ class Restaurant extends Model
         return (int) ($this->receipt_paper_mm ?? config('print.default_paper_mm'));
     }
 
-    /** Chek qatoridagi belgilar soni: 58 mm — 32, 80 mm (standart) — 42 (config print.paper_columns). */
+    /**
+     * Chek qatoridagi belgilar soni. `receipt_columns` berilgan bo'lsa shu (32 / 42 / 48 — masalan 80 mm
+     * Xprinter XP-80T Font A'da 48); aks holda qog'oz kengligidan: 58 mm — 32, 80 mm — 42 (config print.paper_columns).
+     */
     public function receiptColumns(): int
     {
         $columns = (array) config('print.paper_columns');
+        $explicit = (int) $this->receipt_columns;
+
+        if (in_array($explicit, (array) config('print.columns_allowed'), true)) {
+            return $explicit;
+        }
 
         return (int) ($columns[$this->receiptPaperMm()] ?? $columns[config('print.default_paper_mm')]);
     }
