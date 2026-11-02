@@ -3,6 +3,7 @@
 namespace App\Filament\Admin\Resources;
 
 use App\Enums\BeyondFreeZoneDelivery;
+use App\Enums\BillingPlan;
 use App\Enums\PosType;
 use App\Filament\Admin\Resources\RestaurantResource\Pages;
 use App\Filament\Support\RestaurantLocationForm;
@@ -90,6 +91,38 @@ class RestaurantResource extends Resource
                     ->formatStateUsing(fn (?int $state) => $state === null ? null : intdiv($state, 100))
                     ->dehydrateStateUsing(fn ($state) => (int) round((float) $state * 100)),
             ])->columns(2),
+
+            // Obuna tarifi (Obunalar bo'limi). Mavjud restoranlarda tarif avtomat qo'yilmaydi —
+            // "Belgilanmagan" bo'lsa hisob-kitob yaratilmaydi.
+            Forms\Components\Section::make('Tarif')
+                ->description("Platforma bilan hisob-kitob: yetkazilgan buyurtmalar taom summasidan foiz yoki qat'iy oylik to'lov.")
+                ->schema([
+                    Forms\Components\Select::make('billing_plan')
+                        ->label('Tarif')
+                        ->options(collect(BillingPlan::cases())->mapWithKeys(fn ($c) => [$c->value => $c->label()]))
+                        ->placeholder('Belgilanmagan')
+                        ->native(false),
+                    Forms\Components\TextInput::make('commission_rate_bp')
+                        ->label('Stavka (%)')
+                        ->helperText("«Foiz» tarifida qo'llanadi. Bo'sh qoldirilsa 5%.")
+                        ->numeric()->minValue(0)->maxValue(100)->step(0.01)->suffix('%')
+                        ->formatStateUsing(fn ($state) => $state === null ? null : $state / 100)
+                        ->dehydrateStateUsing(fn ($state) => filled($state)
+                            ? (int) round((float) $state * 100)
+                            : (int) config('billing.default_rate_bp')),
+                    Forms\Components\TextInput::make('monthly_fee')
+                        ->label("Oylik to'lov (so'm)")
+                        ->helperText("«Qat'iy oylik» tarifida qo'llanadi. Bo'sh qoldirilsa 100 000 so'm.")
+                        ->numeric()->minValue(0)->step(1000)->suffix("so'm")
+                        ->formatStateUsing(fn ($state) => $state === null ? null : intdiv((int) $state, 100))
+                        ->dehydrateStateUsing(fn ($state) => filled($state)
+                            ? (int) round((float) $state * 100)
+                            : (int) config('billing.default_monthly_fee')),
+                    Forms\Components\DatePicker::make('billing_started_at')
+                        ->label('Boshlangan sana')
+                        ->helperText("Shu sanadan boshlab hisoblanadi (bo'sh bo'lsa 2026-11-01 dan). Qat'iy tarifda sana oy o'rtasiga tushsa, birinchi oy kunlarga proporsional hisoblanadi (masalan 16-noyabr -> 15/30).")
+                        ->native(false),
+                ])->columns(2),
 
             Forms\Components\Section::make('POS')->schema([
                 Forms\Components\Select::make('pos_type')->label('POS turi')
