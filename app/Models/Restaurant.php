@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\BeyondFreeZoneDelivery;
+use App\Enums\BillingPlan;
 use App\Enums\PosType;
 use App\Models\Concerns\HasGeneratedLocation;
 use App\Support\TestAccess;
@@ -46,6 +47,10 @@ class Restaurant extends Model
         'delivery_fee',
         'is_open',
         'is_test',
+        'billing_plan',
+        'commission_rate_bp',
+        'monthly_fee',
+        'billing_started_at',
         'work_hours',
         'pos_type',
         'printer_host',
@@ -73,6 +78,10 @@ class Restaurant extends Model
             'delivery_radius_km' => 'float',
             'free_delivery_radius_km' => 'float',
             'beyond_free_zone_delivery' => BeyondFreeZoneDelivery::class,
+            'billing_plan' => BillingPlan::class,
+            'commission_rate_bp' => 'integer',
+            'monthly_fee' => 'integer',
+            'billing_started_at' => 'date',
             'price_per_km' => 'integer',
             'min_order_amount' => 'integer',
             'delivery_fee' => 'integer',
@@ -101,6 +110,12 @@ class Restaurant extends Model
     public function products(): HasManyThrough
     {
         return $this->hasManyThrough(Product::class, Category::class);
+    }
+
+    /** @return HasMany<RestaurantInvoice> */
+    public function invoices(): HasMany
+    {
+        return $this->hasMany(RestaurantInvoice::class);
     }
 
     /** @return HasMany<Order> */
