@@ -229,30 +229,54 @@ class BillingTariffHistoryTest extends TestCase
 
     // --- Muddatlar --------------------------------------------------------------------------------------
 
-    public function test_due_dates_fixed_day_of_its_month_and_percent_ten_days_after_the_month_ends(): void
+    public function test_due_date_on_the_first_of_the_month_is_the_regular_fixed_day_and_percent_is_ten_days_after_month_end(): void
     {
         $fixed = $this->restaurant();
         $this->setTariff($fixed, BillingPlan::Fixed, 500, 10_000_000, '2026-11-01');
         $percent = $this->restaurant();
         $this->setTariff($percent, BillingPlan::Percent, 500, 10_000_000, '2026-11-01');
-        $this->now('2026-12-15 12:00');
 
-        $this->assertSame('2026-11-05', $this->invoices->generate($fixed, '2026-11')->due_date->format('Y-m-d'));
+        $this->now('2026-11-01 06:00');
+        $this->assertSame('2026-11-05', $this->invoices->generate($fixed, '2026-11')->due_date->format('Y-m-d'), 'oddiy 1-kungi generatsiya o‘zgarmaydi');
+
+        $this->now('2026-12-15 12:00');
         $this->assertSame('2026-12-10', $this->invoices->generate($percent, '2026-11')->due_date->format('Y-m-d'));
     }
 
-    public function test_fixed_due_day_is_configurable_and_clamped_to_the_month_length(): void
+    public function test_late_created_fixed_invoice_gets_at_least_the_grace_days_counting_the_creation_day(): void
     {
-        $r = $this->restaurant();
-        $this->setTariff($r, BillingPlan::Fixed, 500, 10_000_000, '2027-01-01');
-        $this->now('2027-03-10 12:00');
+        $this->setTariff($early = $this->restaurant(), BillingPlan::Fixed, 500, 10_000_000, '2026-11-01');
+        $this->setTariff($mid = $this->restaurant(), BillingPlan::Fixed, 500, 10_000_000, '2026-11-01');
+        $this->setTariff($late = $this->restaurant(), BillingPlan::Fixed, 500, 10_000_000, '2026-11-01');
+
+        $this->now('2026-11-02 06:00'); // 2 + 4 = 6 > 5
+        $this->assertSame('2026-11-06', $this->invoices->generate($early, '2026-11')->due_date->format('Y-m-d'));
+
+        $this->now('2026-11-20 12:00'); // 20 + 4 = 24
+        $this->assertSame('2026-11-24', $this->invoices->generate($mid, '2026-11')->due_date->format('Y-m-d'));
+
+        $this->now('2026-11-28 23:30'); // oy chegarasidan oshadi: 28 + 4 = 2-dekabr
+        $this->assertSame('2026-12-02', $this->invoices->generate($late, '2026-11')->due_date->format('Y-m-d'));
+    }
+
+    public function test_fixed_due_day_and_late_grace_days_are_configurable_and_the_day_is_clamped_to_the_month_length(): void
+    {
+        $a = $this->restaurant();
+        $this->setTariff($a, BillingPlan::Fixed, 500, 10_000_000, '2027-01-01');
 
         config(['billing.fixed_due_day' => 7]);
-        $this->assertSame('2027-01-07', $this->invoices->generate($r, '2027-01')->due_date->format('Y-m-d'));
+        $this->now('2027-01-01 06:00');
+        $this->assertSame('2027-01-07', $this->invoices->generate($a, '2027-01')->due_date->format('Y-m-d'));
 
         config(['billing.fixed_due_day' => 31]);
-        $this->assertSame('2027-02-28', $this->invoices->generate($r, '2027-02')->due_date->format('Y-m-d'), 'fevralda 28-kun');
+        $this->now('2027-02-01 06:00');
+        $this->assertSame('2027-02-28', $this->invoices->generate($a, '2027-02')->due_date->format('Y-m-d'), 'fevralda 28-kun');
+
+        config(['billing.fixed_due_day' => 5, 'billing.fixed_late_grace_days' => 10]);
+        $this->now('2027-03-01 06:00'); // 1 + 9 = 10
+        $this->assertSame('2027-03-10', $this->invoices->generate($a, '2027-03')->due_date->format('Y-m-d'));
     }
+
 
     // --- Fixed: orders_count/orders_total faqat ma'lumot uchun ---------------------------------------
 
@@ -287,7 +311,7 @@ class BillingTariffHistoryTest extends TestCase
         $invoice = $this->invoice($r, '2026-11');
         $this->assertNotNull($invoice, 'hisob 1-kungacha kutilmaydi');
         $this->assertSame([BillingPlan::Fixed, 5_000_000, '2026-11-16'], [$invoice->plan, $invoice->amount_due, $invoice->billing_started_at->format('Y-m-d')]); // 15/30
-        $this->assertSame('2026-11-05', $invoice->due_date->format('Y-m-d'));
+        $this->assertSame('2026-11-24', $invoice->due_date->format('Y-m-d'), '20-noyabr + 4 kun (kech yaratilgan)');
 
         // Qayta saqlash ikkinchi hisob yaratmaydi.
         Livewire::test(EditRestaurant::class, ['record' => $r->getRouteKey()])
@@ -311,15 +335,95 @@ class BillingTariffHistoryTest extends TestCase
         $this->assertSame(BillingPlan::Fixed, $r->fresh()->billing_plan, 'restaurants.* = oxirgi yozuv');
     }
 
-    public function test_fixed_set_for_the_current_month_without_a_start_date_bills_the_full_month_immediately(): void
+    // --- Joriy oydan fixed: «Boshlangan sana» majburiy ---------------------------------------------------
+
+    public function test_fixed_for_the_current_month_requires_a_start_date_and_creates_nothing_without_it(): void
     {
         $this->now('2026-11-20 12:00');
         $r = $this->restaurant();
 
-        app(TariffService::class)->apply($r, BillingPlan::Fixed, 500, 10_000_000, '2026-11');
+        try {
+            app(TariffService::class)->apply($r, BillingPlan::Fixed, 500, 10_000_000, '2026-11');
+            $this->fail('«Boshlangan sana» majburiy');
+        } catch (ValidationException $e) {
+            $this->assertArrayHasKey('billing_started_at', $e->errors());
+        }
 
-        $this->assertSame(10_000_000, $this->invoice($r, '2026-11')->amount_due);
+        $this->assertSame(0, $r->billingPlans()->count());
+        $this->assertSame(0, RestaurantInvoice::where('restaurant_id', $r->id)->count(), 'sanasiz to‘liq hisob yaratilmaydi');
+        $this->assertNull($r->fresh()->billing_plan);
     }
+
+    public function test_check_works_for_a_restaurant_that_is_not_saved_yet_create_form(): void
+    {
+        $this->now('2026-11-20 12:00');
+        $service = app(TariffService::class);
+
+        $this->assertTrue($service->check(new Restaurant, BillingPlan::Fixed, 500, 10_000_000, '2026-11', '2026-11-16'));
+        $this->assertTrue($service->check(new Restaurant, BillingPlan::Fixed, 500, 10_000_000, '2026-12', ''), 'keyingi oydan sana kerak emas');
+        $this->assertFalse($service->check(new Restaurant, null, 500, 10_000_000, '2026-11', ''));
+
+        $this->expectException(ValidationException::class);
+        $service->check(new Restaurant, BillingPlan::Fixed, 500, 10_000_000, '2026-11', '');
+    }
+
+    public function test_the_start_date_must_fall_inside_the_effective_month(): void
+    {
+        $this->now('2026-11-20 12:00');
+        $r = $this->restaurant(null, ['billing_started_at' => '2026-10-15']);
+
+        $this->expectException(ValidationException::class);
+
+        app(TariffService::class)->apply($r, BillingPlan::Fixed, 500, 10_000_000, '2026-11');
+    }
+
+    public function test_form_requires_the_start_date_for_a_new_current_month_fixed_tariff(): void
+    {
+        $this->now('2026-11-20 12:00');
+        $r = $this->restaurant();
+
+        Livewire::test(EditRestaurant::class, ['record' => $r->getRouteKey()])
+            ->fillForm(['billing_plan' => 'fixed', 'monthly_fee' => 100000, 'effective_month' => 'current', 'billing_started_at' => null, 'name' => 'Saqlanmasligi kerak'])
+            ->call('save')
+            ->assertHasFormErrors(['billing_started_at' => 'required']);
+
+        $this->assertSame(0, $r->billingPlans()->count());
+        $this->assertNotSame('Saqlanmasligi kerak', $r->fresh()->name);
+    }
+
+    public function test_form_does_not_require_the_start_date_for_next_month_or_when_fixed_is_already_in_force(): void
+    {
+        $this->now('2026-11-20 12:00');
+        $next = $this->restaurant();
+        $running = $this->restaurant();
+        $this->setTariff($running, BillingPlan::Fixed, 500, 10_000_000, '2026-11-01');
+
+        Livewire::test(EditRestaurant::class, ['record' => $next->getRouteKey()])
+            ->fillForm(['billing_plan' => 'fixed', 'monthly_fee' => 100000, 'effective_month' => 'next', 'billing_started_at' => null])
+            ->call('save')
+            ->assertHasNoFormErrors();
+        $this->assertSame('2026-12-01', $next->billingPlans()->first()->effective_from->format('Y-m-d'));
+
+        // Qat'iy tarif allaqachon amalda — boshqa maydonni saqlash sanasiz ham ishlaydi, hisob yaratilmaydi.
+        Livewire::test(EditRestaurant::class, ['record' => $running->getRouteKey()])
+            ->fillForm(['name' => 'Yangi nom', 'billing_started_at' => null])
+            ->call('save')
+            ->assertHasNoFormErrors();
+        $this->assertSame(0, RestaurantInvoice::where('restaurant_id', $running->id)->count());
+    }
+
+    public function test_changing_the_fee_of_a_running_fixed_tariff_for_the_current_month_needs_no_start_date(): void
+    {
+        $this->now('2026-11-20 12:00');
+        $r = $this->restaurant();
+        $this->setTariff($r, BillingPlan::Fixed, 500, 10_000_000, '2026-11-01');
+
+        app(TariffService::class)->apply($r, BillingPlan::Fixed, 500, 20_000_000, '2026-11');
+
+        $this->assertSame(1, $r->billingPlans()->count(), 'shu oy yozuvi yangilanadi (oyga bitta yozuv)');
+        $this->assertSame(20_000_000, app(BillingCalculator::class)->tariffFor($r, '2026-11')->monthlyFee);
+    }
+
 
     // --- Tarif tarixiga yozish ---------------------------------------------------------------------------
 

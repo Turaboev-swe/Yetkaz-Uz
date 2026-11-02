@@ -120,6 +120,7 @@ class RestaurantResource extends Resource
                         ->label('Tarif')
                         ->options(collect(BillingPlan::cases())->mapWithKeys(fn ($c) => [$c->value => $c->label()]))
                         ->placeholder('Belgilanmagan')
+                        ->live()
                         ->native(false),
                     Forms\Components\TextInput::make('commission_rate_bp')
                         ->label('Stavka (%)')
@@ -146,10 +147,15 @@ class RestaurantResource extends Resource
                         ])
                         ->default('current')
                         ->required()
+                        ->live()
                         ->native(false),
                     Forms\Components\DatePicker::make('billing_started_at')
                         ->label('Boshlangan sana')
-                        ->helperText("Shu sanadan boshlab hisoblanadi (bo'sh bo'lsa 2026-11-01 dan). Qat'iy tarifda sana joriy oyning o'rtasiga tushsa, birinchi oy kunlarga proporsional hisoblanadi (masalan 16-noyabr -> 15/30) va hisob saqlash zahoti yaratiladi.")
+                        ->helperText("Shu sanadan boshlab hisoblanadi (bo'sh bo'lsa 2026-11-01 dan). Joriy oydan qat'iy tarif boshlanganda MAJBURIY va shu oy ichida bo'lishi kerak: birinchi oy kunlarga proporsional hisoblanadi (masalan 16-noyabr -> 15/30) va hisob saqlash zahoti yaratiladi. Keyingi oydan boshlanadigan qat'iy tarif uchun sana kerak emas (1-kundan).")
+                        ->required(fn (Forms\Get $get, ?Restaurant $record): bool => $get('billing_plan') === BillingPlan::Fixed->value
+                            && $get('effective_month') === 'current'
+                            && ($record === null || app(BillingCalculator::class)
+                                ->tariffFor($record, CarbonImmutable::now(BillingCalculator::timezone()))->plan !== BillingPlan::Fixed))
                         ->native(false),
                     Forms\Components\Placeholder::make('billing_history')
                         ->label('Tarif tarixi')

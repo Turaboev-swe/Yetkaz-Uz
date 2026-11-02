@@ -20,10 +20,15 @@ trait HandlesBillingTariff
     /** @var array<string, mixed> */
     protected array $billingInput = [];
 
+    protected ?string $billingStartedAt = null;
+
     /** @param array<string, mixed> $data */
     protected function pullBillingInput(array $data): array
     {
         $this->billingInput = [];
+        // «Boshlangan sana» restaurants jadvaliga odatdagidek saqlanadi; bu yerda faqat tekshiruv uchun nusxasi
+        // (bo'sh sana '' — saqlangan eski sanaga qaytmaslik uchun).
+        $this->billingStartedAt = array_key_exists('billing_started_at', $data) ? (string) ($data['billing_started_at'] ?? '') : null;
 
         foreach (['billing_plan', 'commission_rate_bp', 'monthly_fee', 'effective_month'] as $key) {
             if (array_key_exists($key, $data)) {
@@ -45,7 +50,7 @@ trait HandlesBillingTariff
         [$plan, $rateBp, $fee, $effective] = $this->billingValues();
 
         try {
-            app(TariffService::class)->check($restaurant, $plan, $rateBp, $fee, $effective);
+            app(TariffService::class)->check($restaurant, $plan, $rateBp, $fee, $effective, $this->billingStartedAt);
         } catch (ValidationException $e) {
             throw ValidationException::withMessages(
                 collect($e->errors())->mapWithKeys(fn ($messages, $key) => ["data.{$key}" => $messages])->all(),

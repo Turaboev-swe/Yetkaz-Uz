@@ -15,7 +15,8 @@ use Illuminate\Validation\ValidationException;
  * Restoran tarifini o'zgartirish: tarif TARIXIGA yozuv qo'shadi (effective_from — oyning 1-kuni),
  * `restaurants.billing_*` ("joriy tarif", forma uchun) ni eng oxirgi yozuvga moslaydi va fixed
  * tarifda joriy oy uchun hisob hali yo'q bo'lsa uni DARHOL yaratadi (oy o'rtasida boshlanganda
- * proratsiya bilan — 1-kungacha kutilmaydi).
+ * proratsiya bilan — 1-kungacha kutilmaydi). Joriy oydan fixed boshlansa «Boshlangan sana» majburiy;
+ * sanasiz to'liq hisob yaratilmaydi.
  */
 class TariffService
 {
@@ -70,6 +71,7 @@ class TariffService
         int $rateBp,
         int $monthlyFee,
         CarbonInterface|string $effectiveMonth,
+        CarbonInterface|string|null $startedAt = null,
     ): bool {
         $effective = BillingCalculator::monthStart($effectiveMonth);
         $current = BillingCalculator::monthStart(CarbonImmutable::now(BillingCalculator::timezone()));
@@ -92,7 +94,30 @@ class TariffService
 
         $this->guardExistingInvoice($restaurant, $plan, $effective);
 
+        // Fixed tarif JORIY oydan yangi boshlansa, «Boshlangan sana» majburiy va shu oy ichida bo'lishi
+        // kerak (proratsiya shundan hisoblanadi). Keyingi oydan boshlansa sana kerak emas — 1-kundan.
+        if ($plan === BillingPlan::Fixed && $effective->equalTo($current) && $inForce->plan !== BillingPlan::Fixed) {
+            $this->assertStartedInMonth($startedAt ?? $restaurant->billing_started_at, $effective);
+        }
+
         return true;
+    }
+
+    private function assertStartedInMonth(CarbonInterface|string|null $startedAt, CarbonImmutable $month): void
+    {
+        if ($startedAt === null || $startedAt === '') {
+            throw ValidationException::withMessages([
+                'billing_started_at' => 'Joriy oydan qat‘iy tarif boshlanganda «Boshlangan sana» majburiy (birinchi oy kunlarga proporsional hisoblanadi).',
+            ]);
+        }
+
+        $started = BillingCalculator::monthStart($startedAt instanceof CarbonInterface ? $startedAt->format('Y-m-d') : substr((string) $startedAt, 0, 10));
+
+        if (! $started->equalTo($month)) {
+            throw ValidationException::withMessages([
+                'billing_started_at' => '«Boshlangan sana» '.BillingCalculator::monthLabel($month).' ichida bo‘lishi kerak.',
+            ]);
+        }
     }
 
     /**
@@ -126,6 +151,13 @@ class TariffService
         $month = BillingCalculator::monthStart(CarbonImmutable::now(BillingCalculator::timezone()));
 
         if ($this->calculator->tariffFor($restaurant, $month)->plan !== BillingPlan::Fixed) {
+            return null;
+        }
+
+        // Darhol hisob faqat «Boshlangan sana» shu oy ichida bo'lganda (proratsiya shundan); sanasiz
+        // to'liq hisob yaratilmaydi — keyingi 1-kun generatsiyasi yaratadi.
+        if ($restaurant->billing_started_at === null
+            || ! BillingCalculator::monthStart($restaurant->billing_started_at->format('Y-m-d'))->equalTo($month)) {
             return null;
         }
 

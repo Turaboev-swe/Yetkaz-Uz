@@ -76,16 +76,29 @@ class InvoiceService
     }
 
     /**
-     * To'lov muddati: fixed (oldindan) — shu oyning `billing.fixed_due_day`-kuni; percent (keyin) —
-     * oy tugagach `billing.due_days` kun.
+     * To'lov muddati:
+     *  - fixed (oldindan): max(oyning `billing.fixed_due_day`-kuni, yaratilgan kun + `billing.fixed_late_grace_days` − 1);
+     *    yaratilgan kun birinchi kun hisoblanadi, shuning uchun oy boshida (1-kun) muddat oddiy 5-sana,
+     *    kech yaratilgan hisobda esa restoranga kamida shuncha kun beriladi
+     *  - percent (keyin): oy tugagach `billing.due_days` kun
+     *
+     * @param  CarbonInterface|null  $createdOn  hisob yaratilgan kun (standart: bugun, Asia/Tashkent)
      */
-    public static function dueDate(?BillingPlan $plan, CarbonInterface $monthStart): CarbonImmutable
+    public static function dueDate(?BillingPlan $plan, CarbonInterface $monthStart, ?CarbonInterface $createdOn = null): CarbonImmutable
     {
         $start = CarbonImmutable::instance($monthStart);
 
-        return $plan === BillingPlan::Fixed
-            ? $start->day(min((int) config('billing.fixed_due_day'), $start->daysInMonth))
-            : $start->addMonth()->addDays((int) config('billing.due_days'))->subDay();
+        if ($plan !== BillingPlan::Fixed) {
+            return $start->addMonth()->addDays((int) config('billing.due_days'))->subDay();
+        }
+
+        $created = CarbonImmutable::instance($createdOn ?? now(BillingCalculator::timezone()))
+            ->setTimezone(BillingCalculator::timezone())->startOfDay();
+
+        $regular = $start->day(min((int) config('billing.fixed_due_day'), $start->daysInMonth));
+        $grace = $created->addDays(max(0, (int) config('billing.fixed_late_grace_days') - 1));
+
+        return $grace->greaterThan($regular) ? $grace : $regular;
     }
 
     /**
