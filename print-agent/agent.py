@@ -13,6 +13,7 @@ Ishonchlilik qoidalari:
 - KAMIDA BIR MARTA: chek yo'qolgandan ko'ra kamdan-kam takror chiqqani yaxshi.
   Chop etilgach agent kutilmaganda o'chsa, qayta ishga tushganda chek yana chiqishi mumkin.
 - Chop etish YAGONA bajaruvchida (`_process_lock`): ikki oqim bir qatorni birga chop etmaydi.
+- Har 30 s da backend'ga heartbeat ("tirikman") yuboriladi — jim bo'lsa panelda ogohlantirish chiqadi.
 - WS ishlamay qolsa ham har ~60 s da backend'dan `pending` so'raladi (zaxira yo'l).
 - Kanalga obuna xatosida backoff bilan qayta uriniladi, bo'lmasa WS uzilib qayta ulanadi
   (jim to'xtash yo'q).
@@ -57,6 +58,7 @@ QUEUE_RETRY_SECONDS = int(os.environ.get("QUEUE_RETRY_SECONDS", "15"))      # na
 PENDING_POLL_SECONDS = int(os.environ.get("PENDING_POLL_SECONDS", "60"))    # backend'dan pending (zaxira)
 SUBSCRIBE_MAX_ATTEMPTS = int(os.environ.get("SUBSCRIBE_MAX_ATTEMPTS", "5"))  # obuna urinishlari, so'ng WS qayta ulanadi
 SUBSCRIBE_WATCHDOG_SECONDS = int(os.environ.get("SUBSCRIBE_WATCHDOG_SECONDS", "90"))
+HEARTBEAT_SECONDS = int(os.environ.get("HEARTBEAT_SECONDS", "30"))          # "tirikman" signali
 RECONNECT_BASE_SECONDS = 5
 RECONNECT_MAX_SECONDS = 60
 ACKED_KEEP_DAYS = int(os.environ.get("ACKED_KEEP_DAYS", "7"))
@@ -331,6 +333,39 @@ def sync_worker():
             log(f"sync_worker xato: {e}")
 
 
+# ---------------------------------------------------------------- heartbeat
+_heartbeat_ok = {"value": None}
+
+
+def send_heartbeat() -> bool:
+    """
+    Backend'ga "tirikman" signali (restaurants.print_agent_last_seen_at). Jim bo'lib qolsa oshxona paneli va
+    admin «Printer agenti o'chiq» ogohlantirishini chiqaradi. Log faqat holat o'zgarganda (har 30 s da emas).
+    """
+    ok, reason = False, ""
+    try:
+        r = requests.post(f"{BACKEND_URL}/api/agent/heartbeat", headers=auth_headers(), timeout=8)
+        ok = r.ok
+        reason = "" if ok else f"{r.status_code}"
+    except requests.RequestException as e:
+        reason = str(e)
+
+    if ok != _heartbeat_ok["value"]:
+        log("heartbeat: backend bilan aloqa tiklandi" if ok else f"heartbeat yuborilmadi: {reason}")
+        _heartbeat_ok["value"] = ok
+
+    return ok
+
+
+def heartbeat_worker():
+    while True:
+        try:
+            send_heartbeat()
+        except Exception as e:  # noqa: BLE001
+            log(f"heartbeat_worker xato: {e}")
+        time.sleep(HEARTBEAT_SECONDS)
+
+
 # ---------------------------------------------------------------- websocket
 def get_channel_auth(socket_id: str) -> str:
     r = requests.post(
@@ -451,6 +486,7 @@ def main():
 
     threading.Thread(target=queue_worker, daemon=True).start()
     threading.Thread(target=sync_worker, daemon=True).start()
+    threading.Thread(target=heartbeat_worker, daemon=True).start()
 
     failures = 0
     while True:

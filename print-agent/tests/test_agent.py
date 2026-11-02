@@ -436,3 +436,39 @@ def test_log_goes_to_a_rotating_file(monkeypatch, tmp_path):
         assert not (tmp_path / "rot.log.3").exists(), "faqat LOG_BACKUPS ta zaxira fayl"
     finally:
         agent.setup_logging(TMP / "agent.log")
+
+
+# ---------------------------------------------------------------- heartbeat
+def test_heartbeat_posts_to_the_backend_with_the_token(monkeypatch):
+    calls = []
+
+    def post(url, **kw):
+        calls.append((url, kw["headers"]["Authorization"]))
+        return FakeResponse(200, {"ok": True})
+
+    monkeypatch.setattr(agent.requests, "post", post)
+    agent._heartbeat_ok["value"] = None
+
+    assert agent.send_heartbeat() is True
+    assert calls == [("http://backend.test/api/agent/heartbeat", "Bearer test-token")]
+
+
+def test_heartbeat_failures_are_quiet_and_logged_only_on_state_change(monkeypatch, caplog):
+    logged = []
+    monkeypatch.setattr(agent, "log", lambda *a: logged.append(" ".join(str(x) for x in a)))
+    outcomes = [agent.requests.ConnectionError("yo'q"), agent.requests.ConnectionError("yo'q"), FakeResponse(403), FakeResponse(200), FakeResponse(200)]
+
+    def post(url, **kw):
+        o = outcomes.pop(0)
+        if isinstance(o, Exception):
+            raise o
+        return o
+
+    monkeypatch.setattr(agent.requests, "post", post)
+    agent._heartbeat_ok["value"] = True
+
+    results = [agent.send_heartbeat() for _ in range(5)]
+
+    assert results == [False, False, False, True, True]
+    assert len(logged) == 2  # uzildi (1 marta) va tiklandi (1 marta)
+    assert "heartbeat yuborilmadi" in logged[0] and "tiklandi" in logged[1]

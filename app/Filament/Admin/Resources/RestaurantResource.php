@@ -198,6 +198,21 @@ class RestaurantResource extends Resource
                 Tables\Columns\TextColumn::make('district.region.name')->label('Viloyat')->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('pos_type')->label('POS')
                     ->badge()->formatStateUsing(fn (PosType $state) => $state->label()),
+                Tables\Columns\TextColumn::make('print_agent_last_seen_at')->label('Printer agenti')
+                    ->badge()
+                    ->state(fn (Restaurant $record): ?string => $record->usesPrintAgent() ? $record->printAgentStatus() : null)
+                    ->formatStateUsing(fn (string $state): string => match ($state) {
+                        'online' => 'Onlayn',
+                        'offline' => 'O‘chiq',
+                        default => 'Ulanmagan',
+                    })
+                    ->color(fn (?string $state): string => match ($state) {
+                        'online' => 'success',
+                        'offline' => 'danger',
+                        default => 'gray',
+                    })
+                    ->placeholder('—')
+                    ->toggleable(),
                 Tables\Columns\ToggleColumn::make('is_open')->label('Ochiq'),
                 Tables\Columns\TextColumn::make('staff_count')->label('Xodimlar')->counts('staff')->badge(),
                 Tables\Columns\TextColumn::make('created_at')->label('Qo`shilgan')->date()->sortable()->toggleable(),

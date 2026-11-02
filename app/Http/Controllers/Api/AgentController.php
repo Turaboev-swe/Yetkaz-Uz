@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Enums\OrderStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Models\Restaurant;
@@ -39,8 +40,23 @@ class AgentController extends Controller
     }
 
     /**
-     * Chop etilmagan buyurtmalar — agent ulanганда (yoki qayta ulanганда) so'raydi.
+     * Agent tirikligi (har 30 s). `restaurants.print_agent_last_seen_at` yoziladi — oshxona paneli
+     * va admin shu vaqt bo'yicha «Printer agenti o'chiq» ogohlantirishini chiqaradi.
+     */
+    public function heartbeat(Request $request): JsonResponse
+    {
+        $restaurant = $this->restaurant($request);
+
+        $restaurant->forceFill(['print_agent_last_seen_at' => now()])->saveQuietly();
+
+        return response()->json(['ok' => true, 'server_time' => now()->toIso8601String()]);
+    }
+
+    /**
+     * Chop etilmagan buyurtmalar — agent ulanганда (yoki qayta ulanганда) va har ~60 s da so'raydi.
      * Agent offline paytida broadcast yo'qolган bo'lsa ham buyurtma tiklanadi.
+     * Bekor qilingan va yetkazilgan buyurtmalar qaytmaydi (chekning keragi yo'q); `print.pending_window_hours`
+     * dan eskilari ham qaytmaydi (panelda «Chek chiqmadi» bo'lib ko'rinadi).
      */
     public function pending(Request $request, ReceiptFormatter $formatter): JsonResponse
     {
@@ -50,7 +66,8 @@ class AgentController extends Controller
             ->withoutGlobalScopes()
             ->where('restaurant_id', $restaurant->id)
             ->whereNull('printed_at')
-            ->where('created_at', '>=', now()->subHours(3))
+            ->whereNotIn('status', [OrderStatus::Cancelled->value, OrderStatus::Delivered->value])
+            ->where('created_at', '>=', now()->subHours((int) config('print.pending_window_hours')))
             ->with('user')
             ->orderBy('created_at')
             ->get();

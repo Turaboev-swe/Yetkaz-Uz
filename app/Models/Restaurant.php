@@ -91,6 +91,7 @@ class Restaurant extends Model
             'pos_type' => PosType::class,
             'pos_credentials' => 'encrypted:array',
             'printer_port' => 'integer',
+            'print_agent_last_seen_at' => 'datetime',
         ];
     }
 
@@ -128,6 +129,29 @@ class Restaurant extends Model
     public function orders(): HasMany
     {
         return $this->hasMany(Order::class);
+    }
+
+    /** Cheklar print agent orqali chiqadimi (pos_type = escpos). */
+    public function usesPrintAgent(): bool
+    {
+        return $this->pos_type === PosType::EscPos;
+    }
+
+    /** Agent oxirgi heartbeat'dan beri `print.agent_offline_after_seconds` dan kam jim bo'lgan. */
+    public function printAgentOnline(): bool
+    {
+        return $this->print_agent_last_seen_at !== null
+            && $this->print_agent_last_seen_at->gte(now()->subSeconds((int) config('print.agent_offline_after_seconds')));
+    }
+
+    /** `online` | `offline` (oldin ulangan, hozir jim) | `never` (hech qachon ulanmagan). */
+    public function printAgentStatus(): string
+    {
+        return match (true) {
+            $this->print_agent_last_seen_at === null => 'never',
+            $this->printAgentOnline() => 'online',
+            default => 'offline',
+        };
     }
 
     /** @return BelongsToMany<PromoCode> Shu restoranda ishlaydigan kodlar (admin tanlagan). */

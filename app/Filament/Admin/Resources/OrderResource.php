@@ -60,6 +60,15 @@ class OrderResource extends Resource
             ])
             ->filters([
                 Tables\Filters\SelectFilter::make('restaurant_id')->label('Restoran')->relationship('restaurant', 'name'),
+                Tables\Filters\TernaryFilter::make('print_failed')->label('Chek')
+                    ->placeholder('Hammasi')
+                    ->trueLabel('Chek chiqmadi')
+                    ->falseLabel('Chek chiqqan')
+                    ->queries(
+                        true: fn (Builder $query) => $query->whereNotNull('dispatch_failed_at')->whereNull('printed_at'),
+                        false: fn (Builder $query) => $query->whereNotNull('printed_at'),
+                        blank: fn (Builder $query) => $query,
+                    ),
                 Tables\Filters\SelectFilter::make('status')
                     ->options(collect(OrderStatus::cases())->mapWithKeys(fn ($c) => [$c->value => $c->label()])),
                 Tables\Filters\TernaryFilter::make('is_test')->label('🧪 Test buyurtmalar')

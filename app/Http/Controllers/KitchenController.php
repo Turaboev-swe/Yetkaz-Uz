@@ -9,6 +9,7 @@ use App\Http\Resources\KitchenOrderResource;
 use App\Models\Order;
 use App\Models\OrderMessage;
 use App\Models\Staff;
+use App\Services\Dispatch\PrintMonitor;
 use App\Services\Ordering\OrderStatusService;
 use App\Support\Phone;
 use Closure;
@@ -98,7 +99,16 @@ class KitchenController extends Controller
     }
 
     /**
-     * GET /kitchen/couriers?restaurant_id= — "Yo'lga chiqdi" dropdown'i uchun
+     * GET /kitchen/print-status — print agent holati (heartbeat) va cheki chiqmagan faol buyurtmalar.
+     * Panel har ~30 s da so'raydi: agent jim bo'lib qolishi vaqt bo'yicha aniqlanadi, hodisa kelmaydi.
+     */
+    public function printStatus(PrintMonitor $monitor): JsonResponse
+    {
+        return response()->json(['data' => $monitor->statusFor($this->staff()->restaurantIds())]);
+    }
+
+    /**
+     * GET /kitchen/couriers?restaurant_id=— "Yo'lga chiqdi" dropdown'i uchun
      * buyurtma restoranining xodimlari (pivot orqali — umumiy xodim ham).
      * `restaurant_id` berilmasa — asosiy restoran (eski frontend bilan moslik).
      */
