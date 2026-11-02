@@ -9,6 +9,9 @@ use App\Filament\Admin\Resources\RestaurantResource\Pages;
 use App\Filament\Support\RestaurantLocationForm;
 use App\Filament\Support\WorkHoursForm;
 use App\Models\Restaurant;
+use App\Services\Billing\BillingCalculator;
+use App\Support\Money;
+use Carbon\CarbonImmutable;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
@@ -18,6 +21,22 @@ use Illuminate\Support\Str;
 
 class RestaurantResource extends Resource
 {
+    /** "2026-11 dan: Foiz 5% · 2026-12 dan: Qat'iy 100 000 so'm" — tarif tarixi (forma uchun, faqat o'qish). */
+    public static function billingHistoryText(?Restaurant $restaurant): string
+    {
+        if ($restaurant === null || ! $restaurant->exists) {
+            return '—';
+        }
+
+        $lines = $restaurant->billingPlans()->get()->map(fn ($entry): string => BillingCalculator::monthLabel($entry->effective_from).' dan: '.match ($entry->plan) {
+            BillingPlan::Percent => 'Foiz '.rtrim(rtrim(number_format($entry->rate_bp / 100, 2, '.', ''), '0'), '.').'%',
+            BillingPlan::Fixed => "Qat'iy ".Money::soms($entry->monthly_fee).' (oldindan)',
+            null => 'Tarifsiz',
+        });
+
+        return $lines->isEmpty() ? 'Tarif belgilanmagan' : $lines->implode(' · ');
+    }
+
     protected static ?string $model = Restaurant::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-building-storefront';
@@ -118,10 +137,25 @@ class RestaurantResource extends Resource
                         ->dehydrateStateUsing(fn ($state) => filled($state)
                             ? (int) round((float) $state * 100)
                             : (int) config('billing.default_monthly_fee')),
+                    Forms\Components\Select::make('effective_month')
+                        ->label('Qaysi oydan')
+                        ->helperText("Tarif o'zgarganda shu oyning 1-kunidan amal qiladi va tarif tarixiga yoziladi. O'tgan oylarga ta'sir qilmaydi.")
+                        ->options(fn (): array => [
+                            'current' => 'Joriy oy ('.BillingCalculator::monthLabel(CarbonImmutable::now(BillingCalculator::timezone())).')',
+                            'next' => 'Keyingi oy ('.BillingCalculator::monthLabel(CarbonImmutable::now(BillingCalculator::timezone())->addMonth()).')',
+                        ])
+                        ->default('current')
+                        ->required()
+                        ->native(false),
                     Forms\Components\DatePicker::make('billing_started_at')
                         ->label('Boshlangan sana')
-                        ->helperText("Shu sanadan boshlab hisoblanadi (bo'sh bo'lsa 2026-11-01 dan). Qat'iy tarifda sana oy o'rtasiga tushsa, birinchi oy kunlarga proporsional hisoblanadi (masalan 16-noyabr -> 15/30).")
+                        ->helperText("Shu sanadan boshlab hisoblanadi (bo'sh bo'lsa 2026-11-01 dan). Qat'iy tarifda sana joriy oyning o'rtasiga tushsa, birinchi oy kunlarga proporsional hisoblanadi (masalan 16-noyabr -> 15/30) va hisob saqlash zahoti yaratiladi.")
                         ->native(false),
+                    Forms\Components\Placeholder::make('billing_history')
+                        ->label('Tarif tarixi')
+                        ->content(fn (?Restaurant $record): string => self::billingHistoryText($record))
+                        ->visible(fn (?Restaurant $record): bool => $record !== null)
+                        ->columnSpanFull(),
                 ])->columns(2),
 
             Forms\Components\Section::make('POS')->schema([

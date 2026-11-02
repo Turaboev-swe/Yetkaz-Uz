@@ -16,11 +16,13 @@ use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Validation\ValidationException;
+use Tests\Feature\Billing\Concerns\RecordsTariffs;
 use Tests\TestCase;
 
 /** Hisob-kitob yaratish (servis + artisan buyrug'i + rejalashtirish) va to'lovlar. */
 class InvoiceServiceTest extends TestCase
 {
+    use RecordsTariffs;
     use RefreshDatabase;
 
     private InvoiceService $service;
@@ -28,6 +30,8 @@ class InvoiceServiceTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        // Percent hisob faqat oy tugagach yaratiladi — «hozir» noyabr tugagandan keyin.
+        Carbon::setTestNow(Carbon::parse("2026-12-15 12:00", "Asia/Tashkent"));
         $this->service = app(InvoiceService::class);
     }
 
@@ -39,12 +43,14 @@ class InvoiceServiceTest extends TestCase
 
     private function restaurant(array $overrides = []): Restaurant
     {
-        return Restaurant::factory()->for(District::factory())->create(array_replace([
+        $restaurant = Restaurant::factory()->for(District::factory())->create(array_replace([
             'billing_plan' => BillingPlan::Percent,
             'commission_rate_bp' => 500,
             'monthly_fee' => 10_000_000,
             'is_test' => false,
         ], $overrides));
+
+        return $this->recordTariff($restaurant);
     }
 
     private function delivered(Restaurant $r, string $tashkentTime, int $subtotal): Order
@@ -130,7 +136,7 @@ class InvoiceServiceTest extends TestCase
         $november = $this->service->generate($r, '2026-11');
         $this->service->addPayment($november, 250_000, BillingPaymentMethod::Card, '2026-12-02');
 
-        $r->update(['billing_plan' => BillingPlan::Fixed, 'monthly_fee' => 20_000_000]);
+        $this->setTariff($r, BillingPlan::Fixed, 500, 20_000_000, '2026-12-01'); // dekabrdan qat'iy
         $december = $this->service->generate($r, '2026-12');
 
         $this->assertSame(BillingPlan::Percent, $november->fresh()->plan);

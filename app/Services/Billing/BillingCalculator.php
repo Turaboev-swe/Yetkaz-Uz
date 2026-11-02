@@ -3,9 +3,11 @@
 namespace App\Services\Billing;
 
 use App\Enums\BillingPlan;
+use App\Enums\InvoiceStatus;
 use App\Enums\OrderStatus;
 use App\Models\Order;
 use App\Models\Restaurant;
+use App\Models\RestaurantBillingPlan;
 use App\Models\RestaurantInvoice;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
@@ -24,8 +26,10 @@ use Illuminate\Support\Facades\DB;
  *  - percent: baza × stavka (bp) / 10 000, BUTUN SO'MGA yaxlitlanadi (to'lovlar so'mda
  *    kiritiladi — aks holda hisob bir necha tiyinga "qisman" bo'lib qolardi); fixed: oylik to'lov,
  *    `billing_started_at` oy o'rtasiga tushsa birinchi oy proratsiya (faol kunlar / oydagi kunlar)
- *  - hisob-kitobni qayta hisoblash (calculateForInvoice) restoranning joriy tarifini EMAS,
- *    hisobdagi snapshot'ni ishlatadi
+ *  - tarif davr bo'yicha TARIX jadvalidan olinadi (effective_from <= davr, eng oxirgisi), restoranning
+ *    joriy ustunlaridan emas. Fixed OLDINDAN (davrning 1-kunidan), percent KEYIN (oy tugagach) hisoblanadi
+ *  - hisob-kitobni qayta hisoblash (calculateForInvoice) tarixni ham, restoranning joriy tarifini ham
+ *    EMAS, hisobdagi snapshot'ni ishlatadi
  *  - `billing_started_at` bo'lsa, o'sha sanadan oldingi (Toshkent) buyurtmalar hisobga olinmaydi
  *  - test restoran (`is_test`), tarifsiz restoran va `billing.start_date` dan oldingi oylar hisoblanmaydi
  */
@@ -118,10 +122,60 @@ class BillingCalculator
         return [$total - $started->day + 1, $total];
     }
 
-    /** Shu restoran shu oy uchun hisoblanadimi (tarif bor, test emas, oy boshlangan). */
+    /**
+     * Davr uchun amalda bo'lgan tarif: `effective_from <= davr` bo'lgan eng oxirgi tarix yozuvi.
+     * `aggregated()` qatorida (`period_*` ustunlari bor) qo'shimcha so'rov yo'q; aks holda tarixdan o'qiydi.
+     * Yozuv yo'q bo'lsa `plan = null` (tarifsiz).
+     */
+    public function tariffFor(Restaurant $restaurant, CarbonInterface|string $period): BillingTariff
+    {
+        $attributes = $restaurant->getAttributes();
+
+        if (array_key_exists('period_plan', $attributes)) {
+            return new BillingTariff(
+                BillingPlan::tryFrom((string) $attributes['period_plan']),
+                (int) ($attributes['period_rate_bp'] ?? config('billing.default_rate_bp')),
+                (int) ($attributes['period_monthly_fee'] ?? config('billing.default_monthly_fee')),
+            );
+        }
+
+        $entry = RestaurantBillingPlan::query()
+            ->where('restaurant_id', $restaurant->getKey())
+            ->where('effective_from', '<=', self::monthStart($period)->format('Y-m-d'))
+            ->orderByDesc('effective_from')
+            ->first();
+
+        return $entry === null
+            ? new BillingTariff(null, (int) config('billing.default_rate_bp'), (int) config('billing.default_monthly_fee'))
+            : new BillingTariff($entry->plan, (int) $entry->rate_bp, (int) $entry->monthly_fee);
+    }
+
+    /**
+     * Shu tarif uchun shu davr hisobini hozir yaratish mumkinmi:
+     *  - fixed (oldindan): davrning 1-kunidan boshlab (kelajak oy uchun yo'q)
+     *  - percent (keyin, savdo bo'yicha): faqat oy tugagach
+     */
+    public static function canInvoice(?BillingPlan $plan, CarbonInterface|string $period): bool
+    {
+        $current = CarbonImmutable::now(self::timezone())->startOfMonth()->startOfDay();
+        $month = self::monthStart($period);
+
+        return match ($plan) {
+            BillingPlan::Fixed => $month->lessThanOrEqualTo($current),
+            BillingPlan::Percent => $month->lessThan($current),
+            null => false,
+        };
+    }
+
+    /** Shu restoran shu oy uchun hisoblanadimi (davr tarifi bor, test emas, oy boshlangan). */
     public function isBillable(Restaurant $restaurant, CarbonInterface|string $period): bool
     {
-        if ($restaurant->billing_plan === null || $restaurant->is_test) {
+        return $this->billableWith($restaurant, $period, $this->tariffFor($restaurant, $period));
+    }
+
+    private function billableWith(Restaurant $restaurant, CarbonInterface|string $period, BillingTariff $tariff): bool
+    {
+        if ($tariff->plan === null || $restaurant->is_test) {
             return false;
         }
 
@@ -190,11 +244,30 @@ class BillingCalculator
                 [$start->format('Y-m-d H:i:s'), $start->format('Y-m-d H:i:s')],
             );
 
+        // Davr uchun amalda bo'lgan tarif (tarix jadvalidan) va shu davr hisobi — N+1 siz.
+        $periodDate = self::monthStart($period)->format('Y-m-d');
+        $tariff = fn (string $column) => DB::table('restaurant_billing_plans as bp')
+            ->select("bp.{$column}")
+            ->whereColumn('bp.restaurant_id', 'restaurants.id')
+            ->where('bp.effective_from', '<=', $periodDate)
+            ->orderByDesc('bp.effective_from')
+            ->limit(1);
+        $invoice = fn (string $column) => DB::table('restaurant_invoices as ri')
+            ->select("ri.{$column}")
+            ->whereColumn('ri.restaurant_id', 'restaurants.id')
+            ->where('ri.period', $periodDate)
+            ->limit(1);
+
         return Restaurant::query()
             ->select('restaurants.*')
             ->addSelect([
                 'billing_orders_count' => $sub('COUNT(*)'),
                 'billing_orders_total' => $sub('COALESCE(SUM(orders.subtotal - orders.discount_restaurant_amount), 0)'),
+                'period_plan' => $tariff('plan'),
+                'period_rate_bp' => $tariff('rate_bp'),
+                'period_monthly_fee' => $tariff('monthly_fee'),
+                'billing_invoice_status' => $invoice('status'),
+                'billing_invoice_amount_due' => $invoice('amount_due'),
             ]);
     }
 
@@ -203,21 +276,41 @@ class BillingCalculator
     {
         $count = (int) ($row->billing_orders_count ?? 0);
         $total = (int) ($row->billing_orders_total ?? 0);
-        $billable = $this->isBillable($row, $period);
+        $tariff = $this->tariffFor($row, $period);
+        $billable = $this->billableWith($row, $period, $tariff);
         [$active, $days] = self::activeDays($row->billing_started_at, $period);
 
         return new BillingResult(
-            plan: $row->billing_plan,
-            rateBp: (int) $row->commission_rate_bp,
-            fixedFee: (int) $row->monthly_fee,
+            plan: $tariff->plan,
+            rateBp: $tariff->rateBp,
+            fixedFee: $tariff->monthlyFee,
             ordersCount: $count,
             ordersTotal: $total,
-            amountDue: $billable ? self::amountDue($row->billing_plan, (int) $row->commission_rate_bp, (int) $row->monthly_fee, $total, $active, $days) : 0,
+            amountDue: $billable ? self::amountDue($tariff->plan, $tariff->rateBp, $tariff->monthlyFee, $total, $active, $days) : 0,
             billable: $billable,
         );
     }
 
-    /** Restoranning JORIY tarifi bilan hisoblash. */
+    /**
+     * Shu oy uchun KUTILAYOTGAN summa: fixed — shu oy hisobi bo'lsa uning summasi (kechirilgan 0),
+     * bo'lmasa hisoblangani; percent — joriy jonli hisob. `aggregated()` qatori kerak.
+     */
+    public function expectedAmount(Restaurant $row, CarbonInterface|string $period): int
+    {
+        $result = $this->resultFor($row, $period);
+
+        if (! $result->billable) {
+            return 0;
+        }
+
+        if ($result->plan === BillingPlan::Fixed && ($row->billing_invoice_amount_due ?? null) !== null) {
+            return ($row->billing_invoice_status ?? null) === InvoiceStatus::Waived->value ? 0 : (int) $row->billing_invoice_amount_due;
+        }
+
+        return $result->amountDue;
+    }
+
+    /** Davr uchun amalda bo'lgan tarif (tarix) bilan hisoblash. */
     public function calculate(Restaurant $restaurant, CarbonInterface|string $period): BillingResult
     {
         $row = $this->aggregated($period)->whereKey($restaurant->getKey())->first() ?? $restaurant;

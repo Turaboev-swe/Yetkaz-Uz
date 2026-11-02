@@ -10,17 +10,21 @@ use Illuminate\Console\Command;
 /**
  * Restoranlar uchun oylik obuna hisob-kitoblarini yaratadi/yangilaydi.
  *
- *   php artisan billing:generate-invoices                  (o'tgan oy, Asia/Tashkent)
+ *   php artisan billing:generate-invoices                  (o'tgan va joriy oy, Asia/Tashkent)
  *   php artisan billing:generate-invoices --period=2026-11
  *
- * Idempotent: qayta ishga tushirilsa to'lanmagan/qisman hisoblarni yangilaydi, `paid` va
- * `waived` hisoblarga tegmaydi; tarifsiz va test restoranlarni o'tkazib yuboradi.
+ * Fixed tarif OLDINDAN to'lanadi: M oyi hisobi M ning 1-kunidan. Percent KEYIN to'lanadi:
+ * M oyi hisobi faqat oy tugagach (savdo bo'yicha); tugamagan oy uchun percent o'tkazib yuboriladi
+ * va xabar chiqadi. Argumentsiz (scheduler, har oyning 1-kuni): o'tgan oy (percent) va joriy oy (fixed).
+ *
+ * Idempotent: qayta ishga tushirilsa to'lanmagan/qisman hisoblarni snapshot tarifi bilan
+ * yangilaydi, `paid` va `waived` hisoblarga tegmaydi; tarifsiz va test restoranlarni o'tkazib yuboradi.
  */
 class GenerateBillingInvoices extends Command
 {
-    protected $signature = 'billing:generate-invoices {--period= : Oy, YYYY-MM (standart: o\'tgan oy)}';
+    protected $signature = 'billing:generate-invoices {--period= : Oy, YYYY-MM (standart: o\'tgan va joriy oy)}';
 
-    protected $description = 'Restoranlar uchun oylik obuna hisob-kitoblarini yaratish/yangilash';
+    protected $description = 'Restoranlar uchun oylik obuna hisob-kitoblarini yaratish/yangilash (fixed — oldindan, percent — oy tugagach)';
 
     public function handle(InvoiceService $invoices): int
     {
@@ -32,19 +36,31 @@ class GenerateBillingInvoices extends Command
             return self::FAILURE;
         }
 
-        $period = $option !== null
-            ? BillingCalculator::monthStart((string) $option)
-            : CarbonImmutable::now(BillingCalculator::timezone())->startOfMonth()->subMonth()->startOfDay();
+        $current = CarbonImmutable::now(BillingCalculator::timezone())->startOfMonth()->startOfDay();
 
-        $stats = $invoices->generateAll($period);
+        $periods = $option !== null
+            ? [BillingCalculator::monthStart((string) $option)]
+            : [$current->subMonth(), $current];
 
-        $this->info(sprintf(
-            '%s: yaratildi %d, yangilandi %d, o‘tkazib yuborildi %d.',
-            BillingCalculator::monthLabel($period),
-            $stats['created'],
-            $stats['updated'],
-            $stats['skipped'],
-        ));
+        foreach ($periods as $period) {
+            $stats = $invoices->generateAll($period);
+
+            $this->info(sprintf(
+                '%s: yaratildi %d, yangilandi %d, o‘tkazib yuborildi %d.',
+                BillingCalculator::monthLabel($period),
+                $stats['created'],
+                $stats['updated'],
+                $stats['skipped'],
+            ));
+
+            if ($stats['pending'] > 0) {
+                $this->warn(sprintf(
+                    '%s: %d ta foiz (percent) tarifidagi restoran o‘tkazib yuborildi — oy hali tugamagan, hisob oy tugagach yaratiladi.',
+                    BillingCalculator::monthLabel($period),
+                    $stats['pending'],
+                ));
+            }
+        }
 
         return self::SUCCESS;
     }

@@ -25,11 +25,13 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Livewire\Livewire;
 use ReflectionMethod;
+use Tests\Feature\Billing\Concerns\RecordsTariffs;
 use Tests\TestCase;
 
 /** /admin → Obunalar: Joriy oy sahifasi, Hisob-kitoblar, restoran tarifi, statistika, ruxsatlar. */
 class BillingPanelTest extends TestCase
 {
+    use RecordsTariffs;
     use RefreshDatabase;
 
     private Staff $admin;
@@ -52,12 +54,14 @@ class BillingPanelTest extends TestCase
 
     private function restaurant(array $overrides = []): Restaurant
     {
-        return Restaurant::factory()->for(District::factory())->create(array_replace([
+        $restaurant = Restaurant::factory()->for(District::factory())->create(array_replace([
             'billing_plan' => BillingPlan::Percent,
             'commission_rate_bp' => 500,
             'monthly_fee' => 10_000_000,
             'is_test' => false,
         ], $overrides));
+
+        return $this->recordTariff($restaurant);
     }
 
     private function delivered(Restaurant $r, string $tashkentTime, int $subtotal): Order
@@ -70,7 +74,7 @@ class BillingPanelTest extends TestCase
         ]);
     }
 
-    private function invoice(Restaurant $r, string $period = '2026-11'): RestaurantInvoice
+    private function invoice(Restaurant $r, string $period = '2026-11'): ?RestaurantInvoice
     {
         return app(InvoiceService::class)->generate($r, $period);
     }
@@ -85,23 +89,24 @@ class BillingPanelTest extends TestCase
         $this->delivered($a, '2026-12-05 12:00', 5_000_000);
         $novA = $this->invoice($a);
         $novB = $this->invoice($b);
-        $decA = $this->invoice($a, '2026-12');
+        $decB = $this->invoice($b, '2026-12'); // fixed — oldindan, dekabr hisobi dekabrning o'zida
+        $this->assertNull($this->invoice($a, '2026-12'), 'percent dekabr hisobi oy tugamaguncha yaratilmaydi');
         app(InvoiceService::class)->waive($novB);
 
         Livewire::test(ListInvoices::class)
-            ->assertCanSeeTableRecords([$novA, $novB, $decA])
+            ->assertCanSeeTableRecords([$novA, $novB, $decB])
             ->assertSee('Noyabr 2026')
             ->filterTable('status', 'waived')
-            ->assertCanSeeTableRecords([$novB])->assertCanNotSeeTableRecords([$novA, $decA])
+            ->assertCanSeeTableRecords([$novB])->assertCanNotSeeTableRecords([$novA, $decB])
             ->resetTableFilters()
             ->filterTable('plan', 'percent')
-            ->assertCanSeeTableRecords([$novA, $decA])->assertCanNotSeeTableRecords([$novB])
+            ->assertCanSeeTableRecords([$novA])->assertCanNotSeeTableRecords([$novB, $decB])
             ->resetTableFilters()
             ->filterTable('period', '2026-12-01')
-            ->assertCanSeeTableRecords([$decA])->assertCanNotSeeTableRecords([$novA, $novB])
+            ->assertCanSeeTableRecords([$decB])->assertCanNotSeeTableRecords([$novA, $novB])
             ->resetTableFilters()
             ->filterTable('restaurant_id', $b->id)
-            ->assertCanSeeTableRecords([$novB])->assertCanNotSeeTableRecords([$novA, $decA]);
+            ->assertCanSeeTableRecords([$novB, $decB])->assertCanNotSeeTableRecords([$novA]);
     }
 
     public function test_money_is_shown_in_som_with_thousand_separators(): void
@@ -361,9 +366,9 @@ class BillingPanelTest extends TestCase
             ->sortTable('billing_orders_total', 'desc')
             ->assertCanSeeTableRecords([$big, $small, $fixed, $none], inOrder: true);
 
-        $page->filterTable('billing_plan', 'none')
+        $page->filterTable('period_plan', 'none')
             ->assertCanSeeTableRecords([$none])->assertCanNotSeeTableRecords([$big, $small, $fixed]);
-        $page->resetTableFilters()->filterTable('billing_plan', 'fixed')
+        $page->resetTableFilters()->filterTable('period_plan', 'fixed')
             ->assertCanSeeTableRecords([$fixed])->assertCanNotSeeTableRecords([$big, $none]);
     }
 
@@ -417,18 +422,30 @@ class BillingPanelTest extends TestCase
             ->assertFormSet(['billing_plan' => 'percent', 'commission_rate_bp' => 2.5, 'monthly_fee' => 150000]);
     }
 
-    public function test_blank_rate_and_fee_fall_back_to_the_defaults_and_plan_can_stay_unset(): void
+    public function test_blank_rate_and_fee_fall_back_to_the_defaults(): void
     {
-        $r = $this->restaurant(['billing_plan' => null, 'commission_rate_bp' => 300, 'monthly_fee' => 1]);
+        $r = $this->restaurant(['billing_plan' => null]);
 
         Livewire::test(EditRestaurant::class, ['record' => $r->getRouteKey()])
-            ->fillForm(['billing_plan' => null, 'commission_rate_bp' => null, 'monthly_fee' => null])
+            ->fillForm(['billing_plan' => 'percent', 'commission_rate_bp' => null, 'monthly_fee' => null, 'effective_month' => 'current'])
             ->call('save')
             ->assertHasNoFormErrors();
 
-        $r->refresh();
-        $this->assertNull($r->billing_plan);
-        $this->assertSame([500, 10_000_000], [$r->commission_rate_bp, $r->monthly_fee]);
+        $entry = $r->billingPlans()->first();
+        $this->assertSame([BillingPlan::Percent, 500, 10_000_000], [$entry->plan, $entry->rate_bp, $entry->monthly_fee]);
+    }
+
+    public function test_plan_can_stay_unset_and_nothing_is_written_to_the_history(): void
+    {
+        $r = $this->restaurant(['billing_plan' => null]);
+
+        Livewire::test(EditRestaurant::class, ['record' => $r->getRouteKey()])
+            ->fillForm(['billing_plan' => null, 'name' => 'Yangi nom'])
+            ->call('save')
+            ->assertHasNoFormErrors();
+
+        $this->assertNull($r->fresh()->billing_plan);
+        $this->assertSame(0, $r->billingPlans()->count());
     }
 
     public function test_existing_restaurants_get_no_plan_automatically(): void

@@ -26,11 +26,11 @@ class BillingStats extends StatsOverviewWidget
         $tz = BillingCalculator::timezone();
         $month = CarbonImmutable::now($tz)->startOfMonth();
 
-        // Shu oy kutilayotgan daromad — barcha tarifli restoranlar bo'yicha jonli hisob.
-        $expected = $calc->aggregated($month)
-            ->whereNotNull('billing_plan')->where('is_test', false)
-            ->get()
-            ->sum(fn (Restaurant $r): int => $calc->resultFor($r, $month)->amountDue);
+        // Davr tarifi (tarix) bilan barcha test bo'lmagan restoranlar — bitta so'rov.
+        $rows = $calc->aggregated($month)->where('is_test', false)->get();
+
+        // Shu oy kutilayotgan daromad = fixed (oldindan) shu oy hisoblari + percent'ning joriy jonli hisobi.
+        $expected = $rows->sum(fn (Restaurant $r): int => $calc->expectedAmount($r, $month));
 
         $debt = (int) RestaurantInvoice::query()
             ->where('status', '!=', 'waived')
@@ -40,15 +40,13 @@ class BillingStats extends StatsOverviewWidget
             ->whereBetween('paid_at', [$month->format('Y-m-d'), $month->endOfMonth()->format('Y-m-d')])
             ->sum('amount');
 
-        $plans = Restaurant::query()->where('is_test', false)
-            ->selectRaw('billing_plan, count(*) as c')->groupBy('billing_plan')->pluck('c', 'billing_plan');
-        $percent = (int) ($plans['percent'] ?? 0);
-        $fixed = (int) ($plans['fixed'] ?? 0);
-        $none = (int) ($plans[''] ?? $plans[null] ?? 0);
+        $percent = $rows->where('period_plan', 'percent')->count();
+        $fixed = $rows->where('period_plan', 'fixed')->count();
+        $none = $rows->count() - $percent - $fixed;
 
         return [
             Stat::make('Shu oy kutilayotgan daromad', Money::soms($expected))
-                ->description(BillingCalculator::monthLabel($month).' · hozirgacha hisoblangan')
+                ->description(BillingCalculator::monthLabel($month).' · fixed hisoblari + foiz (jonli)')
                 ->color('primary'),
             Stat::make('Umumiy qarz', Money::soms($debt))
                 ->description('Barcha oylar bo‘yicha (kechirilganlarsiz)')

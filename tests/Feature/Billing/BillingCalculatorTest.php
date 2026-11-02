@@ -10,6 +10,7 @@ use App\Models\Restaurant;
 use App\Services\Billing\BillingCalculator;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Tests\Feature\Billing\Concerns\RecordsTariffs;
 use Tests\TestCase;
 
 /**
@@ -18,6 +19,7 @@ use Tests\TestCase;
  */
 class BillingCalculatorTest extends TestCase
 {
+    use RecordsTariffs;
     use RefreshDatabase;
 
     private BillingCalculator $calc;
@@ -30,13 +32,15 @@ class BillingCalculatorTest extends TestCase
 
     private function restaurant(array $overrides = []): Restaurant
     {
-        return Restaurant::factory()->for(District::factory())->create(array_replace([
+        $restaurant = Restaurant::factory()->for(District::factory())->create(array_replace([
             'billing_plan' => BillingPlan::Percent,
             'commission_rate_bp' => 500,
             'monthly_fee' => 10_000_000,
             'billing_started_at' => null,
             'is_test' => false,
         ], $overrides));
+
+        return $this->recordTariff($restaurant);
     }
 
     /** Toshkent vaqti -> bazaga yoziladigan UTC. */

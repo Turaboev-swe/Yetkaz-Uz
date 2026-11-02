@@ -11,12 +11,20 @@ use App\Models\RestaurantInvoice;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Tests\Feature\Billing\Concerns\RecordsTariffs;
 use Tests\TestCase;
 
 /** billing:generate-invoices buyrug'i va oylik rejalashtirish. */
 class BillingCommandTest extends TestCase
 {
+    use RecordsTariffs;
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        Carbon::setTestNow(Carbon::parse("2026-12-15 12:00", "Asia/Tashkent"));
+    }
 
     protected function tearDown(): void
     {
@@ -26,12 +34,14 @@ class BillingCommandTest extends TestCase
 
     private function restaurant(array $overrides = []): Restaurant
     {
-        return Restaurant::factory()->for(District::factory())->create(array_replace([
+        $restaurant = Restaurant::factory()->for(District::factory())->create(array_replace([
             'billing_plan' => BillingPlan::Percent,
             'commission_rate_bp' => 500,
             'monthly_fee' => 10_000_000,
             'is_test' => false,
         ], $overrides));
+
+        return $this->recordTariff($restaurant);
     }
 
     private function delivered(Restaurant $r, string $tashkentTime, int $subtotal): Order

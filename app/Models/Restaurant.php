@@ -112,6 +112,12 @@ class Restaurant extends Model
         return $this->hasManyThrough(Product::class, Category::class);
     }
 
+    /** Tarif tarixi (davr uchun tarifning manbasi); billing_* ustunlari faqat "joriy tarif". @return HasMany<RestaurantBillingPlan> */
+    public function billingPlans(): HasMany
+    {
+        return $this->hasMany(RestaurantBillingPlan::class)->orderBy('effective_from');
+    }
+
     /** @return HasMany<RestaurantInvoice> */
     public function invoices(): HasMany
     {

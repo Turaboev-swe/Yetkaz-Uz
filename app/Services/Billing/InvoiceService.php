@@ -10,6 +10,7 @@ use App\Models\RestaurantInvoice;
 use App\Models\RestaurantPayment;
 use App\Models\Staff;
 use App\Support\Money;
+use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -24,7 +25,9 @@ class InvoiceService
     /**
      * Restoran uchun shu oy hisob-kitobini yaratadi yoki yangilaydi (idempotent).
      *  - hisoblanmaydigan restoran/oy (tarifsiz, test, boshlanishdan oldin) -> null
-     *  - yangi hisobda tarif snapshot'i restoranning joriy tarifidan olinadi
+     *  - fixed oldindan (davrning 1-kunidan), percent faqat oy tugagach; tugamagan oy uchun
+     *    percent -> null (BillingCalculator::canInvoice)
+     *  - yangi hisobda tarif snapshot'i DAVR uchun amalda bo'lgan tarifdan (tarix) olinadi
      *  - mavjud hisobda snapshot O'ZGARMAYDI: to'lanmagan/qisman hisob faqat qayta hisoblanadi
      *    (recalculate), `paid` / `waived` hisobga TEGILMAYDI
      */
@@ -33,6 +36,12 @@ class InvoiceService
         $monthStart = BillingCalculator::monthStart($period);
 
         if (! $this->calculator->isBillable($restaurant, $monthStart)) {
+            return null;
+        }
+
+        $plan = $this->calculator->tariffFor($restaurant, $monthStart)->plan;
+
+        if (! BillingCalculator::canInvoice($plan, $monthStart)) {
             return null;
         }
 
@@ -61,9 +70,22 @@ class InvoiceService
                 'amount_due' => $result->amountDue,
                 'amount_paid' => 0,
                 'status' => InvoiceStatus::fromAmounts($result->amountDue, 0),
-                'due_date' => $monthStart->addMonth()->addDays((int) config('billing.due_days'))->subDay()->format('Y-m-d'),
+                'due_date' => self::dueDate($result->plan, $monthStart)->format('Y-m-d'),
             ]);
         });
+    }
+
+    /**
+     * To'lov muddati: fixed (oldindan) — shu oyning `billing.fixed_due_day`-kuni; percent (keyin) —
+     * oy tugagach `billing.due_days` kun.
+     */
+    public static function dueDate(?BillingPlan $plan, CarbonInterface $monthStart): CarbonImmutable
+    {
+        $start = CarbonImmutable::instance($monthStart);
+
+        return $plan === BillingPlan::Fixed
+            ? $start->day(min((int) config('billing.fixed_due_day'), $start->daysInMonth))
+            : $start->addMonth()->addDays((int) config('billing.due_days'))->subDay();
     }
 
     /**
@@ -166,20 +188,30 @@ class InvoiceService
     }
 
     /**
-     * Barcha tarifli restoranlar uchun (test restoranlarsiz).
+     * Tarif tarixi bor restoranlar uchun (test restoranlarsiz). `pending` — shu davrda percent
+     * tarifdagi, lekin oyi hali tugamagan restoranlar (hisob yaratilmadi).
      *
-     * @return array{created: int, updated: int, skipped: int}
+     * @return array{created: int, updated: int, skipped: int, pending: int}
      */
     public function generateAll(CarbonInterface|string $period): array
     {
         $monthStart = BillingCalculator::monthStart($period);
-        $stats = ['created' => 0, 'updated' => 0, 'skipped' => 0];
+        $stats = ['created' => 0, 'updated' => 0, 'skipped' => 0, 'pending' => 0];
 
         Restaurant::query()
-            ->whereNotNull('billing_plan')
+            ->whereHas('billingPlans')
             ->where('is_test', false)
             ->orderBy('id')
             ->each(function (Restaurant $restaurant) use ($monthStart, &$stats): void {
+                $plan = $this->calculator->tariffFor($restaurant, $monthStart)->plan;
+
+                if ($plan === BillingPlan::Percent && $this->calculator->isBillable($restaurant, $monthStart)
+                    && ! BillingCalculator::canInvoice($plan, $monthStart)) {
+                    $stats['pending']++;
+
+                    return;
+                }
+
                 $before = RestaurantInvoice::query()
                     ->where('restaurant_id', $restaurant->id)
                     ->where('period', $monthStart->format('Y-m-d'))
