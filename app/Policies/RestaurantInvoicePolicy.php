@@ -41,6 +41,11 @@ class RestaurantInvoicePolicy
         return $staff->isPlatformAdmin();
     }
 
+    public function markPaid(Staff $staff, RestaurantInvoice $invoice): bool
+    {
+        return $staff->isPlatformAdmin();
+    }
+
     public function recalculate(Staff $staff, RestaurantInvoice $invoice): bool
     {
         return $staff->isPlatformAdmin();

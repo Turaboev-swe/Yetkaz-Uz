@@ -5,16 +5,41 @@ namespace App\Filament\Admin\Resources\InvoiceResource\Pages;
 use App\Filament\Admin\Resources\InvoiceResource;
 use App\Filament\Admin\Resources\InvoiceResource\Widgets\InvoiceOrdersWidget;
 use App\Models\RestaurantInvoice;
+use App\Support\Money;
 use Filament\Actions;
 use Filament\Resources\Pages\ViewRecord;
+use Livewire\Attributes\On;
 
 class ViewInvoice extends ViewRecord
 {
     protected static string $resource = InvoiceResource::class;
 
+    /** To'lov bekor qilinganda (relation manager) hisob ma'lumotlarini yangilaydi. */
+    #[On('invoiceChanged')]
+    public function refreshInvoice(): void
+    {
+        $this->record->refresh();
+        $this->refreshFormData(['status', 'amount_paid']);
+    }
+
     protected function getHeaderActions(): array
     {
         return [
+            Actions\Action::make('markPaid')
+                ->label('To‘landi')
+                ->icon('heroicon-o-check-circle')
+                ->color('success')
+                ->authorize('markPaid')
+                ->visible(fn (RestaurantInvoice $record): bool => InvoiceResource::canAddPayment($record))
+                ->modalHeading('To‘landi')
+                ->modalDescription(fn (RestaurantInvoice $record): string => 'Qolgan qarz ('.Money::soms($record->debt()).') to‘liq to‘lov sifatida yoziladi.')
+                ->form(InvoiceResource::markPaidFormSchema())
+                ->fillForm(fn (): array => InvoiceResource::markPaidDefaults())
+                ->action(function (RestaurantInvoice $record, array $data): void {
+                    InvoiceResource::markPaid($record, $data);
+                    $this->refreshFormData(['status', 'amount_paid']);
+                    $this->dispatch('invoiceChanged');
+                }),
             Actions\Action::make('addPayment')
                 ->label('To‘lov qo‘shish')
                 ->icon('heroicon-o-banknotes')

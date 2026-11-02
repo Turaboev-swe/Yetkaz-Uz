@@ -36,7 +36,7 @@ class BillingStats extends StatsOverviewWidget
             ->where('status', '!=', 'waived')
             ->sum(DB::raw('GREATEST(amount_due - amount_paid, 0)'));
 
-        $received = (int) RestaurantPayment::query()
+        $received = (int) RestaurantPayment::query()->active()
             ->whereBetween('paid_at', [$month->format('Y-m-d'), $month->endOfMonth()->format('Y-m-d')])
             ->sum('amount');
 

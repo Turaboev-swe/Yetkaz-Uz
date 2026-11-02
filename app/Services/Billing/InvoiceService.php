@@ -240,6 +240,75 @@ class InvoiceService
         });
     }
 
+    /**
+     * "To'landi": qolgan qarzni to'liq to'lov sifatida yozadi (summa avtomatik).
+     * Qarz yo'q yoki hisob kechirilgan bo'lsa rad etiladi.
+     *
+     * @throws ValidationException
+     */
+    public function markPaid(
+        RestaurantInvoice $invoice,
+        BillingPaymentMethod $method,
+        CarbonInterface|string $paidAt,
+        ?string $note = null,
+        ?int $createdBy = null,
+    ): RestaurantPayment {
+        return DB::transaction(function () use ($invoice, $method, $paidAt, $note, $createdBy): RestaurantPayment {
+            $locked = RestaurantInvoice::query()->lockForUpdate()->findOrFail($invoice->id);
+
+            if ($locked->status === InvoiceStatus::Waived) {
+                throw ValidationException::withMessages(['amount' => 'Kechirilgan hisobga to‘lov qo‘shib bo‘lmaydi.']);
+            }
+
+            $debt = $locked->debt();
+            if ($debt <= 0) {
+                throw ValidationException::withMessages(['amount' => 'Bu hisob-kitobda qarz yo‘q.']);
+            }
+
+            $payment = $this->addPayment($locked, $debt, $method, $paidAt, $note, $createdBy);
+            $invoice->refresh();
+
+            return $payment;
+        });
+    }
+
+    /**
+     * To'lovni bekor qiladi: yozuv o'chirilmaydi (cancelled_at/by/reason), hisobning amount_paid
+     * va holati qayta hisoblanadi. Sabab majburiy. Kechirilgan hisobda va allaqachon bekor
+     * qilingan to'lovda rad etiladi.
+     *
+     * @throws ValidationException
+     */
+    public function cancelPayment(RestaurantPayment $payment, string $reason, ?int $cancelledBy = null): RestaurantInvoice
+    {
+        $reason = trim($reason);
+
+        if ($reason === '') {
+            throw ValidationException::withMessages(['reason' => 'To‘lovni bekor qilish sababini kiriting.']);
+        }
+
+        return DB::transaction(function () use ($payment, $reason, $cancelledBy): RestaurantInvoice {
+            $invoice = RestaurantInvoice::query()->lockForUpdate()->findOrFail($payment->invoice_id);
+            $locked = RestaurantPayment::query()->lockForUpdate()->findOrFail($payment->id);
+
+            if ($invoice->status === InvoiceStatus::Waived) {
+                throw ValidationException::withMessages(['reason' => 'Kechirilgan hisobda to‘lovni bekor qilib bo‘lmaydi.']);
+            }
+            if ($locked->isCancelled()) {
+                throw ValidationException::withMessages(['reason' => 'Bu to‘lov allaqachon bekor qilingan.']);
+            }
+
+            $locked->forceFill([
+                'cancelled_at' => now(),
+                'cancelled_by' => $cancelledBy,
+                'cancel_reason' => $reason,
+            ])->save();
+            $payment->setRawAttributes($locked->getAttributes(), true);
+
+            return $this->syncStatus($invoice);
+        });
+    }
+
     /** Hisobni kechiradi (qarz 0, to'lov tarixi saqlanadi). */
     public function waive(RestaurantInvoice $invoice, ?string $note = null): RestaurantInvoice
     {
@@ -254,7 +323,7 @@ class InvoiceService
     /** `amount_paid` ni to'lovlar yig'indisidan qayta hisoblaydi; kechirilgan holat o'zgarmaydi. */
     public function syncStatus(RestaurantInvoice $invoice): RestaurantInvoice
     {
-        $paid = (int) RestaurantPayment::query()->where('invoice_id', $invoice->id)->sum('amount');
+        $paid = (int) RestaurantPayment::query()->active()->where('invoice_id', $invoice->id)->sum('amount');
 
         $invoice->amount_paid = $paid;
         if ($invoice->status !== InvoiceStatus::Waived) {

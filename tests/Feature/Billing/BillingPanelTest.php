@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Billing;
 
+use App\Enums\BillingPaymentMethod;
 use App\Enums\BillingPlan;
 use App\Enums\InvoiceStatus;
 use App\Enums\OrderStatus;
@@ -148,6 +149,96 @@ class BillingPanelTest extends TestCase
             ->assertTableActionHidden('waive', $invoice->fresh())
             ->assertTableActionHidden('recalculate', $invoice->fresh())
             ->assertTableActionHidden('changeTariff', $invoice->fresh());
+    }
+
+    // --- "To'landi" va to'lovni bekor qilish ---------------------------------------------------------
+
+    public function test_mark_paid_action_writes_the_remaining_debt_from_the_table(): void
+    {
+        $invoice = $this->invoice($this->restaurant(['billing_plan' => BillingPlan::Fixed])); // 100 000 so'm
+        app(InvoiceService::class)->addPayment($invoice, 3_000_000, BillingPaymentMethod::Cash, '2026-12-01');
+
+        Livewire::test(ListInvoices::class)
+            ->assertTableActionVisible('markPaid', $invoice->fresh())
+            ->mountTableAction('markPaid', $invoice)
+            ->assertTableActionDataSet(fn (array $data): bool => $data['method'] === 'cash' && str_starts_with((string) $data['paid_at'], '2026-12-15'))
+            ->unmountTableAction()
+            ->callTableAction('markPaid', $invoice, ['method' => 'card', 'paid_at' => '2026-12-10'])
+            ->assertHasNoTableActionErrors();
+
+        $invoice->refresh();
+        $payment = $invoice->payments()->first();
+        $this->assertSame([7_000_000, BillingPaymentMethod::Card, $this->admin->id], [$payment->amount, $payment->method, $payment->created_by]);
+        $this->assertSame([10_000_000, InvoiceStatus::Paid], [$invoice->amount_paid, $invoice->status]);
+    }
+
+    public function test_mark_paid_is_hidden_for_paid_and_waived_invoices(): void
+    {
+        $paid = $this->invoice($this->restaurant(['billing_plan' => BillingPlan::Fixed]));
+        app(InvoiceService::class)->markPaid($paid, BillingPaymentMethod::Cash, '2026-12-01');
+        $waived = $this->invoice($this->restaurant(['billing_plan' => BillingPlan::Fixed]));
+        app(InvoiceService::class)->waive($waived);
+
+        Livewire::test(ListInvoices::class)
+            ->assertTableActionHidden('markPaid', $paid->fresh())
+            ->assertTableActionHidden('markPaid', $waived->fresh());
+    }
+
+    public function test_mark_paid_action_on_the_view_page(): void
+    {
+        $invoice = $this->invoice($this->restaurant(['billing_plan' => BillingPlan::Fixed]));
+
+        Livewire::test(ViewInvoice::class, ['record' => $invoice->getKey()])
+            ->assertActionVisible('markPaid')
+            ->assertActionVisible('addPayment') // qisman to'lovlar uchun qoladi
+            ->callAction('markPaid', ['method' => 'transfer', 'paid_at' => '2026-12-12'])
+            ->assertHasNoActionErrors()
+            ->assertActionHidden('markPaid');
+
+        $this->assertSame([10_000_000, InvoiceStatus::Paid], [$invoice->fresh()->amount_paid, $invoice->fresh()->status]);
+    }
+
+    public function test_cancel_payment_from_the_history_requires_a_reason_and_keeps_a_trace(): void
+    {
+        $invoice = $this->invoice($this->restaurant(['billing_plan' => BillingPlan::Fixed]));
+        $payment = app(InvoiceService::class)->markPaid($invoice, BillingPaymentMethod::Cash, '2026-12-01');
+        $rm = fn () => Livewire::test(PaymentsRelationManager::class, ['ownerRecord' => $invoice->fresh(), 'pageClass' => ViewInvoice::class]);
+
+        $rm()->callTableAction('cancelPayment', $payment, ['reason' => ''])
+            ->assertHasTableActionErrors(['reason' => 'required']);
+        $this->assertFalse($payment->fresh()->isCancelled());
+
+        $rm()->callTableAction('cancelPayment', $payment, ['reason' => 'Noto‘g‘ri restoran'])
+            ->assertHasNoTableActionErrors()
+            ->assertTableActionHidden('cancelPayment', $payment->fresh())
+            ->assertSee('Bekor qilingan')
+            ->assertSee('Noto‘g‘ri restoran');
+
+        $payment->refresh();
+        $this->assertSame([$this->admin->id, 'Noto‘g‘ri restoran'], [$payment->cancelled_by, $payment->cancel_reason]);
+        $this->assertNotNull($payment->cancelled_at);
+        $this->assertSame([0, InvoiceStatus::Unpaid], [$invoice->fresh()->amount_paid, $invoice->fresh()->status]);
+        $this->assertSame(1, $invoice->payments()->count());
+    }
+
+    public function test_cancel_payment_is_hidden_on_waived_invoices(): void
+    {
+        $invoice = $this->invoice($this->restaurant(['billing_plan' => BillingPlan::Fixed]));
+        $payment = app(InvoiceService::class)->addPayment($invoice, 1_000_000, BillingPaymentMethod::Cash, '2026-12-01');
+        app(InvoiceService::class)->waive($invoice->fresh());
+
+        Livewire::test(PaymentsRelationManager::class, ['ownerRecord' => $invoice->fresh(), 'pageClass' => ViewInvoice::class])
+            ->assertTableActionHidden('cancelPayment', $payment);
+    }
+
+    public function test_stats_ignore_cancelled_payments(): void
+    {
+        $invoice = $this->invoice($this->restaurant(['billing_plan' => BillingPlan::Fixed]), '2026-11');
+        $svc = app(InvoiceService::class);
+        $svc->cancelPayment($svc->addPayment($invoice, 2_000_000, BillingPaymentMethod::Cash, '2026-12-03'), 'Xato');
+        $svc->addPayment($invoice->fresh(), 3_000_000, BillingPaymentMethod::Cash, '2026-12-04');
+
+        Livewire::test(BillingStats::class)->assertSee("30 000 so'm")->assertDontSee("50 000 so'm");
     }
 
     public function test_waive_action_closes_the_invoice_with_zero_debt(): void
@@ -361,6 +452,17 @@ class BillingPanelTest extends TestCase
         $this->actingAs($owner, 'staff')->get('/admin/joriy-oy')->assertRedirect('/admin/login');
     }
 
+    public function test_only_platform_admin_can_cancel_payments_and_nobody_can_delete_them(): void
+    {
+        $policy = app(\App\Policies\RestaurantPaymentPolicy::class);
+        $owner = Staff::factory()->owner(Restaurant::factory()->create())->make();
+        $payment = new \App\Models\RestaurantPayment;
+
+        $this->assertTrue($policy->cancel($this->admin, $payment));
+        $this->assertFalse($policy->cancel($owner, $payment));
+        $this->assertFalse($policy->delete($this->admin, $payment));
+    }
+
     public function test_policy_restricts_every_ability_to_platform_admin(): void
     {
         $policy = app(RestaurantInvoicePolicy::class);
@@ -368,7 +470,7 @@ class BillingPanelTest extends TestCase
         $kitchen = Staff::factory()->kitchenStaff(Restaurant::factory()->create())->make();
         $invoice = new RestaurantInvoice;
 
-        foreach (['viewAny', 'view', 'addPayment', 'recalculate', 'changeTariff', 'waive'] as $ability) {
+        foreach (['viewAny', 'view', 'addPayment', 'markPaid', 'recalculate', 'changeTariff', 'waive'] as $ability) {
             $this->assertTrue($policy->{$ability}($this->admin, $invoice), $ability);
             $this->assertFalse($policy->{$ability}($owner, $invoice), "{$ability}: egasi");
             $this->assertFalse($policy->{$ability}($kitchen, $invoice), "{$ability}: oshxona xodimi");

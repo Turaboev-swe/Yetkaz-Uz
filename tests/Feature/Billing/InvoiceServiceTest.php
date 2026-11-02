@@ -180,6 +180,114 @@ class InvoiceServiceTest extends TestCase
         $this->assertSame(0, $invoice->fresh()->debt(), 'kechirilgan hisobda qarz yo‘q');
     }
 
+    // --- "To'landi" (qolgan qarzni to'liq yozish) ------------------------------------------------------
+
+    public function test_mark_paid_writes_the_whole_remaining_debt_as_one_payment(): void
+    {
+        $invoice = $this->service->generate($this->restaurant(['billing_plan' => BillingPlan::Fixed]), '2026-11'); // 100 000 so'm
+        $admin = Staff::factory()->platformAdmin()->create();
+        $this->service->addPayment($invoice, 4_000_000, BillingPaymentMethod::Cash, '2026-12-01');
+
+        $payment = $this->service->markPaid($invoice, BillingPaymentMethod::Transfer, '2026-12-05', null, $admin->id);
+
+        $this->assertSame([6_000_000, BillingPaymentMethod::Transfer, $admin->id], [$payment->amount, $payment->method, $payment->created_by]);
+        $this->assertSame([10_000_000, InvoiceStatus::Paid, 0], [$invoice->amount_paid, $invoice->status, $invoice->debt()]);
+        $this->assertSame(2, $invoice->payments()->count());
+    }
+
+    public function test_mark_paid_from_unpaid_pays_the_full_amount(): void
+    {
+        $invoice = $this->service->generate($this->restaurant(['billing_plan' => BillingPlan::Fixed]), '2026-11');
+
+        $payment = $this->service->markPaid($invoice, BillingPaymentMethod::Cash, '2026-12-01');
+
+        $this->assertSame(10_000_000, $payment->amount);
+        $this->assertSame(InvoiceStatus::Paid, $invoice->fresh()->status);
+    }
+
+    public function test_mark_paid_is_rejected_when_there_is_no_debt_or_the_invoice_is_waived(): void
+    {
+        $paid = $this->service->generate($this->restaurant(['billing_plan' => BillingPlan::Fixed]), '2026-11');
+        $this->service->markPaid($paid, BillingPaymentMethod::Cash, '2026-12-01');
+        $waived = $this->service->generate($this->restaurant(['billing_plan' => BillingPlan::Fixed]), '2026-11');
+        $this->service->waive($waived);
+
+        foreach ([$paid->fresh(), $waived->fresh()] as $invoice) {
+            try {
+                $this->service->markPaid($invoice, BillingPaymentMethod::Cash, '2026-12-02');
+                $this->fail('ValidationException kutilgan edi');
+            } catch (ValidationException) {
+            }
+        }
+
+        $this->assertSame(1, $paid->payments()->count(), 'ikkinchi bosish ikkinchi to‘lov yozmaydi');
+        $this->assertSame(0, $waived->payments()->count());
+    }
+
+    // --- To'lovni bekor qilish --------------------------------------------------------------------------
+
+    public function test_cancel_payment_keeps_the_record_and_recalculates_paid_amount_and_status(): void
+    {
+        $invoice = $this->service->generate($this->restaurant(['billing_plan' => BillingPlan::Fixed]), '2026-11');
+        $first = $this->service->addPayment($invoice, 4_000_000, BillingPaymentMethod::Cash, '2026-12-01');
+        $second = $this->service->addPayment($invoice, 6_000_000, BillingPaymentMethod::Card, '2026-12-02');
+        $this->assertSame(InvoiceStatus::Paid, $invoice->fresh()->status);
+        $admin = Staff::factory()->platformAdmin()->create();
+
+        $this->service->cancelPayment($second, 'Xato kiritilgan', $admin->id);
+
+        $second->refresh();
+        $this->assertTrue($second->isCancelled());
+        $this->assertSame(['Xato kiritilgan', $admin->id], [$second->cancel_reason, $second->cancelled_by]);
+        $this->assertSame([4_000_000, InvoiceStatus::Partial, 6_000_000], [$invoice->fresh()->amount_paid, $invoice->fresh()->status, $invoice->fresh()->debt()]);
+        $this->assertSame(2, $invoice->payments()->count(), 'yozuv o‘chirilmaydi');
+
+        $this->service->cancelPayment($first, 'Qaytarildi');
+        $this->assertSame([0, InvoiceStatus::Unpaid], [$invoice->fresh()->amount_paid, $invoice->fresh()->status]);
+    }
+
+    public function test_cancelled_payment_does_not_count_toward_later_payments(): void
+    {
+        $invoice = $this->service->generate($this->restaurant(['billing_plan' => BillingPlan::Fixed]), '2026-11');
+        $payment = $this->service->markPaid($invoice, BillingPaymentMethod::Cash, '2026-12-01');
+        $this->service->cancelPayment($payment, 'Xato');
+
+        $again = $this->service->markPaid($invoice->fresh(), BillingPaymentMethod::Card, '2026-12-03');
+
+        $this->assertSame(10_000_000, $again->amount, 'qarz bekor qilingan to‘lovdan keyin qayta to‘liq');
+        $this->assertSame([10_000_000, InvoiceStatus::Paid], [$invoice->fresh()->amount_paid, $invoice->fresh()->status]);
+    }
+
+    public function test_cancel_payment_requires_a_reason_and_rejects_waived_invoices_and_repeats(): void
+    {
+        $invoice = $this->service->generate($this->restaurant(['billing_plan' => BillingPlan::Fixed]), '2026-11');
+        $payment = $this->service->addPayment($invoice, 4_000_000, BillingPaymentMethod::Cash, '2026-12-01');
+
+        try {
+            $this->service->cancelPayment($payment, '  ');
+            $this->fail('sabab majburiy');
+        } catch (ValidationException) {
+        }
+        $this->assertFalse($payment->fresh()->isCancelled());
+
+        $this->service->cancelPayment($payment, 'Xato');
+        try {
+            $this->service->cancelPayment($payment->fresh(), 'Yana');
+            $this->fail('ikkinchi marta bekor qilib bo‘lmaydi');
+        } catch (ValidationException) {
+        }
+
+        $other = $this->service->addPayment($invoice->fresh(), 1_000_000, BillingPaymentMethod::Cash, '2026-12-02');
+        $this->service->waive($invoice->fresh());
+        try {
+            $this->service->cancelPayment($other, 'Kechirilgan hisob');
+            $this->fail('kechirilgan hisobda rad etilishi kerak');
+        } catch (ValidationException) {
+        }
+        $this->assertFalse($other->fresh()->isCancelled());
+        $this->assertSame(InvoiceStatus::Waived, $invoice->fresh()->status);
+    }
+
     // --- Qayta hisoblash: faqat snapshot bilan -------------------------------------------------
 
     public function test_recalculate_uses_the_invoice_snapshot_not_the_current_restaurant_tariff(): void

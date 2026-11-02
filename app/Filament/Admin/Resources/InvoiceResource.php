@@ -88,6 +88,7 @@ class InvoiceResource extends Resource
             ])
             ->actions([
                 Tables\Actions\ViewAction::make()->label('Ko‘rish'),
+                self::markPaidAction(),
                 self::addPaymentAction(),
                 self::recalculateAction(),
                 self::changeTariffAction(),
@@ -214,6 +215,61 @@ class InvoiceResource extends Resource
         );
 
         Notification::make()->title('To‘lov qo‘shildi')->success()->send();
+    }
+
+    /** @return array<int, Forms\Components\Component> */
+    public static function markPaidFormSchema(): array
+    {
+        return [
+            Forms\Components\Select::make('method')
+                ->label('Usul')
+                ->options(collect(BillingPaymentMethod::cases())->mapWithKeys(fn ($m) => [$m->value => $m->label()])->all())
+                ->required()
+                ->native(false),
+            Forms\Components\DatePicker::make('paid_at')
+                ->label('To‘lov sanasi')
+                ->required()
+                ->maxDate(now(BillingCalculator::timezone())->toDateString())
+                ->native(false),
+        ];
+    }
+
+    /** @return array<string, mixed> */
+    public static function markPaidDefaults(): array
+    {
+        return [
+            'method' => BillingPaymentMethod::Cash->value,
+            'paid_at' => now(BillingCalculator::timezone())->toDateString(),
+        ];
+    }
+
+    /** "To'landi": qolgan qarz to'liq to'lov sifatida yoziladi (summa avtomatik). */
+    public static function markPaid(RestaurantInvoice $invoice, array $data): void
+    {
+        $payment = app(InvoiceService::class)->markPaid(
+            $invoice,
+            BillingPaymentMethod::from($data['method']),
+            $data['paid_at'],
+            null,
+            Filament::auth()->id(),
+        );
+
+        Notification::make()->title('To‘landi')->body(Money::soms($payment->amount).' to‘lov yozildi.')->success()->send();
+    }
+
+    public static function markPaidAction(): Tables\Actions\Action
+    {
+        return Tables\Actions\Action::make('markPaid')
+            ->label('To‘landi')
+            ->icon('heroicon-o-check-circle')
+            ->color('success')
+            ->authorize('markPaid')
+            ->visible(fn (RestaurantInvoice $record): bool => self::canAddPayment($record))
+            ->modalHeading(fn (RestaurantInvoice $record): string => 'To‘landi — '.$record->restaurant->name)
+            ->modalDescription(fn (RestaurantInvoice $record): string => 'Qolgan qarz ('.Money::soms($record->debt()).') to‘liq to‘lov sifatida yoziladi.')
+            ->form(self::markPaidFormSchema())
+            ->fillForm(fn (): array => self::markPaidDefaults())
+            ->action(fn (RestaurantInvoice $record, array $data) => self::markPaid($record, $data));
     }
 
     /** Hisobdagi tarif snapshot'i bilan qayta hisoblash (restoranning joriy tarifi ishlatilmaydi). */
