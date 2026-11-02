@@ -107,6 +107,17 @@ class Order extends Model
         return $this->belongsTo(PromoCode::class);
     }
 
+    /**
+     * «Chek chiqmadi» belgisi: chek kutilgan (restoranda print agenti sozlangan), chiqmagan va belgilangan.
+     * Printeri yo'q restoranda hech qachon true emas (eski/qolgan dispatch_failed_at ham ko'rsatilmaydi).
+     */
+    public function printFailed(): bool
+    {
+        return $this->dispatch_failed_at !== null
+            && $this->printed_at === null
+            && $this->restaurant?->usesPrintAgent() === true;
+    }
+
     /** Chegirma qo'llanganmi (restoran/admin panelida shartli ko'rsatish uchun). */
     public function hasDiscount(): bool
     {

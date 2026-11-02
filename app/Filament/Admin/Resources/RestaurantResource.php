@@ -172,6 +172,14 @@ class RestaurantResource extends Resource
                     ->visible(fn (Forms\Get $get) => $get('pos_type') === PosType::EscPos->value),
                 Forms\Components\TextInput::make('printer_port')->label('Printer port')->numeric()->default(9100)
                     ->visible(fn (Forms\Get $get) => $get('pos_type') === PosType::EscPos->value),
+                Forms\Components\Select::make('receipt_paper_mm')->label('Chek qog\'ozi')
+                    ->options([58 => '58 mm (32 belgi)', 80 => '80 mm (42 belgi)'])
+                    ->default(80)->required()->native(false)
+                    ->visible(fn (Forms\Get $get) => $get('pos_type') === PosType::EscPos->value),
+                Forms\Components\TextInput::make('receipt_codepage')->label('Kodlash jadvali (ESC t n)')
+                    ->helperText('Xprinter/Epson-mos printerlar uchun 16 (WPC1252). Chekka faqat ASCII yoziladi (kirill lotinga o\'giriladi, emoji olib tashlanadi). Tekshirish: php artisan print-agent:test-receipt <restoran> --table')
+                    ->numeric()->minValue(0)->maxValue(255)->default(16)->required()
+                    ->visible(fn (Forms\Get $get) => $get('pos_type') === PosType::EscPos->value),
                 Forms\Components\TextInput::make('print_agent_token')->label('Print agent tokeni')
                     ->helperText('Oshxona kompyuteridagi agent shu token bilan ulanadi. Bo\'sh qoldirilsa chek chiqmaydi.')
                     ->visible(fn (Forms\Get $get) => $get('pos_type') === PosType::EscPos->value)
@@ -198,6 +206,21 @@ class RestaurantResource extends Resource
                 Tables\Columns\TextColumn::make('district.region.name')->label('Viloyat')->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\TextColumn::make('pos_type')->label('POS')
                     ->badge()->formatStateUsing(fn (PosType $state) => $state->label()),
+                Tables\Columns\TextColumn::make('print_agent_last_seen_at')->label('Printer agenti')
+                    ->badge()
+                    ->state(fn (Restaurant $record): ?string => $record->usesPrintAgent() ? $record->printAgentStatus() : null)
+                    ->formatStateUsing(fn (string $state): string => match ($state) {
+                        'online' => 'Onlayn',
+                        'offline' => 'O‘chiq',
+                        default => 'Ulanmagan',
+                    })
+                    ->color(fn (?string $state): string => match ($state) {
+                        'online' => 'success',
+                        'offline' => 'danger',
+                        default => 'gray',
+                    })
+                    ->placeholder('—')
+                    ->toggleable(),
                 Tables\Columns\ToggleColumn::make('is_open')->label('Ochiq'),
                 Tables\Columns\TextColumn::make('staff_count')->label('Xodimlar')->counts('staff')->badge(),
                 Tables\Columns\TextColumn::make('created_at')->label('Qo`shilgan')->date()->sortable()->toggleable(),

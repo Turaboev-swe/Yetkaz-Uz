@@ -13,3 +13,6 @@ Schedule::command('billing:generate-invoices')
     ->monthlyOn(1, '06:00')
     ->timezone(config('app.display_timezone'))
     ->withoutOverlapping();
+
+// Chek chiqmagan buyurtmalarni belgilash: agent o'chiq yoki printer ishlamasa ham (Reverb xatosiga tayanmaydi).
+Schedule::command('print:check-unprinted')->everyMinute()->withoutOverlapping();

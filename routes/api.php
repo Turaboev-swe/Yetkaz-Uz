@@ -87,6 +87,7 @@ Route::post('/telegram/webhook/{token}', TelegramWebhookController::class)
 */
 Route::prefix('agent')->group(function () {
     Route::post('/broadcasting/auth', [AgentController::class, 'broadcastAuth']);
+    Route::post('/heartbeat', [AgentController::class, 'heartbeat']);
     Route::get('/orders/pending', [AgentController::class, 'pending']);
     Route::post('/orders/{order}/printed', [AgentController::class, 'confirmPrinted']);
 });

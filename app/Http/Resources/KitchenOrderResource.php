@@ -30,7 +30,7 @@ class KitchenOrderResource extends JsonResource
             'created_at' => $this->created_at?->toIso8601String(),
             'eta_minutes' => $this->eta_minutes,
             'printed' => $this->printed_at !== null,
-            'dispatch_failed' => $this->dispatch_failed_at !== null,
+            'dispatch_failed' => $this->printFailed(),
             'can_cancel' => in_array($this->status->value, ['accepted', 'preparing'], true),
 
             'customer' => [

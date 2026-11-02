@@ -4,6 +4,7 @@ import { api } from './lib/api';
 import { enableSound, soundReady, startAlarm, pauseAlarm, stopAlarm, ping } from './lib/sound';
 import { chatBus } from './lib/chatBus';
 import { pushSupported, enablePush, disablePush } from './lib/push';
+import { agentTransition, offlineAgents, shouldPingFailed } from './lib/printStatus';
 import OrderCard from './components/OrderCard';
 
 const { restaurants = [], staffName, csrf, pushSubscribed } = window.__KITCHEN__;
@@ -23,7 +24,13 @@ export default function App() {
     const [pushOn, setPushOn] = useState(pushSubscribed);
     const [pushBusy, setPushBusy] = useState(false);
     const [pushError, setPushError] = useState(null);
+    // Print agent: heartbeat holati (restoran bo'yicha) va cheki chiqmagan faol buyurtmalar.
+    const [printStatus, setPrintStatus] = useState({ restaurants: [] });
     const seen = useRef(new Set());
+    const agentStates = useRef({}); // restoran id -> 'online' | 'offline' (signal faqat o'tishda)
+    const prevFailed = useRef(0);
+    const soundOnRef = useRef(soundOn);
+    soundOnRef.current = soundOn; // so'rov javobi ichida (interval) joriy qiymatni o'qish uchun
 
     const togglePush = async () => {
         setPushBusy(true);
@@ -68,6 +75,35 @@ export default function App() {
     }, [sortInsert]);
 
     useEffect(load, [load]);
+
+    // Agent jim bo'lib qolishi vaqt bo'yicha aniqlanadi (hodisa kelmaydi) — har 30 s serverdan so'raymiz.
+    // Shu javob kartalardagi «Chek chiqmadi» belgisini ham to'g'rilaydi (agent keyin chop etgan bo'lishi mumkin).
+    // Signal faqat «ishlayapti -> o'chiq» o'tishida bir marta chalinadi; keyin faqat banner turadi, agent qayta
+    // ulansa banner o'zi yo'qoladi. Printeri yo'q restoranlar (uses_printer = false) hisobga olinmaydi.
+    const loadPrintStatus = useCallback(() => {
+        api.printStatus()
+            .then((r) => {
+                const data = r.data || { restaurants: [] };
+                const failed = new Set(data.failed_order_ids || []);
+
+                const { next, wentOffline } = agentTransition(agentStates.current, data.restaurants);
+                agentStates.current = next;
+                if (wentOffline && soundOnRef.current) ping();
+
+                setPrintStatus(data);
+                setOrders((cur) =>
+                    cur.map((o) => (Boolean(o.dispatch_failed) === failed.has(o.id) ? o : { ...o, dispatch_failed: failed.has(o.id) })),
+                );
+            })
+            .catch(() => {});
+    }, []);
+
+    useEffect(() => {
+        loadPrintStatus();
+        const t = setInterval(loadPrintStatus, 30000);
+        return () => clearInterval(t);
+    }, [loadPrintStatus]);
+
 
     // Reverb — mavjud bo'lmasa (VITE_REVERB_* yo'q) 15s polling bilan ishlaymiz.
     useEffect(() => {
@@ -141,6 +177,16 @@ export default function App() {
     }, [sortInsert, load]);
 
     const pendingCount = orders.filter((o) => o.status === 'new').length;
+
+    // Chek bilan bog'liq banner/signallar (faqat print agenti sozlangan restoranlar uchun).
+    const offline = offlineAgents(printStatus.restaurants);
+    const failedCount = orders.filter((o) => o.dispatch_failed).length;
+
+    // Yangi «Chek chiqmadi» buyurtma uchun alohida qisqa signal (agent o'chiq banneri turganda emas).
+    useEffect(() => {
+        if (soundOn && shouldPingFailed(prevFailed.current, failedCount, offline.length)) ping();
+        prevFailed.current = failedCount;
+    }, [failedCount, offline.length, soundOn]);
 
     // Signal — qabul qilinmagan buyurtma bo'lguncha ijro etiladi (audio element
     // o'zi loop qiladi, qo'shimcha takrorlash kerak emas). Mute — pozitsiyani
@@ -249,6 +295,25 @@ export default function App() {
             </header>
 
             <main className="p-4">
+                {offline.length > 0 && (
+                    <div
+                        className="mb-4 rounded-xl px-4 py-3 text-[15px] font-bold"
+                        style={{ background: '#7f1d1d', color: '#fecaca' }}
+                        role="alert"
+                    >
+                        🖨️ Printer agenti o‘chiq{MULTI ? ` (${offline.map((r) => r.name).join(', ')})` : ''} — cheklar chiqmayapti.
+                        Oshxona kompyuterida print agent dasturi yoniqligini va internetni tekshiring.
+                    </div>
+                )}
+                {failedCount > 0 && (
+                    <div
+                        className="mb-4 rounded-xl px-4 py-3 text-[15px] font-bold"
+                        style={{ background: '#7f1d1d', color: '#fecaca' }}
+                        role="alert"
+                    >
+                        ⚠️ {failedCount} ta buyurtmaning cheki chiqmadi — qo‘lda tekshiring
+                    </div>
+                )}
                 {pushError && (
                     <div className="mb-4 rounded-xl bg-red-950 p-3 text-[14px] text-red-300">
                         {pushError}

@@ -54,12 +54,27 @@ class OrderResource extends Resource
                     ->sortable(),
                 Tables\Columns\IconColumn::make('dispatch_failed_at')->label('Chek')
                     ->tooltip('Chek chiqmadi — qo\'lda tekshiring')
-                    ->icon(fn ($state) => $state ? 'heroicon-s-exclamation-triangle' : 'heroicon-o-printer')
-                    ->color(fn ($state, $record) => $state ? 'danger' : ($record->printed_at ? 'success' : 'gray')),
+                    // Printeri yo'q restoranda chek kutilmaydi — belgi ham chiqmaydi.
+                    ->icon(fn ($state, Order $record) => match (true) {
+                        ! $record->restaurant?->usesPrintAgent() => null,
+                        $record->printFailed() => 'heroicon-s-exclamation-triangle',
+                        default => 'heroicon-o-printer',
+                    })
+                    ->color(fn ($state, Order $record) => $record->printFailed() ? 'danger' : ($record->printed_at ? 'success' : 'gray')),
                 Tables\Columns\TextColumn::make('created_at')->label('Vaqti')->dateTime('d.m.Y H:i')->sortable(),
             ])
             ->filters([
                 Tables\Filters\SelectFilter::make('restaurant_id')->label('Restoran')->relationship('restaurant', 'name'),
+                Tables\Filters\TernaryFilter::make('print_failed')->label('Chek')
+                    ->placeholder('Hammasi')
+                    ->trueLabel('Chek chiqmadi')
+                    ->falseLabel('Chek chiqqan')
+                    ->queries(
+                        true: fn (Builder $query) => $query->whereNotNull('dispatch_failed_at')->whereNull('printed_at')
+                            ->whereIn('restaurant_id', Restaurant::query()->withPrintAgent()->select('restaurants.id')),
+                        false: fn (Builder $query) => $query->whereNotNull('printed_at'),
+                        blank: fn (Builder $query) => $query,
+                    ),
                 Tables\Filters\SelectFilter::make('status')
                     ->options(collect(OrderStatus::cases())->mapWithKeys(fn ($c) => [$c->value => $c->label()])),
                 Tables\Filters\TernaryFilter::make('is_test')->label('🧪 Test buyurtmalar')

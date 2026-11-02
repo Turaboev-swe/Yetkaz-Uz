@@ -57,6 +57,8 @@ class Restaurant extends Model
         'printer_port',
         'pos_credentials',
         'print_agent_token',
+        'receipt_paper_mm',
+        'receipt_codepage',
     ];
 
     /** `location` — PostGIS tomonidan lat/lng dan hisoblanadi, qo'lda yozilmaydi. */
@@ -91,6 +93,9 @@ class Restaurant extends Model
             'pos_type' => PosType::class,
             'pos_credentials' => 'encrypted:array',
             'printer_port' => 'integer',
+            'print_agent_last_seen_at' => 'datetime',
+            'receipt_paper_mm' => 'integer',
+            'receipt_codepage' => 'integer',
         ];
     }
 
@@ -128,6 +133,61 @@ class Restaurant extends Model
     public function orders(): HasMany
     {
         return $this->hasMany(Order::class);
+    }
+
+    /**
+     * Print agenti SOZLANGANmi: pos_type = escpos VA print_agent_token bor. Faqat shunday restoranda chek
+     * kutiladi — agent o'chiq banneri, signal, «Chek chiqmadi» belgisi va admin jadvali faqat ular uchun.
+     * Printeri yo'q (yoki token berilmagan) restoranda bularning hech biri chiqmaydi.
+     */
+    public function usesPrintAgent(): bool
+    {
+        return $this->pos_type === PosType::EscPos && filled($this->print_agent_token);
+    }
+
+    /** Print agenti sozlangan restoranlar (usesPrintAgent bilan bir xil shart). */
+    public function scopeWithPrintAgent(Builder $query): Builder
+    {
+        return $query->where('restaurants.pos_type', PosType::EscPos->value)
+            ->whereNotNull('restaurants.print_agent_token')
+            ->where('restaurants.print_agent_token', '!=', '');
+    }
+
+    /** Chek qog'ozi kengligi, mm (58 yoki 80; standart 80). */
+    public function receiptPaperMm(): int
+    {
+        return (int) ($this->receipt_paper_mm ?? config('print.default_paper_mm'));
+    }
+
+    /** Chek qatoridagi belgilar soni: 58 mm — 32, 80 mm (standart) — 42 (config print.paper_columns). */
+    public function receiptColumns(): int
+    {
+        $columns = (array) config('print.paper_columns');
+
+        return (int) ($columns[$this->receiptPaperMm()] ?? $columns[config('print.default_paper_mm')]);
+    }
+
+    /** ESC t n — printer kodlash jadvali raqami (standart 16 = WPC1252, Xprinter/Epson-mos). */
+    public function receiptCodepage(): int
+    {
+        return (int) ($this->receipt_codepage ?? config('print.default_codepage'));
+    }
+
+    /** Agent oxirgi heartbeat'dan beri `print.agent_offline_after_seconds` dan kam jim bo'lgan. */
+    public function printAgentOnline(): bool
+    {
+        return $this->print_agent_last_seen_at !== null
+            && $this->print_agent_last_seen_at->gte(now()->subSeconds((int) config('print.agent_offline_after_seconds')));
+    }
+
+    /** `online` | `offline` (oldin ulangan, hozir jim) | `never` (hech qachon ulanmagan). */
+    public function printAgentStatus(): string
+    {
+        return match (true) {
+            $this->print_agent_last_seen_at === null => 'never',
+            $this->printAgentOnline() => 'online',
+            default => 'offline',
+        };
     }
 
     /** @return BelongsToMany<PromoCode> Shu restoranda ishlaydigan kodlar (admin tanlagan). */
