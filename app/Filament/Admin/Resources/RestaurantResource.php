@@ -3,11 +3,15 @@
 namespace App\Filament\Admin\Resources;
 
 use App\Enums\BeyondFreeZoneDelivery;
+use App\Enums\BillingPlan;
 use App\Enums\PosType;
 use App\Filament\Admin\Resources\RestaurantResource\Pages;
 use App\Filament\Support\RestaurantLocationForm;
 use App\Filament\Support\WorkHoursForm;
 use App\Models\Restaurant;
+use App\Services\Billing\BillingCalculator;
+use App\Support\Money;
+use Carbon\CarbonImmutable;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
@@ -17,6 +21,22 @@ use Illuminate\Support\Str;
 
 class RestaurantResource extends Resource
 {
+    /** "2026-11 dan: Foiz 5% · 2026-12 dan: Qat'iy 100 000 so'm" — tarif tarixi (forma uchun, faqat o'qish). */
+    public static function billingHistoryText(?Restaurant $restaurant): string
+    {
+        if ($restaurant === null || ! $restaurant->exists) {
+            return '—';
+        }
+
+        $lines = $restaurant->billingPlans()->get()->map(fn ($entry): string => BillingCalculator::monthLabel($entry->effective_from).' dan: '.match ($entry->plan) {
+            BillingPlan::Percent => 'Foiz '.rtrim(rtrim(number_format($entry->rate_bp / 100, 2, '.', ''), '0'), '.').'%',
+            BillingPlan::Fixed => "Qat'iy ".Money::soms($entry->monthly_fee).' (oldindan)',
+            null => 'Tarifsiz',
+        });
+
+        return $lines->isEmpty() ? 'Tarif belgilanmagan' : $lines->implode(' · ');
+    }
+
     protected static ?string $model = Restaurant::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-building-storefront';
@@ -90,6 +110,59 @@ class RestaurantResource extends Resource
                     ->formatStateUsing(fn (?int $state) => $state === null ? null : intdiv($state, 100))
                     ->dehydrateStateUsing(fn ($state) => (int) round((float) $state * 100)),
             ])->columns(2),
+
+            // Obuna tarifi (Obunalar bo'limi). Mavjud restoranlarda tarif avtomat qo'yilmaydi —
+            // "Belgilanmagan" bo'lsa hisob-kitob yaratilmaydi.
+            Forms\Components\Section::make('Tarif')
+                ->description("Platforma bilan hisob-kitob: yetkazilgan buyurtmalar taom summasidan foiz yoki qat'iy oylik to'lov.")
+                ->schema([
+                    Forms\Components\Select::make('billing_plan')
+                        ->label('Tarif')
+                        ->options(collect(BillingPlan::cases())->mapWithKeys(fn ($c) => [$c->value => $c->label()]))
+                        ->placeholder('Belgilanmagan')
+                        ->live()
+                        ->native(false),
+                    Forms\Components\TextInput::make('commission_rate_bp')
+                        ->label('Stavka (%)')
+                        ->helperText("«Foiz» tarifida qo'llanadi. Bo'sh qoldirilsa 5%.")
+                        ->numeric()->minValue(0)->maxValue(100)->step(0.01)->suffix('%')
+                        ->formatStateUsing(fn ($state) => $state === null ? null : $state / 100)
+                        ->dehydrateStateUsing(fn ($state) => filled($state)
+                            ? (int) round((float) $state * 100)
+                            : (int) config('billing.default_rate_bp')),
+                    Forms\Components\TextInput::make('monthly_fee')
+                        ->label("Oylik to'lov (so'm)")
+                        ->helperText("«Qat'iy oylik» tarifida qo'llanadi. Bo'sh qoldirilsa 100 000 so'm.")
+                        ->numeric()->minValue(0)->step(1000)->suffix("so'm")
+                        ->formatStateUsing(fn ($state) => $state === null ? null : intdiv((int) $state, 100))
+                        ->dehydrateStateUsing(fn ($state) => filled($state)
+                            ? (int) round((float) $state * 100)
+                            : (int) config('billing.default_monthly_fee')),
+                    Forms\Components\Select::make('effective_month')
+                        ->label('Qaysi oydan')
+                        ->helperText("Tarif o'zgarganda shu oyning 1-kunidan amal qiladi va tarif tarixiga yoziladi. O'tgan oylarga ta'sir qilmaydi.")
+                        ->options(fn (): array => [
+                            'current' => 'Joriy oy ('.BillingCalculator::monthLabel(CarbonImmutable::now(BillingCalculator::timezone())).')',
+                            'next' => 'Keyingi oy ('.BillingCalculator::monthLabel(CarbonImmutable::now(BillingCalculator::timezone())->addMonth()).')',
+                        ])
+                        ->default('current')
+                        ->required()
+                        ->live()
+                        ->native(false),
+                    Forms\Components\DatePicker::make('billing_started_at')
+                        ->label('Boshlangan sana')
+                        ->helperText("Shu sanadan boshlab hisoblanadi (bo'sh bo'lsa 2026-11-01 dan). Joriy oydan qat'iy tarif boshlanganda MAJBURIY va shu oy ichida bo'lishi kerak: birinchi oy kunlarga proporsional hisoblanadi (masalan 16-noyabr -> 15/30) va hisob saqlash zahoti yaratiladi. Keyingi oydan boshlanadigan qat'iy tarif uchun sana kerak emas (1-kundan).")
+                        ->required(fn (Forms\Get $get, ?Restaurant $record): bool => $get('billing_plan') === BillingPlan::Fixed->value
+                            && $get('effective_month') === 'current'
+                            && ($record === null || app(BillingCalculator::class)
+                                ->tariffFor($record, CarbonImmutable::now(BillingCalculator::timezone()))->plan !== BillingPlan::Fixed))
+                        ->native(false),
+                    Forms\Components\Placeholder::make('billing_history')
+                        ->label('Tarif tarixi')
+                        ->content(fn (?Restaurant $record): string => self::billingHistoryText($record))
+                        ->visible(fn (?Restaurant $record): bool => $record !== null)
+                        ->columnSpanFull(),
+                ])->columns(2),
 
             Forms\Components\Section::make('POS')->schema([
                 Forms\Components\Select::make('pos_type')->label('POS turi')
