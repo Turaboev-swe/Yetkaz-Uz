@@ -63,6 +63,28 @@ class StockService
     }
 
     /**
+     * Faqat o'qiydi (hech narsa band qilmaydi): qaysi qatorga qoldiq yetmaydi.
+     *
+     * @param  array<int, array{product_id: int, name: string, qty: int}>  $lines
+     * @return list<array{product_id: int, name: string, available: int}>
+     */
+    public function shortages(array $lines): array
+    {
+        $stock = DB::table('products')->whereIn('id', array_column($lines, 'product_id'))->pluck('stock_quantity', 'id');
+
+        $shortages = [];
+        foreach ($lines as $line) {
+            $available = $stock[$line['product_id']] ?? null;
+
+            if ($available !== null && (int) $available < (int) $line['qty']) {
+                $shortages[] = ['product_id' => (int) $line['product_id'], 'name' => (string) $line['name'], 'available' => max(0, (int) $available)];
+            }
+        }
+
+        return $shortages;
+    }
+
+    /**
      * Buyurtma band qilgan qoldiqni qaytaradi (bekor qilish yoki qisman buyurtmada «yo'q» qator).
      * Idempotent: qaytarilgan miqdor `stock_reserved` dan olib tashlanadi.
      *

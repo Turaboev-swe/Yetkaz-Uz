@@ -9,6 +9,7 @@ use App\Jobs\NotifyCustomerOfStatusChange;
 use App\Jobs\RequestOrderRating;
 use App\Models\Order;
 use App\Models\OrderStatusHistory;
+use App\Services\Stock\StockService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -26,6 +27,8 @@ class OrderStatusService
 {
     /** Bekor qilish mumkin bo'lgan holatlar. */
     private const CANCELLABLE = [OrderStatus::Accepted, OrderStatus::Preparing];
+
+    public function __construct(private readonly StockService $stock) {}
 
     /**
      * @param  array<string, mixed>  $fill  Status o'zgarishidan OLDIN buyurtmaга
@@ -131,6 +134,13 @@ class OrderStatusService
                 'changed_by' => $changedBy,
                 'changed_at' => now(),
             ]);
+
+            // Yetkazilmasdan yopilgan buyurtma (hozir: bekor qilindi) band qilgan qoldiqni qaytaradi — shu tranzaksiyada.
+            // Bu yagona nuqta: oshxona paneli, Telegram oshxona boti va kelajakdagi har qanday yo'l shu yerdan o'tadi.
+            // Idempotent: qaytarilgan miqdor buyurtmadagi stock_reserved dan ayiriladi.
+            if ($to->releasesStock()) {
+                $this->stock->release($order);
+            }
         });
 
         OrderStatusChanged::dispatch($order->id, $order->restaurant_id, $to);

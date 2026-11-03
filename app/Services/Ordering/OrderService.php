@@ -22,6 +22,7 @@ use App\Services\Delivery\DeliveryFeeCalculator;
 use App\Services\Delivery\RestaurantFinder;
 use App\Services\Eta\EtaEstimate;
 use App\Services\Eta\EtaEstimator;
+use App\Services\Stock\StockService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -39,6 +40,7 @@ class OrderService
         private readonly OrderNumberGenerator $orderNumbers,
         private readonly DeliveryFeeCalculator $feeCalculator,
         private readonly PromoCodeService $promoCodes,
+        private readonly StockService $stock,
     ) {}
 
     /**
@@ -95,6 +97,10 @@ class OrderService
         $eta = $this->eta->estimate($restaurant, $type, $distanceKm, $maxPrep)->minutes;
 
         $order = DB::transaction(function () use ($user, $restaurant, $address, $type, $lines, $subtotal, $deliveryFee, $deliveryQuote, $eta, $distanceKm, $data) {
+            // Qoldiq — shu tranzaksiya ICHIDA, atomik (UPDATE ... WHERE stock >= qty). Yetmasa InsufficientStockException:
+            // butun tranzaksiya (buyurtma ham, promo ham) rollback. Frontendga ishonilmaydi: bu — yagona haqiqiy tekshiruv.
+            $reserved = $this->stock->reserve($lines);
+
             // Promokod — tekshirish va buyurtma yozish BITTA tranzaksiyada, kod
             // qatori qulflangan holda (limitlar uchun poyga holatiga qarshi —
             // PromoCodeService::applyForOrder). Faqat taomlar summasidan
@@ -110,6 +116,8 @@ class OrderService
                 'address_id' => $address?->id,
                 'delivery_type' => $type,
                 'items' => $lines,
+                // HAQIQATAN kamaytirilgan miqdorlar: bekor qilishda faqat shu qaytariladi (cheksiz mahsulot kirmaydi).
+                'stock_reserved' => $reserved,
                 'address_snapshot' => $address ? $this->addressSnapshot($address) : null,
                 'note' => $data['note'] ?? null,
                 'contact_phone' => $data['contact_phone'] ?? $user->contact_phone ?? $user->phone,
@@ -180,6 +188,33 @@ class OrderService
             ->whereIn('id', $ids)->max('prep_time_min') ?: $restaurant->avg_prep_time_min);
 
         return $this->eta->estimate($restaurant, $type, $distanceKm, $maxPrep);
+    }
+
+    /**
+     * Rasmiylashtirish ekrani uchun: savatdagi qaysi mahsulot(lar)ga qoldiq yetmaydi (hech narsa band qilinmaydi).
+     * Bu faqat oldindan ogohlantirish — haqiqiy tekshiruv `place()` ichida, tranzaksiyada.
+     *
+     * @param  array{restaurant_id:int, items?:array<int, array{product_id:int, qty:int}>}  $data
+     * @return list<array{product_id:int, name:string, available:int}>
+     */
+    public function stockShortages(User $user, array $data): array
+    {
+        $restaurant = Restaurant::query()->visibleTo($user)->findOrFail($data['restaurant_id']);
+
+        $qtyById = [];
+        foreach ($data['items'] ?? [] as $item) {
+            $qtyById[(int) $item['product_id']] = ($qtyById[(int) $item['product_id']] ?? 0) + (int) $item['qty'];
+        }
+
+        if ($qtyById === []) {
+            return [];
+        }
+
+        $lines = Product::query()->forRestaurant($restaurant->id)->whereIn('id', array_keys($qtyById))->get(['id', 'name'])
+            ->map(fn (Product $p) => ['product_id' => $p->id, 'name' => $p->name, 'qty' => $qtyById[$p->id]])
+            ->all();
+
+        return $this->stock->shortages($lines);
     }
 
     /**

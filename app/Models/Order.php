@@ -50,6 +50,7 @@ class Order extends Model
         'rated_at',
         'dispatched_at',
         'printed_at',
+        'stock_reserved',
         'dispatch_failed_at',
         'delivered_at',
         'cancelled_at',

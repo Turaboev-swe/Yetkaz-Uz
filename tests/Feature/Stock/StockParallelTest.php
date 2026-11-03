@@ -50,7 +50,8 @@ class StockParallelTest extends TestCase
 
     private function product(int $stock): Product
     {
-        $restaurant = Restaurant::factory()->for($district = District::factory()->create())->create();
+        $always = array_fill_keys(['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'], [['00:00', '23:59']]);
+        $restaurant = Restaurant::factory()->for($district = District::factory()->create())->create(['is_open' => true, 'work_hours' => $always, 'min_order_amount' => 0]);
         $category = Category::factory()->for($restaurant)->create();
         $product = Product::factory()->for($category)->create(['name' => 'Osh', 'stock_quantity' => $stock]);
 
@@ -135,6 +136,31 @@ class StockParallelTest extends TestCase
 
         $this->assertSame(3, count(array_filter($codes, fn (int $c) => $c === 0)), '3 dona — aynan 3 ta muvaffaqiyat');
         $this->assertSame(4, count(array_filter($codes, fn (int $c) => $c === 3)));
+        $this->assertSame(0, (int) DB::table('products')->where('id', $product->id)->value('stock_quantity'));
+    }
+
+    public function test_two_parallel_real_orders_for_the_last_piece_create_exactly_one_order(): void
+    {
+        $product = $this->product(1);
+        $restaurantId = Category::query()->findOrFail($product->category_id)->restaurant_id;
+        $users = [User::factory()->create(['phone' => '+998901110001']), User::factory()->create(['phone' => '+998901110002'])];
+        foreach ($users as $u) {
+            $this->created['user'][] = $u->id;
+        }
+
+        $codes = $this->runTogether(array_map(
+            fn (User $u) => ['place', (string) $u->id, (string) $restaurantId, (string) $product->id, (string) self::BARRIER],
+            $users,
+        ));
+
+        $orders = Order::withoutGlobalScopes()->where('restaurant_id', $restaurantId)->get();
+        $this->created['order'] = array_merge($this->created['order'], $orders->pluck('id')->all());
+        DB::table('order_status_history')->whereIn('order_id', $orders->pluck('id'))->delete();
+
+        sort($codes);
+        $this->assertSame([0, 3], $codes, 'bittasi buyurtma oladi, ikkinchisi "qoldi" xabarini oladi');
+        $this->assertCount(1, $orders, 'faqat bitta buyurtma yaratilgan');
+        $this->assertSame([$product->id => 1], $orders->first()->stock_reserved);
         $this->assertSame(0, (int) DB::table('products')->where('id', $product->id)->value('stock_quantity'));
     }
 

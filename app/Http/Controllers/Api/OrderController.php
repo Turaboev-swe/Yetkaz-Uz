@@ -51,6 +51,8 @@ class OrderController extends Controller
             // Royal Taxi rejimida bepul zonadan tashqarida: narx 0, taksi haqi alohida.
             'delivery_paid_to_taxi' => $delivery['delivery_paid_to_taxi'],
             'distance_km' => $delivery['distance_km'] !== null ? round($delivery['distance_km'], 2) : null,
+            // Qoldig'i yetmaydigan savat qatorlari (xato emas — Mini App savatni moslaydi). Haqiqiy tekshiruv — POST /orders.
+            'stock_shortages' => $this->orders->stockShortages($request->user(), $data),
         ]]);
     }
 
