@@ -25,6 +25,16 @@ enum OrderStatus: string
         return in_array($this, [self::Delivered, self::Cancelled], true);
     }
 
+    /**
+     * Buyurtma YETKAZILMASDAN yopildimi — shunda band qilingan qoldiq qaytariladi (StockService::release).
+     * Yangi terminal holat (rad etildi, muddati o'tdi ...) qo'shilsa, shu yerda qaror qilinishi SHART:
+     * test enum'dagi har bir terminal holatni tekshiradi.
+     */
+    public function releasesStock(): bool
+    {
+        return $this === self::Cancelled;
+    }
+
     /** @return list<self> */
     public static function active(): array
     {

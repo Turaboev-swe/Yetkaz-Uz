@@ -318,6 +318,12 @@ return [
     ],
 
     'eta_range' => 'Примерная доставка: :from–:to минут.',
+    // Остатки товара (stock)
+    'stock' => [
+        'only_left' => 'Извините, :name осталось только :count шт.',
+        'sold_out' => 'Извините, :name закончилось.',
+    ],
+
 
     // Чек в браузере (/kitchen/orders/{id}/receipt) — печатается с кухни на принтер Windows.
     'receipt' => [

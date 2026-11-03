@@ -83,6 +83,8 @@ class Order extends Model
             'rated_at' => 'datetime',
             'dispatched_at' => 'datetime',
             'printed_at' => 'datetime',
+            'stock_reserved' => 'array',
+            'stock_released_at' => 'datetime',
             'dispatch_failed_at' => 'datetime',
             'delivered_at' => 'datetime',
             'cancelled_at' => 'datetime',

@@ -320,6 +320,12 @@ return [
     ],
 
     'eta_range' => 'Taxminiy yetkazib berish: :from–:to daqiqa.',
+    // Mahsulot qoldig'i (stock)
+    'stock' => [
+        'only_left' => 'Kechirasiz, :name dan faqat :count ta qoldi.',
+        'sold_out' => 'Kechirasiz, :name tugagan.',
+    ],
+
 
     // Brauzer cheki (/kitchen/orders/{id}/receipt) — oshxona kassasidan Windows printeriga chiqadi.
     'receipt' => [
