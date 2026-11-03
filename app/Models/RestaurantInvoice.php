@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\BillingPlan;
 use App\Enums\InvoiceStatus;
+use App\Models\Scopes\ExcludeVoidInvoices;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -19,6 +20,11 @@ class RestaurantInvoice extends Model
         'restaurant_id', 'period', 'plan', 'rate_bp', 'fixed_fee', 'orders_count', 'orders_total',
         'amount_due', 'amount_paid', 'status', 'due_date', 'notes', 'billing_started_at',
     ];
+
+    protected static function booted(): void
+    {
+        static::addGlobalScope(new ExcludeVoidInvoices);
+    }
 
     protected function casts(): array
     {
@@ -49,19 +55,19 @@ class RestaurantInvoice extends Model
         return $this->hasMany(RestaurantPayment::class, 'invoice_id')->orderByDesc('paid_at')->orderByDesc('id');
     }
 
-    /** Qarz: kechirilgan hisobda 0, aks holda to'lanadigan − to'langan (manfiy emas). */
+    /** Qarz: kechirilgan va bekor qilingan hisobda 0, aks holda to'lanadigan − to'langan (manfiy emas). */
     public function debt(): int
     {
-        if ($this->status === InvoiceStatus::Waived) {
+        if (in_array($this->status, [InvoiceStatus::Waived, InvoiceStatus::Void], true)) {
             return 0;
         }
 
         return max(0, (int) $this->amount_due - (int) $this->amount_paid);
     }
 
-    /** Yopiq (paid/waived) hisob qayta hisoblanmaydi. */
+    /** Yopiq (paid/waived/void) hisob qayta hisoblanmaydi va unga amal bajarilmaydi. */
     public function isSettled(): bool
     {
-        return in_array($this->status, [InvoiceStatus::Paid, InvoiceStatus::Waived], true);
+        return in_array($this->status, [InvoiceStatus::Paid, InvoiceStatus::Waived, InvoiceStatus::Void], true);
     }
 }

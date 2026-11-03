@@ -9,6 +9,7 @@ use App\Filament\Admin\Resources\InvoiceResource\Pages;
 use App\Filament\Admin\Resources\InvoiceResource\RelationManagers\PaymentsRelationManager;
 use App\Filament\Admin\Resources\InvoiceResource\Widgets\InvoiceOrdersWidget;
 use App\Models\RestaurantInvoice;
+use App\Models\Scopes\ExcludeVoidInvoices;
 use App\Services\Billing\BillingCalculator;
 use App\Services\Billing\InvoiceService;
 use App\Support\Money;
@@ -21,6 +22,7 @@ use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 
 /**
  * "Hisob-kitoblar" — restoranlarning oylik obuna hisob-kitoblari. Yaratish/tahrirlash/o'chirish
@@ -44,6 +46,12 @@ class InvoiceResource extends Resource
     protected static ?string $slug = 'hisob-kitoblar';
 
     protected static ?int $navigationSort = 2;
+
+    /** Bekor qilingan hisoblar ham ochiladi (tarixi/izohi ko'rinadi); ro'yxatda «Bekor qilinganlarsiz» filtri yashiradi. */
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()->withoutGlobalScope(ExcludeVoidInvoices::class);
+    }
 
     public static function table(Table $table): Table
     {
@@ -74,6 +82,9 @@ class InvoiceResource extends Resource
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
+                // Bekor qilingan (void) hisoblar standartda yashirin; qarz va statistikaga umuman kirmaydi.
+                Tables\Filters\Filter::make('hide_void')->label('Bekor qilinganlarsiz')->toggle()->default()
+                    ->query(fn (Builder $query): Builder => $query->where('restaurant_invoices.status', '<>', InvoiceStatus::Void->value)),
                 SelectFilter::make('period')->label('Oy')
                     ->options(fn (): array => RestaurantInvoice::query()
                         ->select('period')->distinct()->orderByDesc('period')->pluck('period')

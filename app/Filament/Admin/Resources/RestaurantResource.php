@@ -9,7 +9,10 @@ use App\Filament\Admin\Resources\RestaurantResource\Pages;
 use App\Filament\Support\RestaurantLocationForm;
 use App\Filament\Support\WorkHoursForm;
 use App\Models\Restaurant;
+use App\Models\RestaurantBillingPlan;
+use App\Models\RestaurantInvoice;
 use App\Services\Billing\BillingCalculator;
+use App\Services\Billing\TariffService;
 use App\Support\Money;
 use Carbon\CarbonImmutable;
 use Filament\Forms;
@@ -17,6 +20,7 @@ use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Str;
 
 class RestaurantResource extends Resource
@@ -28,13 +32,50 @@ class RestaurantResource extends Resource
             return '—';
         }
 
-        $lines = $restaurant->billingPlans()->get()->map(fn ($entry): string => BillingCalculator::monthLabel($entry->effective_from).' dan: '.match ($entry->plan) {
-            BillingPlan::Percent => 'Foiz '.rtrim(rtrim(number_format($entry->rate_bp / 100, 2, '.', ''), '0'), '.').'%',
-            BillingPlan::Fixed => "Qat'iy ".Money::soms($entry->monthly_fee).' (oldindan)',
-            null => 'Tarifsiz',
-        });
+        $lines = $restaurant->billingPlans()->get()->map(fn ($entry): string => BillingCalculator::monthLabel($entry->effective_from).' dan: '.self::tariffText($entry));
 
         return $lines->isEmpty() ? 'Tarif belgilanmagan' : $lines->implode(' · ');
+    }
+
+    /** «Foiz 5%» / «Qat'iy 100 000 so'm (oldindan)» / «Tarifsiz» (yozuv yo'q — «Belgilanmagan»). */
+    public static function tariffText(?RestaurantBillingPlan $entry): string
+    {
+        return match ($entry?->plan) {
+            BillingPlan::Percent => 'Foiz '.rtrim(rtrim(number_format($entry->rate_bp / 100, 2, '.', ''), '0'), '.').'%',
+            BillingPlan::Fixed => "Qat'iy ".Money::soms($entry->monthly_fee).' (oldindan)',
+            null => $entry === null ? 'Belgilanmagan' : 'Tarifsiz',
+        };
+    }
+
+    /** «Dekabrdan: Foiz 5%» — kelajakda amalga kiradigan tarif (bo'lmasa null). */
+    public static function upcomingTariffText(?Restaurant $restaurant): ?string
+    {
+        $entry = $restaurant?->exists ? $restaurant->upcomingBillingEntry() : null;
+
+        return $entry === null ? null : BillingCalculator::monthName($entry->effective_from).'dan: '.self::tariffText($entry);
+    }
+
+    /** Formadagi tanlovga ko'ra bekor qilinadigan joriy oy fixed hisobi (bo'lmasa null). */
+    private static function correctableInvoice(Forms\Get $get, ?Restaurant $record): ?RestaurantInvoice
+    {
+        if ($record === null || ! $record->exists || $get('effective_month') !== 'current') {
+            return null;
+        }
+
+        return app(TariffService::class)->correctableInvoice(
+            $record,
+            BillingPlan::tryFrom((string) $get('billing_plan')),
+            CarbonImmutable::now(BillingCalculator::timezone()),
+        );
+    }
+
+    private static function correctionNotice(Forms\Get $get, ?Restaurant $record): string
+    {
+        $invoice = self::correctableInvoice($get, $record);
+
+        return $invoice === null
+            ? ''
+            : BillingCalculator::monthLabel($invoice->period).' uchun qat‘iy hisob ('.Money::soms($invoice->amount_due).') bekor qilinadi (o‘chirilmaydi — «Bekor qilingan» holatida qoladi). Faol to‘lovi bo‘lsa, bekor qilib bo‘lmaydi.';
     }
 
     protected static ?string $model = Restaurant::class;
@@ -157,6 +198,25 @@ class RestaurantResource extends Resource
                             && ($record === null || app(BillingCalculator::class)
                                 ->tariffFor($record, CarbonImmutable::now(BillingCalculator::timezone()))->plan !== BillingPlan::Fixed))
                         ->native(false),
+                    // Joriy oy fixed hisobi bor, lekin restoran foizda bo'lishi kerak: hisob BEKOR QILINADI (void).
+                    // Faol to'lovi bo'lsa serverda rad etiladi (TariffService).
+                    Forms\Components\Textarea::make('billing_correction_reason')
+                        ->label('Tuzatish sababi')
+                        ->helperText(fn (Forms\Get $get, ?Restaurant $record): string => self::correctionNotice($get, $record))
+                        ->rows(2)
+                        ->required()
+                        ->visible(fn (Forms\Get $get, ?Restaurant $record): bool => self::correctableInvoice($get, $record) !== null)
+                        ->columnSpanFull(),
+                    Forms\Components\Checkbox::make('billing_correction_confirm')
+                        ->label('Tasdiqlayman: joriy oy qat‘iy hisobi bekor qilinadi, restoran shu oydan foizga o‘tadi')
+                        ->accepted()
+                        ->visible(fn (Forms\Get $get, ?Restaurant $record): bool => self::correctableInvoice($get, $record) !== null)
+                        ->columnSpanFull(),
+                    Forms\Components\Placeholder::make('billing_upcoming')
+                        ->label('Keyingi tarif')
+                        ->content(fn (?Restaurant $record): string => self::upcomingTariffText($record) ?? '—')
+                        ->visible(fn (?Restaurant $record): bool => self::upcomingTariffText($record) !== null)
+                        ->columnSpanFull(),
                     Forms\Components\Placeholder::make('billing_history')
                         ->label('Tarif tarixi')
                         ->content(fn (?Restaurant $record): string => self::billingHistoryText($record))
@@ -208,12 +268,17 @@ class RestaurantResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
+            ->modifyQueryUsing(fn (Builder $query): Builder => $query->with('billingPlans')) // «Tarif» ustuni: N+1 yo'q
             ->columns([
                 Tables\Columns\ImageColumn::make('logo_url')->label('')->disk('public')->circular(),
                 Tables\Columns\TextColumn::make('name')->label('Nomi')->searchable()->sortable()
                     ->description(fn (Restaurant $record): ?string => $record->is_test ? '🧪 Test restoran' : null),
                 Tables\Columns\TextColumn::make('district.name')->label('Tuman')->sortable(),
                 Tables\Columns\TextColumn::make('district.region.name')->label('Viloyat')->toggleable(isToggledHiddenByDefault: true),
+                Tables\Columns\TextColumn::make('billing_tariff')->label('Tarif')
+                    ->state(fn (Restaurant $record): string => self::tariffText($record->currentBillingEntry()))
+                    ->description(fn (Restaurant $record): ?string => self::upcomingTariffText($record))
+                    ->toggleable(),
                 Tables\Columns\TextColumn::make('pos_type')->label('POS')
                     ->badge()->formatStateUsing(fn (PosType $state) => $state->label()),
                 Tables\Columns\TextColumn::make('print_agent_last_seen_at')->label('Printer agenti')

@@ -8,6 +8,7 @@ use App\Enums\InvoiceStatus;
 use App\Models\Restaurant;
 use App\Models\RestaurantInvoice;
 use App\Models\RestaurantPayment;
+use App\Models\Scopes\ExcludeVoidInvoices;
 use App\Models\Staff;
 use App\Support\Money;
 use Carbon\CarbonImmutable;
@@ -109,7 +110,7 @@ class InvoiceService
     public function recalculate(RestaurantInvoice $invoice): RestaurantInvoice
     {
         return DB::transaction(function () use ($invoice): RestaurantInvoice {
-            $locked = RestaurantInvoice::query()->lockForUpdate()->findOrFail($invoice->id);
+            $locked = $this->lock($invoice->id);
 
             $result = $locked->isSettled() ? $locked : $this->applyRecalculation($locked);
 
@@ -165,7 +166,7 @@ class InvoiceService
         }
 
         return DB::transaction(function () use ($invoice, $plan, $rateBp, $fixedFee, $reason, $changedBy): RestaurantInvoice {
-            $locked = RestaurantInvoice::query()->lockForUpdate()->findOrFail($invoice->id);
+            $locked = $this->lock($invoice->id);
 
             if ($locked->isSettled()) {
                 throw ValidationException::withMessages(['plan' => 'Yopilgan (to‘langan yoki kechirilgan) hisobda tarifni o‘zgartirib bo‘lmaydi.']);
@@ -262,7 +263,7 @@ class InvoiceService
         }
 
         return DB::transaction(function () use ($invoice, $amountTiyin, $method, $paidAt, $note, $createdBy): RestaurantPayment {
-            $locked = RestaurantInvoice::query()->lockForUpdate()->findOrFail($invoice->id);
+            $locked = $this->lock($invoice->id);
 
             if ($locked->status === InvoiceStatus::Waived) {
                 throw ValidationException::withMessages(['amount' => 'Kechirilgan hisobga to‘lov qo‘shib bo‘lmaydi.']);
@@ -299,7 +300,7 @@ class InvoiceService
         ?int $createdBy = null,
     ): RestaurantPayment {
         return DB::transaction(function () use ($invoice, $method, $paidAt, $note, $createdBy): RestaurantPayment {
-            $locked = RestaurantInvoice::query()->lockForUpdate()->findOrFail($invoice->id);
+            $locked = $this->lock($invoice->id);
 
             if ($locked->status === InvoiceStatus::Waived) {
                 throw ValidationException::withMessages(['amount' => 'Kechirilgan hisobga to‘lov qo‘shib bo‘lmaydi.']);
@@ -333,7 +334,7 @@ class InvoiceService
         }
 
         return DB::transaction(function () use ($payment, $reason, $cancelledBy): RestaurantInvoice {
-            $invoice = RestaurantInvoice::query()->lockForUpdate()->findOrFail($payment->invoice_id);
+            $invoice = $this->lock($payment->invoice_id);
             $locked = RestaurantPayment::query()->lockForUpdate()->findOrFail($payment->id);
 
             if ($invoice->status === InvoiceStatus::Waived) {
@@ -354,9 +355,64 @@ class InvoiceService
         });
     }
 
+    /**
+     * Hisobni BEKOR QILADI (`void`): xato tarif bilan yaratilgan hisobni tuzatish uchun. Yozuv o'chirilmaydi —
+     * holat `void`, sabab/kim/qachon izohga yoziladi. Void hisob qarz, statistika va "To'lov holati"ga
+     * kirmaydi, o'sha oy uchun yangi hisob yaratilishiga to'sqinlik qilmaydi.
+     * Faol (bekor qilinmagan) to'lovi bor, kechirilgan yoki allaqachon bekor qilingan hisobda rad etiladi.
+     *
+     * @throws ValidationException
+     */
+    public function void(RestaurantInvoice $invoice, string $reason, ?int $changedBy = null): RestaurantInvoice
+    {
+        $reason = trim($reason);
+
+        if ($reason === '') {
+            throw ValidationException::withMessages(['reason' => 'Hisobni bekor qilish sababini kiriting.']);
+        }
+
+        return DB::transaction(function () use ($invoice, $reason, $changedBy): RestaurantInvoice {
+            $locked = $this->lock($invoice->id);
+
+            if ($locked->status === InvoiceStatus::Waived) {
+                throw ValidationException::withMessages(['invoice' => 'Kechirilgan hisobni bekor qilib bo‘lmaydi.']);
+            }
+            if (RestaurantPayment::query()->active()->where('invoice_id', $locked->id)->exists()) {
+                throw ValidationException::withMessages(['invoice' => 'Faol to‘lovi bor hisobni bekor qilib bo‘lmaydi. Avval to‘lovni bekor qiling.']);
+            }
+
+            $who = $changedBy !== null ? (Staff::query()->find($changedBy)?->name ?? "#{$changedBy}") : 'tizim';
+            $when = now(BillingCalculator::timezone())->format('d.m.Y H:i');
+
+            $locked->status = InvoiceStatus::Void;
+            $locked->notes = trim(($locked->notes ? $locked->notes."\n" : '')."[{$when}] {$who}: hisob BEKOR QILINDI (tarif tuzatish, {$this->tariffText($locked->plan, (int) $locked->rate_bp, (int) $locked->fixed_fee)}). Sabab: {$reason}");
+            $locked->save();
+
+            $invoice->setRawAttributes($locked->getAttributes(), true);
+
+            return $invoice;
+        });
+    }
+
+    /** Hisobni qulflab oladi (bekor qilingan hisobni ham topadi, lekin unga amal bajarishni rad etadi). */
+    private function lock(int $id): RestaurantInvoice
+    {
+        $invoice = RestaurantInvoice::withoutGlobalScope(ExcludeVoidInvoices::class)->lockForUpdate()->findOrFail($id);
+
+        if ($invoice->status === InvoiceStatus::Void) {
+            throw ValidationException::withMessages(['invoice' => 'Bekor qilingan hisob-kitobga amal bajarib bo‘lmaydi.']);
+        }
+
+        return $invoice;
+    }
+
     /** Hisobni kechiradi (qarz 0, to'lov tarixi saqlanadi). */
     public function waive(RestaurantInvoice $invoice, ?string $note = null): RestaurantInvoice
     {
+        if ($invoice->status === InvoiceStatus::Void) {
+            throw ValidationException::withMessages(['invoice' => 'Bekor qilingan hisob-kitobni kechirib bo‘lmaydi.']);
+        }
+
         $invoice->update([
             'status' => InvoiceStatus::Waived,
             'notes' => filled($note) ? trim($note) : $invoice->notes,

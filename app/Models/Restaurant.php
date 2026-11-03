@@ -6,6 +6,7 @@ use App\Enums\BeyondFreeZoneDelivery;
 use App\Enums\BillingPlan;
 use App\Enums\PosType;
 use App\Models\Concerns\HasGeneratedLocation;
+use App\Services\Billing\BillingCalculator;
 use App\Support\TestAccess;
 use App\Support\WorkHours;
 use Carbon\CarbonImmutable;
@@ -123,6 +124,25 @@ class Restaurant extends Model
     public function billingPlans(): HasMany
     {
         return $this->hasMany(RestaurantBillingPlan::class)->orderBy('effective_from');
+    }
+
+    /**
+     * JORIY oy uchun amaldagi tarif yozuvi (yuklangan `billingPlans` bo'yicha, qo'shimcha so'rovsiz).
+     * Hisob-kitob manbasi emas — ko'rsatish uchun.
+     */
+    public function currentBillingEntry(): ?RestaurantBillingPlan
+    {
+        $month = BillingCalculator::monthStart(CarbonImmutable::now(BillingCalculator::timezone()))->format('Y-m-d');
+
+        return $this->billingPlans->filter(fn (RestaurantBillingPlan $e): bool => $e->effective_from->format('Y-m-d') <= $month)->last();
+    }
+
+    /** Kelajakda (keyingi oylardan) amalga kiradigan eng yaqin tarif yozuvi. */
+    public function upcomingBillingEntry(): ?RestaurantBillingPlan
+    {
+        $month = BillingCalculator::monthStart(CarbonImmutable::now(BillingCalculator::timezone()))->format('Y-m-d');
+
+        return $this->billingPlans->first(fn (RestaurantBillingPlan $e): bool => $e->effective_from->format('Y-m-d') > $month);
     }
 
     /** @return HasMany<RestaurantInvoice> */

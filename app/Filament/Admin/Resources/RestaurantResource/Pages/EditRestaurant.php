@@ -5,8 +5,6 @@ namespace App\Filament\Admin\Resources\RestaurantResource\Pages;
 use App\Filament\Admin\Resources\RestaurantResource;
 use App\Filament\Admin\Resources\RestaurantResource\Concerns\HandlesBillingTariff;
 use App\Filament\Support\WorkHoursForm;
-use App\Services\Billing\BillingCalculator;
-use Carbon\CarbonImmutable;
 use Filament\Actions;
 use Filament\Resources\Pages\EditRecord;
 
@@ -26,11 +24,9 @@ class EditRestaurant extends EditRecord
     protected function mutateFormDataBeforeFill(array $data): array
     {
         $data['work_hours'] = WorkHoursForm::toRows($data['work_hours'] ?? []);
-        // Forma eng oxirgi (ehtimol kelgusi oydan boshlanadigan) tarifni ko'rsatadi: "Qaysi oydan"
-        // standarti shu tarif oyi, aks holda boshqa maydonni saqlash tarifni oldinga surib yuborardi.
-        $latest = $this->record->billingPlans()->reorder('effective_from', 'desc')->first();
-        $currentMonth = BillingCalculator::monthStart(CarbonImmutable::now(BillingCalculator::timezone()));
-        $data['effective_month'] = $latest !== null && $latest->effective_from->greaterThan($currentMonth) ? 'next' : 'current';
+        // Forma JORIY oy tarifini ko'rsatadi (restaurants.billing_*), kelajak tarifi alohida («Keyingi tarif»)
+        // — shuning uchun "Qaysi oydan" standarti doim joriy oy: boshqa maydonni saqlash tarifga tegmaydi.
+        $data['effective_month'] = 'current';
 
         return $data;
     }

@@ -5,6 +5,7 @@ namespace Tests\Feature\Billing\Concerns;
 use App\Enums\BillingPlan;
 use App\Models\Restaurant;
 use App\Models\RestaurantBillingPlan;
+use App\Services\Billing\TariffService;
 
 /**
  * Davr tarifi TARIX jadvalidan olinadi — testlarda restoran tarifi tarixga ham yoziladi
@@ -22,7 +23,7 @@ trait RecordsTariffs
         return $restaurant;
     }
 
-    /** Tarix yozuvini qo'shadi/yangilaydi va restoranning joriy ustunlarini moslaydi. */
+    /** Tarix yozuvini qo'shadi/yangilaydi va restoranning joriy (JORIY oy uchun amaldagi) ustunlarini moslaydi. */
     protected function setTariff(Restaurant $restaurant, ?BillingPlan $plan, int $rateBp = 500, int $fee = 10_000_000, string $from = '2026-11-01'): void
     {
         RestaurantBillingPlan::query()->updateOrCreate(
@@ -30,6 +31,6 @@ trait RecordsTariffs
             ['plan' => $plan, 'rate_bp' => $rateBp, 'monthly_fee' => $fee],
         );
 
-        $restaurant->forceFill(['billing_plan' => $plan, 'commission_rate_bp' => $rateBp, 'monthly_fee' => $fee])->save();
+        app(TariffService::class)->syncCurrentTariff($restaurant);
     }
 }

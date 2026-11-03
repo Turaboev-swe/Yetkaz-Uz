@@ -8,6 +8,8 @@ enum InvoiceStatus: string
     case Partial = 'partial';
     case Paid = 'paid';
     case Waived = 'waived';
+    /** Xato tarif bilan yaratilgan va tuzatishda bekor qilingan hisob (qarz/statistikaga kirmaydi). */
+    case Void = 'void';
 
     public function label(): string
     {
@@ -16,6 +18,7 @@ enum InvoiceStatus: string
             self::Partial => 'Qisman to‘langan',
             self::Paid => 'To‘langan',
             self::Waived => 'Kechirilgan',
+            self::Void => 'Bekor qilingan',
         };
     }
 
@@ -25,7 +28,7 @@ enum InvoiceStatus: string
             self::Unpaid => 'danger',
             self::Partial => 'warning',
             self::Paid => 'success',
-            self::Waived => 'gray',
+            self::Waived, self::Void => 'gray',
         };
     }
 

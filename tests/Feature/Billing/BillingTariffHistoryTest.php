@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Billing;
 
+use App\Enums\BillingPaymentMethod;
 use App\Enums\BillingPlan;
 use App\Enums\InvoiceStatus;
 use App\Enums\OrderStatus;
@@ -18,6 +19,7 @@ use App\Services\Billing\BillingCalculator;
 use App\Services\Billing\InvoiceService;
 use App\Services\Billing\TariffService;
 use Filament\Facades\Filament;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -277,7 +279,6 @@ class BillingTariffHistoryTest extends TestCase
         $this->assertSame('2027-03-10', $this->invoices->generate($a, '2027-03')->due_date->format('Y-m-d'));
     }
 
-
     // --- Fixed: orders_count/orders_total faqat ma'lumot uchun ---------------------------------------
 
     public function test_fixed_invoice_orders_are_informational_only(): void
@@ -332,7 +333,8 @@ class BillingTariffHistoryTest extends TestCase
 
         $this->assertSame(0, RestaurantInvoice::where('restaurant_id', $r->id)->count());
         $this->assertSame('2026-12-01', $r->billingPlans()->first()->effective_from->format('Y-m-d'));
-        $this->assertSame(BillingPlan::Fixed, $r->fresh()->billing_plan, 'restaurants.* = oxirgi yozuv');
+        $this->assertNull($r->fresh()->billing_plan, 'restaurants.* = JORIY oy tarifi (hozircha tarifsiz), kelajak yozuvi emas');
+        $this->assertSame(BillingPlan::Fixed, $r->fresh()->upcomingBillingEntry()->plan);
     }
 
     // --- Joriy oydan fixed: «Boshlangan sana» majburiy ---------------------------------------------------
@@ -424,7 +426,6 @@ class BillingTariffHistoryTest extends TestCase
         $this->assertSame(20_000_000, app(BillingCalculator::class)->tariffFor($r, '2026-11')->monthlyFee);
     }
 
-
     // --- Tarif tarixiga yozish ---------------------------------------------------------------------------
 
     public function test_form_change_writes_a_history_row_and_keeps_old_months_on_the_old_tariff(): void
@@ -441,7 +442,8 @@ class BillingTariffHistoryTest extends TestCase
         $this->assertSame([[500, '2026-11-01'], [300, '2026-12-01']], $r->billingPlans()->get()->map(fn ($e) => [$e->rate_bp, $e->effective_from->format('Y-m-d')])->all());
         $this->assertSame(500, app(BillingCalculator::class)->tariffFor($r, '2026-11')->rateBp);
         $this->assertSame(300, app(BillingCalculator::class)->tariffFor($r, '2026-12')->rateBp);
-        $this->assertSame(300, $r->fresh()->commission_rate_bp);
+        $this->assertSame(500, $r->fresh()->commission_rate_bp, 'restaurants.* = joriy oy tarifi, dekabr yozuvi emas');
+        $this->assertSame(300, $r->fresh()->upcomingBillingEntry()->rate_bp);
     }
 
     public function test_unchanged_tariff_writes_no_history_row_and_saving_other_fields_does_not_shift_a_scheduled_tariff(): void
@@ -451,9 +453,9 @@ class BillingTariffHistoryTest extends TestCase
         $this->setTariff($r, BillingPlan::Percent, 500, 10_000_000, '2026-11-01');
         $this->setTariff($r, BillingPlan::Fixed, 500, 10_000_000, '2026-12-01'); // keyingi oydan rejalashtirilgan
 
-        // Forma rejalashtirilgan (kelgusi) tarifni ko'rsatadi; boshqa maydonni saqlash uni oldinga surmasligi kerak.
+        // Forma JORIY tarifni ko'rsatadi (kelgusi tarif alohida); boshqa maydonni saqlash rejalashtirilgan tarifga tegmaydi.
         Livewire::test(EditRestaurant::class, ['record' => $r->getRouteKey()])
-            ->assertFormSet(['billing_plan' => 'fixed', 'effective_month' => 'next'])
+            ->assertFormSet(['billing_plan' => 'percent', 'effective_month' => 'current'])
             ->fillForm(['name' => 'Yangi nom'])
             ->call('save')
             ->assertHasNoFormErrors();
@@ -468,7 +470,8 @@ class BillingTariffHistoryTest extends TestCase
         $this->now('2026-11-20 12:00');
         $r = $this->restaurant();
         $this->setTariff($r, BillingPlan::Fixed, 500, 10_000_000, '2026-11-01');
-        $this->invoices->generate($r, '2026-11');
+        $invoice = $this->invoices->generate($r, '2026-11');
+        $this->invoices->addPayment($invoice, 1_000_000, BillingPaymentMethod::Cash, '2026-11-10'); // faol to'lov: tuzatib bo'lmaydi
 
         Livewire::test(EditRestaurant::class, ['record' => $r->getRouteKey()])
             ->fillForm(['billing_plan' => 'percent', 'name' => 'Saqlanmasligi kerak', 'effective_month' => 'current'])
@@ -505,7 +508,8 @@ class BillingTariffHistoryTest extends TestCase
         app(TariffService::class)->apply($r, null, 500, 10_000_000, '2026-12');
 
         $this->assertNull(app(BillingCalculator::class)->tariffFor($r, '2026-12')->plan);
-        $this->assertNull($r->fresh()->billing_plan);
+        $this->assertSame(BillingPlan::Percent, $r->fresh()->billing_plan, 'joriy oy (noyabr) tarifi o‘zgarmaydi');
+        $this->assertNull($r->fresh()->upcomingBillingEntry()->plan, 'dekabrdan tarifsiz — kelajak yozuvi');
         $this->delivered($r, '2026-12-05 12:00', 10_000_000);
         $this->now('2027-01-05 12:00');
         $this->assertNull($this->invoices->generate($r, '2026-12'), 'tarifsiz davr hisoblanmaydi');
@@ -550,7 +554,7 @@ class BillingTariffHistoryTest extends TestCase
         $r = $this->restaurant();
         $this->setTariff($r, BillingPlan::Percent, 500, 10_000_000, '2026-11-01');
 
-        $this->expectException(\Illuminate\Database\QueryException::class);
+        $this->expectException(QueryException::class);
         DB::table('restaurant_billing_plans')->insert(['restaurant_id' => $r->id, 'plan' => 'fixed', 'effective_from' => '2026-11-01', 'created_at' => now(), 'updated_at' => now()]);
     }
 
@@ -570,7 +574,7 @@ class BillingTariffHistoryTest extends TestCase
         $this->delivered($percent, '2026-11-05 12:00', 20_000_000);
 
         $this->invoices->generate($fixedUnpaid, '2026-11');
-        $this->invoices->markPaid($this->invoices->generate($fixedPaid, '2026-11'), \App\Enums\BillingPaymentMethod::Cash, '2026-11-10');
+        $this->invoices->markPaid($this->invoices->generate($fixedPaid, '2026-11'), BillingPaymentMethod::Cash, '2026-11-10');
 
         Livewire::test(CurrentMonthBilling::class)
             ->assertTableColumnStateSet('payment_state', 'To‘lanmagan', record: $fixedUnpaid->id)
