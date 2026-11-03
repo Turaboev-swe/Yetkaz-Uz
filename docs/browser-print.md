@@ -10,14 +10,49 @@ Print agent (`print-agent/`) bu rejimda **kerak emas**. Agent bilan ishlaydigan 
 
 1. Xodim panelda **«Qabul qilish»** bosadi. Server buyurtmani qabul qiladi.
 2. Qabul muvaffaqiyatli bo'lgach panel yashirin iframe'da chek sahifasini (`/kitchen/orders/{id}/receipt`) ochadi,
-   logo yuklangach `window.print()` chaqiradi.
+   yuklangach `window.print()` chaqiradi.
 3. Yorliqdagi `--kiosk-printing` tufayli dialog chiqmaydi — chek oxirgi tanlangan printerga darhol ketadi.
 4. Chop etish chaqirilgach `orders.printed_at` yoziladi.
 
-Chek ma'lumoti ESC/POS cheki bilan **bir manbadan** (`ReceiptFormatter::data()`) olinadi: raqam, vaqt, tur, taomlar,
-izoh, mijoz, telefon(lar), manzil, chegirma, to'lov usuli, mijozdan olinadigan summa. Maket HTML/CSS: tepada Yetkaz
-logosi va **YETKAZ UZ**, restoran nomi; pastda «Yetkaz Uz orqali buyurtma» va botga QR-kod (serverda SVG qilib
-yaratiladi, tashqi servis yo'q).
+Chek ma'lumoti ESC/POS cheki bilan **bir manbadan** (`ReceiptFormatter::data()`) olinadi: raqam, vaqt, tur, taomlar
+(narxi bilan), izoh, mijoz, telefon(lar), manzil, chegirma, to'lov usuli, mijozdan olinadigan summa. Maket HTML/CSS,
+**ixcham kassa cheki** (logosiz, 11–12 px shrift):
+
+```
+            YETKAZ UZ
+            Guzar Kafe
+YT-251103-0123            [YETKAZISH]
+17:58 · Tayyor ~32 daq
+- - - - - - - - - - - - - - - - - -
+2x Lag'mon                    70 000
+1x Osh                        32 000
+   ! achchiq emas
+- - - - - - - - - - - - - - - - - -
+Taomlar:                     102 000
+Chegirma:                     -7 500
+Yetkazish:                    15 000
+- - - - - - - - - - - - - - - - - -
+MIJOZDAN OLINADI:     109 500 so'm
+To'lov: naqd
+- - - - - - - - - - - - - - - - - -
+Ali Valiyev · +998901112233
+MANZIL: Qo'rg'ontepa tumani, kirish 2
+[QR]  @Yetkaz_uzbot
+      Botga o'tish uchun skanerlang
+```
+
+- Taom narxi — **buyurtma paytidagi narx** (`orders.items` snapshot), menyudagi hozirgi narx emas. Qator jami =
+  soni × narx. Narxi saqlanmagan eski buyurtmada narx ustuni chiqmaydi.
+- Qisqa hisob («Taomlar / Chegirma / Yetkazish») faqat chegirma yoki yetkazish haqi bo'lganda chiqadi; aks holda
+  «MIJOZDAN OLINADI» o'zi yetarli. Hisob: qatorlar jami − chegirma + yetkazish = mijozdan olinadigan summa.
+  Yetkazish haqi taksiga alohida to'lanadigan bo'lsa summaga **qo'shilmaydi** va qisqa izoh qoladi.
+- Bugungi buyurtmada faqat vaqt («17:58»), boshqa kunniki sanasi bilan («02.11 17:58»).
+- Ism yo'q yoki «Mijoz» kabi o'rinbosar so'z bo'lsa mijoz qatori chiqmaydi, faqat telefon.
+- Manzil tumani matnda bo'lsa (apostrof/registr farqiga qaramay) qayta qo'shilmaydi; xom koordinata o'rniga tuman nomi.
+- Bot QR-kodi serverda SVG qilib yaratiladi (tashqi servis yo'q), ~15.5 mm: 203 dpi printerda 4 nuqta/modul.
+  Telefon bilan skanerlanishi tekshirilgan (xiralashtirilganda ham).
+
+ESC/POS cheki ham shu ma'lumotdan: taom qatorlarida narx o'ng ustunda (32/42/48 belgi), qisqa hisob bir xil.
 
 Kartada **«Chekni chiqarish» / «Chekni qayta chiqarish»** tugmasi bor (faqat brauzer rejimidagi restoranlarda).
 
@@ -26,7 +61,9 @@ Kartada **«Chekni chiqarish» / «Chekni qayta chiqarish»** tugmasi bor (faqat
 `/admin → Restoranlar → <restoran> → POS`:
 
 - **POS turi:** `Brauzer orqali chop etish`
-- **Chek qog'ozi:** `80 mm` (yoki `58 mm`) — chek shu kenglikda chiqadi (80 mm → bosiladigan 72 mm, 58 mm → 48 mm).
+- **Chek qog'ozi:** `80 mm` (yoki `58 mm`) — chek shu qog'ozga mo'ljallangan. Matn kengligi qog'ozdan ataylab torroq
+  (80 mm → 64 mm, 58 mm → 44 mm): printer drayveri chetlarda bo'sh joy qoldiradi va chet kesilmasligi kerak.
+  Kesilsa kamaytiring, chetda juda ko'p bo'sh joy qolsa `config/print.php` → `browser.printable_mm` ni oshiring.
 
 Saqlang. Eski agent (agar qolgan bo'lsa) bu restoranda baribir jim: heartbeat yozilmaydi, `pending` bo'sh qaytadi,
 ikkinchi nusxa chiqmaydi.
@@ -101,18 +138,18 @@ Sozlamadan keyin brauzerni to'liq yoping va yorliq orqali qayta oching. Tekshiri
 ### 2.5. Tekshirish
 
 1. Yorliq orqali panelni oching, test buyurtmada **«Qabul qilish»** bosing → chek dialogsiz chiqishi kerak.
-2. Chekda: logo, **YETKAZ UZ**, restoran nomi, buyurtma raqami (katta), taomlar, **MIJOZDAN OLINADI** (katta),
-   pastda QR va `@Yetkaz_uzbot`. QR'ni telefon bilan skanerlab botga o'tishini tekshiring.
+2. Chekda: **YETKAZ UZ**, restoran nomi, buyurtma raqami, taomlar (narxi o'ng ustunda), **MIJOZDAN OLINADI**,
+   pastda QR va `@Yetkaz_uzbot`. Hech bir qator o'ng chetdan kesilmasligi kerak. QR'ni telefon bilan skanerlab
+   botga o'tishini tekshiring.
 3. Chek chetdan kesilsa — 2.2 dagi *Maydonlar: Yo'q* va qog'oz o'lchamini tekshiring.
 
-## 3. Logo va bot
+## 3. Bot va til
 
-- Logo: `public/images/yetkaz-logo.png` (hozircha). Almashtirish: faylni shu nom bilan almashtiring **yoki** yangi
-  faylni `public/images/` ga qo'ying va `.env` ga `BROWSER_RECEIPT_LOGO=images/<fayl>.png` yozing. Eni ~40 mm.
-  Termoprinterda qora-oq chiqadi (CSS filtri `grayscale(100%) contrast(180%)`), shuning uchun kontrastli,
-  oddiy rasm yaxshi.
 - QR/yozuvdagi bot: standart `Yetkaz_uzbot`. Boshqa bot uchun `.env`: `BROWSER_RECEIPT_BOT=<username>`.
-- Ikkalasi o'zgargach: `php artisan octane:reload` (config kesh bo'lsa `config:cache` avtomat qayta quriladi).
+  (Modul soni o'zgarsa, `print.browser.qr_mm` ni 4 nuqta/modul bo'lishi uchun moslang.)
+- Chek tili: standart `uz`; `.env` → `BROWSER_RECEIPT_LOCALE=ru` (mijozning tiliga bog'liq emas).
+- Logo yo'q (ixcham chek uchun olib tashlangan).
+- O'zgargach: `php artisan octane:reload` (prod'da konteynerlar qayta ishga tushadi).
 
 ## 4. Oldindan ko'rish
 
@@ -131,7 +168,7 @@ oshxona xodimi — 403, kirmagan foydalanuvchi — `/kitchen/login`.
   ko'zdan kechiring.
 - **`@page { size: 80mm auto }` ni Chrome/Edge rad etadi** (tekshirilgan: balandlik `auto` bo'lsa qog'oz o'lchami
   printerning o'zidan olinadi). Shuning uchun 2.2 da printer drayveridagi **80 mm roll** o'lchamini tanlash shart.
-  Bosiladigan kenglik (72/48 mm) CSS'da aniq berilgan.
+  Matn kengligi (64/44 mm) CSS'da aniq berilgan.
 - Chop etish xatosi (masalan, sessiya tugagan) panelda qizil xabar sifatida chiqadi, buyurtma holati o'zgarmaydi.
 
 ## 6. Muammolar
@@ -140,8 +177,7 @@ oshxona xodimi — 403, kirmagan foydalanuvchi — `/kitchen/login`.
 |---|---|
 | Har chekda dialog chiqadi | Yorliqda `--kiosk-printing` yo'q **yoki** brauzer fonda ishlab turgan edi (2.4) **yoki** panel yorliq orqali emas, oddiy brauzerda ochilgan. Brauzerni to'liq yoping, yorliq orqali oching. |
 | Chek boshqa printerga ketdi | 2.2 da kassa printeri tanlanmagan; kassa printerini Windows'da standart qiling (2.1). |
-| Chekning chetlari kesilgan | *Maydonlar: Yo'q*, masshtab 100%; admin'da qog'oz kengligi to'g'rimi (58/80). |
+| Chekning chetlari kesilgan | *Maydonlar: Yo'q*, masshtab 100%; admin'da qog'oz kengligi to'g'rimi (58/80); kerak bo'lsa `print.browser.printable_mm` ni kamaytiring (2-bo'lim, admin). |
 | Chek juda uzun/qog'oz bo'sh chiqadi | Paper size 80 mm **roll** emas (A4/Letter tanlangan) — 2.2 ni qaytaring. |
-| Logo qora dog' bo'lib chiqdi | Logo faylini kontrastli, oq fonli qora-oq rasm bilan almashtiring (3-bo'lim). |
 | «Chek ochilmadi (sessiya tugagan…)» | Panelga qayta kiring (`/kitchen/login`). |
 | Chek «Qabul qilish»da chiqmadi | Restoran POS turi `Brauzer orqali chop etish`mi? Brauzer yangi frontend'ni yuklaganmi (`Ctrl+F5`)? |

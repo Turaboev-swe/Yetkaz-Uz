@@ -22,7 +22,7 @@ final class OrderAddress
         $district = trim((string) ($snap['district'] ?? ''));
 
         if ($text !== '' && ! self::looksLikeCoordinates($text)) {
-            return $district !== '' && ! str_contains($text, $district)
+            return $district !== '' && ! str_contains(self::normalize($text), self::normalize($district))
                 ? "{$text}, {$district}"
                 : $text;
         }
@@ -69,6 +69,17 @@ final class OrderAddress
         }
 
         return sprintf('https://maps.google.com/?q=%.6f,%.6f', (float) $snap['lat'], (float) $snap['lng']);
+    }
+
+    /**
+     * Taqqoslash uchun: kichik harf, apostrof variantlari (ʻ ʼ ‘ ’ ` ´ -> ') va bo'shliqlar bir xil ko'rinishda.
+     * "Qo'rg'ontepa tumani" va "Qo‘rg‘ontepa tumani" bir xil tuman — tuman matnda ikki marta chiqmasin.
+     */
+    private static function normalize(string $s): string
+    {
+        $s = strtr(mb_strtolower($s), ['ʻ' => "'", 'ʼ' => "'", '‘' => "'", '’' => "'", '`' => "'", '´' => "'"]);
+
+        return trim(preg_replace('/\s+/u', ' ', $s) ?? $s);
     }
 
     private static function looksLikeCoordinates(string $text): bool

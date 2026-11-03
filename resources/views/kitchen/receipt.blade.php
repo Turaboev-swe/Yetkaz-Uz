@@ -5,7 +5,11 @@
     // Mijoz yozgan matnlardan emoji olib tashlanadi (termoprinterda dog' bo'ladi); harflar o'z holicha.
     $p = fn (?string $s): string => EscPos::stripPictographs((string) $s);
     $t = fn (string $key): string => __("messages.receipt.{$key}");
-    $money = fn (int $tiyin): string => ReceiptFormatter::amount($tiyin).' '.$t('currency');
+    $amount = fn (int $tiyin): string => ReceiptFormatter::amount($tiyin);
+    $money = fn (int $tiyin): string => $amount($tiyin).' '.$t('currency');
+
+    $customer = $p($d->customerName);
+    $hasAddress = $d->addressText !== null && ($d->addressText !== '' || $d->addressExtra !== '');
 @endphp
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
@@ -18,59 +22,54 @@
         /* Termoprinter roligi: kenglik restoran sozlamasidan (58/80 mm), balandlik chek uzunligiga qarab.
            DIQQAT: Chrome/Edge `size: <kenglik> auto` ni (balandlik "auto") rad etadi va printerning o'z qog'oz
            o'lchamini ishlatadi — shuning uchun bir martalik Ctrl+P sozlamasida roll qog'ozni (80 mm) tanlash shart.
-           Bosiladigan kenglik esa .receipt da aniq berilgan, qog'oz o'lchamiga bog'liq emas. */
+           Chek matni kengligi (.receipt) printer bosa oladigan maydondan ataylab torroq: chet kesilmasin. */
         @page { size: {{ $paperMm }}mm auto; margin: 0; }
 
         * { box-sizing: border-box; }
         html, body { margin: 0; padding: 0; background: #fff; color: #000; }
         body {
             font-family: Arial, "Helvetica Neue", Helvetica, sans-serif;
-            font-size: 13px;
-            line-height: 1.25;
-            font-weight: 600;
+            font-size: 12px;
+            line-height: 1.2;
+            font-weight: 400;
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
         }
 
-        .receipt { width: {{ $printableMm }}mm; margin: 0 auto; padding: 3mm 0 10mm; color: #000; }
+        /* Hech bir qator kenglikdan oshmasin: uzun matn o'raladi, qatorlar (flex/grid) torayadi yoki yangi qatorga tushadi. */
+        .receipt { width: {{ $printableMm }}mm; margin: 0 auto; padding: 1mm 0 6mm; color: #000; overflow-wrap: anywhere; }
+        .receipt * { min-width: 0; }
         .center { text-align: center; }
-        .row { display: flex; justify-content: space-between; align-items: baseline; gap: 2mm; }
-        .row > span:last-child { text-align: right; }
-        .label { font-weight: 800; }
+        .small { font-size: 11px; }
 
-        /* Logo termoprinterda aniq chiqishi uchun: qora-oq va kontrast. Fayl almashtirilsa o'zi yangilanadi. */
-        .brand img {
-            display: block;
-            width: {{ $logoWidthMm }}mm;
-            max-width: 100%;
-            height: auto;
-            margin: 0 auto;
-            filter: grayscale(100%) contrast(180%);
-        }
-        .brand-name { margin-top: 1mm; font-size: 22px; font-weight: 900; letter-spacing: 3px; }
-        .restaurant { margin-top: 0.5mm; font-size: 16px; font-weight: 800; overflow-wrap: anywhere; }
+        .brand { font-size: 14px; font-weight: 700; letter-spacing: 1px; line-height: 1.15; }
+        .restaurant { font-size: 12px; font-weight: 700; }
 
-        .type { margin: 2.5mm 0 1.5mm; padding: 1mm 0; border: 2px solid #000; font-size: 16px; font-weight: 900; letter-spacing: 1px; }
-        .order-no { font-size: 36px; font-weight: 900; line-height: 1.1; letter-spacing: 1px; overflow-wrap: anywhere; }
+        .head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; column-gap: 2mm; margin-top: 3px; }
+        .order-no { font-size: 18px; font-weight: 700; line-height: 1.1; }
+        .type { padding: 0 3px; border: 1px solid #000; font-size: 10px; font-weight: 700; letter-spacing: .3px; white-space: nowrap; }
+        .meta { font-size: 11px; margin-top: 1px; }
 
-        hr { border: 0; border-top: 1.5px dashed #000; margin: 2mm 0; }
-        hr.solid { border-top: 2px solid #000; }
+        hr { border: 0; border-top: 1px dashed #000; margin: 3px 0; }
 
-        .item { margin: 1mm 0; }
-        .item-name { font-size: 15px; font-weight: 800; overflow-wrap: anywhere; }
-        .item-note { padding-left: 4mm; font-weight: 700; overflow-wrap: anywhere; }
-        .block { overflow-wrap: anywhere; }
+        /* Taom: chapda "2x Nom" (uzun nom o'raladi), o'ngda qator jami — narxlar bir ustunda tekis. */
+        .item { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 2mm; margin: 1px 0; }
+        .item-price { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+        .item-note { padding-left: 4mm; font-size: 11px; }
 
-        .total { margin-top: 1mm; }
-        .total .total-label { font-size: 15px; font-weight: 900; }
-        .total .total-sum { font-size: 30px; font-weight: 900; line-height: 1.15; }
+        .row { display: flex; justify-content: space-between; align-items: baseline; column-gap: 2mm; font-size: 11px; }
+        .row > span:last-child { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
 
-        .footer { margin-top: 1mm; }
-        .footer .thanks { font-size: 14px; font-weight: 800; }
-        .qr { width: {{ $qrMm }}mm; height: {{ $qrMm }}mm; margin: 2mm auto 1mm; }
+        .total { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; column-gap: 2mm; margin-top: 2px; }
+        .total-label { font-size: 11px; font-weight: 700; }
+        .total-sum { margin-left: auto; font-size: 16px; font-weight: 700; text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+        .pay { font-size: 10px; }
+
+        .footer { display: flex; align-items: center; column-gap: 2mm; margin-top: 4px; }
+        .qr { flex: none; width: {{ $qrMm }}mm; height: {{ $qrMm }}mm; }
         .qr svg { display: block; width: 100%; height: 100%; }
-        .footer .bot { font-size: 14px; font-weight: 900; }
-        .footer .scan { font-size: 11px; font-weight: 600; }
+        .bot { font-size: 11px; font-weight: 700; }
+        .scan { font-size: 10px; line-height: 1.15; }
 
         /* Oldindan ko'rish (brauzerda to'g'ridan-to'g'ri ochilganda): qog'ozga o'xshash varaq. */
         @media screen {
@@ -93,83 +92,87 @@
 
     <div class="sheet">
         <div class="receipt">
-            <div class="brand center">
-                <img src="{{ $logoUrl }}" alt="">
-                <div class="brand-name">{{ $t('brand') }}</div>
+            <div class="center">
+                <div class="brand">{{ $t('brand') }}</div>
                 <div class="restaurant">{{ $p($d->restaurantName) }}</div>
             </div>
 
-            <div class="type center">*** {{ $d->pickup ? $t('type_pickup') : $t('type_delivery') }} ***</div>
-
-            <div class="center">
-                <div class="order-no">{{ $d->orderNumber }}</div>
+            <div class="head">
+                <span class="order-no">{{ $d->orderNumber }}</span>
+                <span class="type">{{ $d->pickup ? $t('type_pickup') : $t('type_delivery') }}</span>
             </div>
-
-            <div class="row"><span class="label">{{ $t('time') }}:</span><span>{{ $d->when }}</span></div>
-            @if ($d->etaMinutes)
-                <div class="row"><span class="label">{{ $t('ready') }}:</span><span>~{{ $d->etaMinutes }} {{ $t('minutes_short') }}</span></div>
-            @endif
+            <div class="meta">
+                @if ($d->whenShort !== null){{ $d->whenShort }}@endif
+                @if ($d->etaMinutes) · {{ $t('ready') }} ~{{ $d->etaMinutes }} {{ $t('minutes_short') }}@endif
+            </div>
 
             <hr>
 
             @foreach ($d->items as $item)
                 <div class="item">
-                    <div class="item-name"><b>{{ $item['qty'] }}x</b> {{ $p($item['name']) }}</div>
-                    @if ($item['note'] !== null)
-                        <div class="item-note">! {{ $p($item['note']) }}</div>
+                    <div>
+                        <b>{{ $item['qty'] }}x</b> {{ $p($item['name']) }}
+                        @if ($item['note'] !== null)
+                            <div class="item-note">! {{ $p($item['note']) }}</div>
+                        @endif
+                    </div>
+                    @if ($item['total'] !== null)
+                        <div class="item-price">{{ $amount($item['total']) }}</div>
                     @endif
                 </div>
             @endforeach
 
+            @if ($d->hasBreakdown())
+                <hr>
+                <div class="row"><span>{{ $t('items_total') }}:</span><span>{{ $amount($d->itemsTotal) }}</span></div>
+                @if ($d->discount > 0)
+                    <div class="row"><span>{{ $t('discount') }}:</span><span>-{{ $amount($d->discount) }}</span></div>
+                @endif
+                @if ($d->deliveryFee > 0)
+                    <div class="row"><span>{{ $t('delivery') }}:</span><span>{{ $amount($d->deliveryFee) }}</span></div>
+                @endif
+            @endif
+            @if ($d->deliveryPaidToTaxi)
+                <div class="small">{{ $t('taxi_note') }}</div>
+            @endif
+
+            <hr>
+
+            <div class="total">
+                <span class="total-label">{{ $t('to_collect') }}:</span>
+                <span class="total-sum">{{ $money($d->total) }}</span>
+            </div>
+            <div class="pay">{{ $t('payment') }}: {{ $t('payment_'.$d->paymentKey()) }}</div>
+
             <hr>
 
             @if ($d->note !== null)
-                <div class="block"><span class="label">{{ $t('note') }}:</span> {{ $p($d->note) }}</div>
-                <hr>
+                <div class="small"><b>{{ $t('note') }}:</b> {{ $p($d->note) }}</div>
             @endif
 
-            @if (trim($d->customerName) !== '')
-                <div class="block"><span class="label">{{ $t('customer') }}:</span> {{ $p($d->customerName) }}</div>
-            @endif
-            <div class="block"><span class="label">{{ $t('phone') }}:</span> {{ $d->phone !== '' ? $d->phone : '-' }}</div>
-            @if ($d->telegramPhone !== null)
-                <div class="block"><span class="label">{{ $t('phone_telegram') }}:</span> {{ $d->telegramPhone }}</div>
-            @endif
-
-            @if ($d->addressText !== null)
-                <hr>
-                <div class="block">
-                    <div class="label">{{ $t('address') }}:</div>
-                    <div>{{ $p($d->addressText) }}</div>
-                    @if ($d->addressExtra !== '')
-                        <div>{{ $p($d->addressExtra) }}</div>
-                    @endif
-                </div>
-            @endif
-
-            <hr class="solid">
-
-            @if ($d->discount > 0)
-                <div class="row"><span class="label">{{ $t('discount') }}:</span><span>-{{ $money($d->discount) }}</span></div>
-            @endif
-            @if ($d->deliveryPaidToTaxi)
-                <div class="block">{{ $t('taxi_note') }}</div>
-            @endif
-
-            <div class="total center">
-                <div class="total-label">{{ $t('to_collect') }}</div>
-                <div class="total-sum">{{ $money($d->total) }}</div>
+            <div class="small">
+                @if ($customer !== '')
+                    <b>{{ $customer }}</b> · {{ $d->phone !== '' ? $d->phone : '-' }}
+                @else
+                    <b>{{ $t('phone') }}:</b> {{ $d->phone !== '' ? $d->phone : '-' }}
+                @endif
             </div>
+            @if ($d->telegramPhone !== null)
+                <div class="small">{{ $t('phone_telegram') }}: {{ $d->telegramPhone }}</div>
+            @endif
 
-            <div class="center"><span class="label">{{ $t('payment') }}:</span> {{ $t('payment_'.$d->paymentKey()) }}</div>
+            @if ($hasAddress)
+                <div class="small"><b>{{ $t('address') }}:</b> {{ $p($d->addressText) }}@if ($d->addressExtra !== ''), {{ $p($d->addressExtra) }}@endif</div>
+            @endif
 
             <hr>
 
-            <div class="footer center">
-                <div class="thanks">{{ $t('footer') }}</div>
+            <div class="footer">
                 <div class="qr">{!! $qrSvg !!}</div>
-                <div class="bot">{{ '@'.$botUsername }}</div>
-                <div class="scan">{{ $t('scan') }}</div>
+                <div>
+                    <div class="bot">{{ '@'.$botUsername }}</div>
+                    <div class="scan">{{ $t('scan') }}</div>
+                </div>
             </div>
         </div>
     </div>

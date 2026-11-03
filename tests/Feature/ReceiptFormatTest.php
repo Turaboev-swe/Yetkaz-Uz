@@ -168,9 +168,15 @@ class ReceiptFormatTest extends TestCase
         $o = $this->order($r, ['items' => [['product_id' => 1, 'name' => "Juda uzun nomli taom: Lag'mon ustiga qo'shimcha go'sht, sabzavot va achchiq sous", 'price' => 1, 'qty' => 2, 'prep' => 1, 'note' => null]]]);
 
         $lines = explode("\n", $this->text($o));
-        $start = array_search('2x  Juda uzun nomli taom: Lag\'mon ustiga', $lines, true);
+        // Birinchi qator: "2x  " prefiksi, nom bo'lagi va o'ngda qator jami; nom narxga yetmaydi.
+        $start = null;
+        foreach ($lines as $i => $line) {
+            if (str_starts_with($line, '2x  Juda uzun nomli taom: Lag\'mon')) {
+                $start = $i;
+            }
+        }
 
-        $this->assertNotFalse($start, 'birinchi qator "2x  " prefiksi bilan');
+        $this->assertNotNull($start, 'birinchi qator "2x  " prefiksi bilan');
         $this->assertStringStartsWith('    qo\'shimcha go\'sht', $lines[$start + 1]); // keyingi qator 4 bo'shliq chekinish bilan
     }
 

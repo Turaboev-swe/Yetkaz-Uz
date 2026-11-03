@@ -28,6 +28,9 @@ class KitchenReceiptController extends Controller
         $restaurant = Restaurant::withoutGlobalScopes()->findOrFail($order->restaurant_id);
         $order->setRelation('restaurant', $restaurant);
 
+        // Chek — restoran hujjati, mijoz interfeysi emas: tili mijozning tanloviga emas, sozlamaga bog'liq (standart uz).
+        app()->setLocale((string) config('print.browser.locale'));
+
         $botUsername = ltrim((string) config('print.browser.bot_username'), '@');
 
         return response()
@@ -35,11 +38,8 @@ class KitchenReceiptController extends Controller
                 'd' => $formatter->data($order),
                 'paperMm' => $restaurant->receiptPaperMm(),
                 'printableMm' => $restaurant->receiptPrintableMm(),
-                // Ildiz-nisbiy yo'l: APP_URL noto'g'ri bo'lsa ham (http/https, IP) logo shu domenning o'zidan yuklanadi.
-                'logoUrl' => '/'.ltrim((string) config('print.browser.logo'), '/'),
-                'logoWidthMm' => (int) config('print.browser.logo_width_mm'),
-                'qrMm' => (int) config('print.browser.qr_mm'),
-                'qrSvg' => QrCode::svg("https://t.me/{$botUsername}"),
+                'qrMm' => (float) config('print.browser.qr_mm'),
+                'qrSvg' => QrCode::svg("https://t.me/{$botUsername}", margin: 1),
                 'botUsername' => $botUsername,
             ])
             // Chek har safar yangi ma'lumot bilan chiqsin (qayta chiqarishda eski nusxa kesh'dan olinmasin).
