@@ -4,6 +4,7 @@ namespace App\Services\Stock;
 
 use App\Exceptions\InsufficientStockException;
 use App\Models\Order;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -82,6 +83,46 @@ class StockService
         }
 
         return $shortages;
+    }
+
+    /**
+     * Kunlik qoldiq: `daily_reset_time` (Asia/Tashkent devor soati) kelgan mahsulotlarda `stock_quantity = daily_stock`.
+     *
+     * Kuniga BIR marta: mahsulot faqat `stock_reset_at` bugungi tiklanish lahzasidan OLDIN bo'lsa tiklanadi, tiklangach
+     * `stock_reset_at = hozir`. Scheduler ayni daqiqani o'tkazib yuborsa, shu kun ichida keyingi daqiqada tiklanadi.
+     * UPDATE shartli (`stock_reset_at < lahza`), shuning uchun ikki oqim bir vaqtda ishlasa ham ikki marta tiklanmaydi.
+     *
+     * @return list<int> tiklangan mahsulot id'lari
+     */
+    public function resetDaily(?Carbon $now = null): array
+    {
+        $tz = (string) config('app.display_timezone');
+        $local = ($now ?? now())->copy()->timezone($tz);
+        $nowUtc = $local->copy()->utc();
+
+        $candidates = DB::table('products')
+            ->whereNotNull('daily_stock')
+            ->whereNotNull('daily_reset_time')
+            ->where('daily_reset_time', '<=', $local->format('H:i:s'))
+            ->get(['id', 'daily_reset_time']);
+
+        $reset = [];
+        foreach ($candidates as $product) {
+            // Bugungi tiklanish lahzasi (Toshkent devor soati -> UTC); stock_reset_at UTC'da saqlanadi.
+            $moment = Carbon::parse($local->format('Y-m-d').' '.$product->daily_reset_time, $tz)->utc();
+
+            $affected = DB::table('products')
+                ->where('id', $product->id)
+                ->whereNotNull('daily_stock')
+                ->where(fn ($q) => $q->whereNull('stock_reset_at')->orWhere('stock_reset_at', '<', $moment))
+                ->update(['stock_quantity' => DB::raw('daily_stock'), 'stock_reset_at' => $nowUtc, 'updated_at' => $nowUtc]);
+
+            if ($affected === 1) {
+                $reset[] = (int) $product->id;
+            }
+        }
+
+        return $reset;
     }
 
     /**
