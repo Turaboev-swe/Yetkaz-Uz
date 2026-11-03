@@ -10,6 +10,7 @@ import CategoryTabs from '../components/CategoryTabs';
 import DishCard from '../components/DishCard';
 import DishDetailSheet from '../components/DishDetailSheet';
 import CartBar from '../components/CartBar';
+import StockNotice from '../components/StockNotice';
 import { Spinner, ErrorState, EmptyState } from '../components/States';
 
 export default function Menu() {
@@ -32,17 +33,38 @@ export default function Menu() {
     const info = useAsync(() => api.restaurant(rid), [rid]);
     const menu = useAsync(() => api.menu(rid), [rid]);
 
+    // Menyu sahifa ochilganda yuklanadi; ilovaga qaytilganda (Telegram'dan chiqib kirilganda) jimgina yangilanadi —
+    // qoldiq o'zgargan bo'lishi mumkin. Real-time (Reverb) Mini App'da ulanmagan.
+    const [live, setLive] = useState(null);
+    useEffect(() => {
+        setLive(null);
+        const refresh = () => {
+            if (document.visibilityState !== 'visible') return;
+            api.menu(rid).then((r) => setLive(r.data || [])).catch(() => {});
+        };
+        document.addEventListener('visibilitychange', refresh);
+        return () => document.removeEventListener('visibilitychange', refresh);
+    }, [rid]);
+
     const restaurant = info.data?.data || preload;
-    const categories = useMemo(
-        () => (menu.data?.data || []).filter((c) => (c.products || []).length > 0),
-        [menu.data],
-    );
+    const menuRows = useMemo(() => live ?? menu.data?.data ?? [], [live, menu.data]);
+    const categories = useMemo(() => menuRows.filter((c) => (c.products || []).length > 0), [menuRows]);
+    const products = useMemo(() => menuRows.flatMap((c) => c.products || []), [menuRows]);
     const ids = useMemo(() => categories.map((c) => c.id), [categories]);
     const { active, scrollTo } = useScrollSpy(ids);
 
     const carts = useCart((s) => s.carts);
     const add = useCart((s) => s.add);
     const remove = useCart((s) => s.remove);
+    const syncStock = useCart((s) => s.syncStock);
+
+    // Savatni joriy qoldiqqa moslash: ortiqchasi qirqiladi, tugagani olib tashlanadi (xabar chiqadi).
+    useEffect(() => {
+        if (products.length > 0) syncStock(rid, products);
+    }, [products, rid, syncStock]);
+
+    // Tafsilot oynasi ochiq turganda uning qoldig'i ham yangilanadi.
+    const detailProduct = detail ? products.find((p) => p.id === detail.id) || detail : null;
 
     const count = cartCount(carts, rid);
     const total = cartTotal(carts, rid);
@@ -65,6 +87,8 @@ export default function Menu() {
     return (
         <>
             <div className="mx-auto max-w-md px-4 pb-28 pt-2">
+                <StockNotice />
+
                 <header className="pb-1">
                     <div className="flex items-center gap-2">
                         <h1 className="text-[18px] font-bold" style={{ color: 'var(--tg-text)' }}>
@@ -119,10 +143,10 @@ export default function Menu() {
             </div>
 
             <DishDetailSheet
-                product={detail}
+                product={detailProduct}
                 restaurantLogoUrl={restaurant?.logo_url}
                 qty={detail ? cartQty(carts, rid, detail.id) : 0}
-                onAdd={() => add(rid, detail, restaurant?.logo_url)}
+                onAdd={() => add(rid, detailProduct, restaurant?.logo_url)}
                 onRemove={() => remove(rid, detail.id)}
                 onClose={() => setDetail(null)}
             />

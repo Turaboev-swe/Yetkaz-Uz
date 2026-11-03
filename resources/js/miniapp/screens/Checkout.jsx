@@ -9,6 +9,7 @@ import { som, somLabel, distanceLabel } from '../lib/format';
 import { resolvedAddress } from '../lib/address';
 import { normalizeUzPhone } from '../lib/phone';
 import { Spinner, ErrorState } from '../components/States';
+import StockNotice from '../components/StockNotice';
 
 /** Bugungi ish vaqti "09:00–23:00" ko'rinishida (ixtiyoriy). */
 function todayHours(workHours) {
@@ -27,6 +28,7 @@ export default function Checkout() {
     const { mode, addressId, confirmDelivery, choosePickup } = useSession();
     const carts = useCart((s) => s.carts);
     const clear = useCart((s) => s.clear);
+    const applyShortages = useCart((s) => s.applyShortages);
 
     const total = cartTotal(carts, rid);
     const count = cartCount(carts, rid);
@@ -155,6 +157,10 @@ export default function Checkout() {
         } catch (e) {
             if (e.body?.code === 'phone_required') {
                 setPhoneRequired(true);
+            } else if (e.body?.code === 'insufficient_stock') {
+                // Server qoldiq yetmasligini aniqladi (frontendga ishonilmaydi): aniq xabar + savat mavjud miqdorga moslanadi.
+                applyShortages(rid, e.body.shortages || []);
+                setError(e.message);
             } else if (e.body?.code === 'promo_code_invalid') {
                 // Qo'llangandan keyin limit tugagan / muddati o'tgan bo'lishi mumkin —
                 // chegirmani olib tashlaymiz, sababni maydon ostida ko'rsatamiz. Mijoz
@@ -200,6 +206,12 @@ export default function Checkout() {
     const switchToDelivery = () => confirmDelivery(addressId);
     const switchToPickup = () => choosePickup(addressId);
 
+    // Savatdagi mahsulot(lar)ga qoldiq yetmasa (estimate ogohlantirdi) — savat mavjud miqdorga moslanadi, xabar chiqadi.
+    useEffect(() => {
+        if (estimate?.stock_shortages?.length) applyShortages(rid, estimate.stock_shortages);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [estimate]);
+
     // Tasdiqlash — MainButton (min yetmasa — nofaol + "yana X qo'shing").
     useEffect(() => {
         if (data.loading || submitting || phoneRequired) {
@@ -223,6 +235,7 @@ export default function Checkout() {
     return (
         <div className="mx-auto max-w-md px-4 pb-28 pt-2">
             <h1 className="mb-3 text-[18px] font-bold" style={{ color: 'var(--tg-text)' }}>Rasmiylashtirish</h1>
+            <StockNotice />
 
             {/* Manzil / Olib ketish */}
             <Section title={mode === 'pickup' ? 'Olib ketish' : 'Yetkazish manzili'}>
