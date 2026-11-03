@@ -3,6 +3,7 @@
 use App\Http\Controllers\KitchenAuthController;
 use App\Http\Controllers\KitchenChatController;
 use App\Http\Controllers\KitchenController;
+use App\Http\Controllers\KitchenReceiptController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -35,6 +36,9 @@ Route::middleware(['panel.session:yetkaz_staff_session', 'web'])->prefix('kitche
         Route::get('/couriers', [KitchenController::class, 'couriers']);
         Route::patch('/orders/{orderId}/advance', [KitchenController::class, 'advance'])->whereNumber('orderId');
         Route::patch('/orders/{orderId}/cancel', [KitchenController::class, 'cancel'])->whereNumber('orderId');
+        // Brauzer cheki: sahifa (oldindan ko'rish ham shu) va "chop etildi" belgisi.
+        Route::get('/orders/{orderId}/receipt', [KitchenReceiptController::class, 'show'])->whereNumber('orderId')->name('kitchen.receipt');
+        Route::post('/orders/{orderId}/printed', [KitchenReceiptController::class, 'printed'])->whereNumber('orderId');
         // Buyurtma chati (mijoz <-> restoran).
         Route::get('/orders/{orderId}/messages', [KitchenChatController::class, 'index'])->whereNumber('orderId');
         Route::post('/orders/{orderId}/messages', [KitchenChatController::class, 'store'])->whereNumber('orderId');

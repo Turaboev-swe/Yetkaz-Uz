@@ -232,6 +232,17 @@ class EscPos
         return preg_replace('/[^\x20-\x7E\n]/u', '', $s) ?? preg_replace('/[^\x20-\x7E\n]/', '', $s);
     }
 
+    /**
+     * Brauzer cheki uchun: emoji va piktogrammalar olib tashlanadi (termoprinterda dog' bo'lib chiqadi),
+     * kirill va lotin harflari (apostrof, diakritika) o'z holicha qoladi. ESC/POS cheki `ascii()` ishlatadi.
+     */
+    public static function stripPictographs(string $s): string
+    {
+        $s = preg_replace('/[\x{1F000}-\x{1FFFF}\x{2190}-\x{21FF}\x{2300}-\x{23FF}\x{2600}-\x{27BF}\x{2B00}-\x{2BFF}\x{FE00}-\x{FE0F}\x{200D}\x{20E3}\x{E0020}-\x{E007F}]/u', '', $s) ?? $s;
+
+        return trim(preg_replace('/[ \t]{2,}/u', ' ', $s) ?? $s);
+    }
+
     /** `ascii()` + ketma-ket bo'shliqlarni bittaga keltirish va chetlarini kesish (foydalanuvchi matni uchun). */
     public static function clean(string $s): string
     {

@@ -5,6 +5,7 @@ import { enableSound, soundReady, startAlarm, pauseAlarm, stopAlarm, ping } from
 import { chatBus } from './lib/chatBus';
 import { pushSupported, enablePush, disablePush } from './lib/push';
 import { agentTransition, offlineAgents, shouldPingFailed } from './lib/printStatus';
+import { printReceipt, shouldAutoPrint } from './lib/browserPrint';
 import OrderCard from './components/OrderCard';
 
 const { restaurants = [], staffName, csrf, pushSubscribed } = window.__KITCHEN__;
@@ -208,14 +209,28 @@ export default function App() {
         }
     }, [pendingCount]);
 
+    // Brauzer cheki (pos_type = browser): chek yashirin iframe orqali Windows printeriga chiqadi.
+    // Xato bo'lsa buyurtma holati o'zgarmaydi — faqat banner chiqadi, "Chekni qayta chiqarish" bilan takrorlanadi.
+    const print = async (order) => {
+        try {
+            await printReceipt(order.id);
+            setOrders((cur) => cur.map((o) => (o.id === order.id ? { ...o, printed: true, dispatch_failed: false } : o)));
+        } catch (e) {
+            setError(`Chek chiqmadi (${order.order_number}): ${e.message}`);
+        }
+    };
+
     const advance = async (id, fields = null) => {
         setBusyId(id);
+        const before = orders.find((o) => o.id === id);
         try {
             const r = await api.advance(id, fields);
             const updated = r.data;
             setOrders((cur) =>
                 DONE.has(updated.status) ? cur.filter((o) => o.id !== id) : cur.map((o) => (o.id === id ? updated : o)),
             );
+            // "Qabul qilish" muvaffaqiyatli bo'lgach chek avtomat chiqadi (kutmaymiz — tugma ochilib qolaversin).
+            if (shouldAutoPrint(before, updated)) print(updated);
         } catch (e) {
             setError(e.message);
         } finally {
@@ -336,6 +351,7 @@ export default function App() {
                             order={o}
                             onAdvance={advance}
                             onCancel={cancel}
+                            onPrint={print}
                             onChatRead={markChatRead}
                             busy={busyId === o.id}
                             couriers={couriersBy[o.restaurant?.id] || []}

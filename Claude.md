@@ -239,6 +239,9 @@ interface DispatchDriver {
 - `jowi`, `poster`, `iiko` — POS API orqali. POS o'zi chek chiqaradi.
 - `escpos` — print agentga WebSocket orqali yuboriladi.
 - `manual` — faqat oshxona panelida ko'rinadi, chek yo'q.
+- `browser` — chek oshxona panelidan brauzer orqali (agentsiz) Windows printeriga chiqadi:
+  "Qabul qilish"da avtomat, kartada "Chekni qayta chiqarish". Agent monitoringi bu rejimda
+  ishlamaydi. Yo'riqnoma: `docs/browser-print.md`.
 
 **Muhim:** yuborish muvaffaqiyatsiz bo'lsa buyurtma yo'qolmasligi kerak.
 Retry bilan job'ga qo'ying (3 urinish, exponential backoff), muvaffaqiyatsiz

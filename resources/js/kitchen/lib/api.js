@@ -39,6 +39,7 @@ export const api = {
     chatSend: (id, payload) => request(`/orders/${id}/messages`, 'POST', payload),
     chatRead: (id) => request(`/orders/${id}/messages/read`, 'POST'),
     phoneUnreachable: (id) => request(`/orders/${id}/phone-unreachable`, 'POST'),
+    receiptPrinted: (id) => request(`/orders/${id}/printed`, 'POST'),
     cancel: (id, reason) => request(`/orders/${id}/cancel`, 'PATCH', { reason }),
     subscribePush: (subscription) => request('/push/subscribe', 'POST', subscription),
     unsubscribePush: (endpoint) => request('/push/subscribe', 'DELETE', { endpoint }),

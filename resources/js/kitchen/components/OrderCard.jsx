@@ -21,8 +21,9 @@ const RESTAURANT_COLORS = [
     { background: '#713f12', color: '#fde68a' },
 ];
 
-export default function OrderCard({ order, onAdvance, onCancel, onChatRead = () => {}, busy, couriers = [], showRestaurant = false }) {
+export default function OrderCard({ order, onAdvance, onCancel, onPrint = async () => {}, onChatRead = () => {}, busy, couriers = [], showRestaurant = false }) {
     const [, tick] = useState(0);
+    const [printBusy, setPrintBusy] = useState(false);
     useEffect(() => {
         const t = setInterval(() => tick((n) => n + 1), 15000);
         return () => clearInterval(t);
@@ -71,6 +72,16 @@ export default function OrderCard({ order, onAdvance, onCancel, onChatRead = () 
         if (!finalReason) return;
         setCancelOpen(false);
         onCancel(order.id, finalReason);
+    };
+
+    const reprint = async () => {
+        if (printBusy) return;
+        setPrintBusy(true);
+        try {
+            await onPrint(order);
+        } finally {
+            setPrintBusy(false);
+        }
     };
 
     const handleAction = () => {
@@ -231,6 +242,17 @@ export default function OrderCard({ order, onAdvance, onCancel, onChatRead = () 
                 <div className="mt-2 text-[13px] text-gray-400">
                     {order.courier_type === 'taxi' ? '🚕' : '🛵'} {[order.courier_name, order.courier_phone].filter(Boolean).join(' · ')}
                 </div>
+            )}
+
+            {/* Brauzer cheki (pos_type = browser): "Qabul qilish"da avtomat chiqadi; bu — qayta chiqarish uchun. */}
+            {order.restaurant?.browser_print && (
+                <button
+                    onClick={reprint}
+                    disabled={printBusy}
+                    className="mt-3 h-11 w-full rounded-xl bg-gray-800 text-[14px] font-bold text-gray-200 hover:bg-gray-700 disabled:opacity-50"
+                >
+                    {printBusy ? '…' : `🖨️ ${order.printed ? 'Chekni qayta chiqarish' : 'Chekni chiqarish'}`}
+                </button>
             )}
 
             {(actionLabel || order.can_cancel) && (

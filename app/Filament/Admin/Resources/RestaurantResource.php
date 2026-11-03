@@ -235,17 +235,26 @@ class RestaurantResource extends Resource
                 // Qog'oz kengligi (mm) tanlovdan avtomat belgilanadi: 32 -> 58 mm, 42/48 -> 80 mm.
                 Forms\Components\Hidden::make('receipt_paper_mm')->default(80),
                 Forms\Components\Select::make('receipt_columns')->label('Chek qog\'ozi')
-                    ->options([
-                        32 => '58 mm (32 belgi)',
-                        42 => '80 mm (42 belgi)',
-                        48 => '80 mm (48 belgi) — Xprinter XP-80T, Font A',
-                    ])
-                    ->helperText('48 belgi — 80 mm printerning to\'liq kengligi (576 nuqta). Sig\'masa 42 ga qaytaring. Tekshirish: print-agent:test-receipt')
+                    // Brauzer chekida belgilar soni ma'nosiz (HTML maket) — faqat qog'oz kengligi: 32 -> 58 mm, 42 -> 80 mm.
+                    ->options(fn (Forms\Get $get): array => $get('pos_type') === PosType::Browser->value
+                        ? [32 => '58 mm', 42 => '80 mm']
+                        : [
+                            32 => '58 mm (32 belgi)',
+                            42 => '80 mm (42 belgi)',
+                            48 => '80 mm (48 belgi) — Xprinter XP-80T, Font A',
+                        ])
+                    ->helperText(fn (Forms\Get $get): string => $get('pos_type') === PosType::Browser->value
+                        ? 'Brauzer cheki shu kenglikda chiqadi (@page size). Windows printerida ham shu o\'lchamdagi qog\'oz tanlangan bo\'lishi kerak.'
+                        : '48 belgi — 80 mm printerning to\'liq kengligi (576 nuqta). Sig\'masa 42 ga qaytaring. Tekshirish: print-agent:test-receipt')
                     // Eski restoranlarda bo'sh bo'lishi mumkin — qog'oz kengligidan olinadi (qiymat o'zgarmaydi).
                     ->formatStateUsing(fn ($state, ?Restaurant $record) => $state ?? $record?->receiptColumns() ?? 42)
                     ->default(42)->required()->native(false)->live()
                     ->afterStateUpdated(fn ($state, Forms\Set $set) => $set('receipt_paper_mm', (int) $state === 32 ? 58 : 80))
-                    ->visible(fn (Forms\Get $get) => $get('pos_type') === PosType::EscPos->value),
+                    ->visible(fn (Forms\Get $get) => in_array($get('pos_type'), [PosType::EscPos->value, PosType::Browser->value], true)),
+                Forms\Components\Placeholder::make('browser_print_hint')->label('Brauzer orqali chop etish')
+                    ->content('"Qabul qilish" bosilganda chek oshxona kompyuteridagi Windows printeridan (yorliqdagi --kiosk-printing tufayli dialogsiz) chiqadi. Agent o\'rnatish shart emas. Yo\'riqnoma: docs/browser-print.md')
+                    ->visible(fn (Forms\Get $get) => $get('pos_type') === PosType::Browser->value)
+                    ->columnSpanFull(),
                 Forms\Components\TextInput::make('receipt_codepage')->label('Kodlash jadvali (ESC t n)')
                     ->helperText('Xprinter/Epson-mos printerlar uchun 16 (WPC1252). Chekka faqat ASCII yoziladi (kirill lotinga o\'giriladi, emoji olib tashlanadi). Tekshirish: php artisan print-agent:test-receipt <restoran> --table')
                     ->numeric()->minValue(0)->maxValue(255)->default(16)->required()

@@ -290,6 +290,7 @@ return [
         'iiko' => 'iiko',
         'escpos' => 'ESC/POS принтер',
         'manual' => 'Вручную (панель)',
+        'browser' => 'Печать через браузер',
     ],
     'discount_type' => [
         'percent' => 'Процент (%)',
@@ -317,4 +318,33 @@ return [
     ],
 
     'eta_range' => 'Примерная доставка: :from–:to минут.',
+
+    // Чек в браузере (/kitchen/orders/{id}/receipt) — печатается с кухни на принтер Windows.
+    'receipt' => [
+        'brand' => 'YETKAZ UZ',
+        'title' => 'Чек',
+        'type_delivery' => 'ДОСТАВКА',
+        'type_pickup' => 'САМОВЫВОЗ',
+        'order' => 'Заказ',
+        'time' => 'Время',
+        'ready' => 'Готово',
+        'minutes_short' => 'мин',
+        'note' => 'КОММЕНТАРИЙ',
+        'customer' => 'Клиент',
+        'phone' => 'Тел',
+        'phone_telegram' => 'Тел (Telegram)',
+        'address' => 'АДРЕС',
+        'discount' => 'Скидка',
+        'taxi_note' => 'Доставка: клиент платит такси отдельно',
+        'to_collect' => 'ПОЛУЧИТЬ С КЛИЕНТА',
+        'payment' => 'Оплата',
+        'payment_cash' => 'наличные',
+        'payment_payme' => 'Payme (онлайн)',
+        'payment_click' => 'Click (онлайн)',
+        'currency' => 'сум',
+        'footer' => 'Заказ через Yetkaz Uz',
+        'scan' => 'Отсканируйте QR-код, чтобы открыть бота',
+        'print_button' => 'Печать',
+        'preview_hint' => 'Предпросмотр — не печатается.',
+    ],
 ];

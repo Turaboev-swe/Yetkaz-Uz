@@ -30,6 +30,17 @@ class KitchenController extends Controller
 
     public function __construct(private readonly OrderStatusService $status) {}
 
+    /**
+     * Karta uchun restoran ustunlari: pos_type/print_agent_token — «Chek chiqmadi» faqat print agenti bor
+     * restoranda (Order::printFailed), pos_type — brauzer cheki ("browser_print"). RestaurantScope olib tashlanadi:
+     * egasining scope'i faqat asosiy restoranni ko'radi, biriktirilgan boshqa restoran kartasi esa to'liq chiqishi kerak.
+     */
+    private static function restaurantColumns(): Closure
+    {
+        return fn ($query) => $query->withoutGlobalScopes()
+            ->select('restaurants.id', 'restaurants.name', 'restaurants.pos_type', 'restaurants.print_agent_token');
+    }
+
     /** Sahifa (React ilova). */
     public function page()
     {
@@ -87,8 +98,7 @@ class KitchenController extends Controller
             ->withoutGlobalScopes()
             ->whereIn('restaurant_id', $this->staff()->restaurantIds())
             ->whereIn('status', OrderStatus::activeValues())
-            // pos_type/print_agent_token — «Chek chiqmadi» faqat print agenti bor restoranda (Order::printFailed).
-            ->with(['user', 'restaurant:id,name,pos_type,print_agent_token'])
+            ->with(['user', 'restaurant' => self::restaurantColumns()])
             // O'qilmagan mijoz xabarlari soni (chat belgisi) — N+1 siz, bitta so'rovda.
             ->withCount(['messages as unread_messages_count' => fn ($q) => $q
                 ->where('sender_type', OrderMessage::SENDER_CUSTOMER)
@@ -166,7 +176,7 @@ class KitchenController extends Controller
 
         $this->status->advance($order, "kitchen:{$staff->id}", $fill);
 
-        return (new KitchenOrderResource($order->fresh(['user', 'restaurant:id,name'])))->response();
+        return (new KitchenOrderResource($order->fresh(['user', 'restaurant' => self::restaurantColumns()])))->response();
     }
 
     /** @param  array<string, mixed>  $data
@@ -226,6 +236,6 @@ class KitchenController extends Controller
         // ValidationException (noto'g'ri holat) -> 422, xabar bilan.
         $this->status->cancel($order, $data['reason'], "kitchen:{$staff->id}");
 
-        return (new KitchenOrderResource($order->fresh(['user', 'restaurant:id,name'])))->response();
+        return (new KitchenOrderResource($order->fresh(['user', 'restaurant' => self::restaurantColumns()])))->response();
     }
 }

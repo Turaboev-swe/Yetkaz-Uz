@@ -20,12 +20,11 @@ class ReceiptFormatter
     /** @return array{escpos: string, text: string} */
     public function format(Order $order, bool $diagnostics = false, bool $codepageTable = false): array
     {
-        $order->loadMissing('restaurant', 'user');
+        $d = $this->data($order);
         $restaurant = $order->restaurant;
 
-        $som = fn (int $tiyin): string => number_format(intdiv($tiyin, 100), 0, '.', ' ').' som';
-        $type = $order->delivery_type === DeliveryType::Pickup ? 'OLIB KETISH' : 'YETKAZISH';
-        $when = $order->created_at?->timezone(config('app.display_timezone'))->format('d.m.Y H:i');
+        $som = self::som(...);
+        $type = $d->pickup ? 'OLIB KETISH' : 'YETKAZISH';
 
         $p = (new EscPos($restaurant->receiptColumns(), $restaurant->receiptCodepage()))->init();
 
@@ -38,7 +37,7 @@ class ReceiptFormatter
         }
 
         // Restoran nomi: sig'sa ikki baravar katta (kenglik x2), aks holda faqat balandlik x2, uzun bo'lsa qatorlarga.
-        $title = EscPos::clean((string) $restaurant->name);
+        $title = EscPos::clean($d->restaurantName);
         $p->align('center')->bold(true);
         if (mb_strlen($title) <= intdiv($p->width(), 2)) {
             $p->size(1, 1)->text($title)->size(0, 0);
@@ -53,14 +52,14 @@ class ReceiptFormatter
         $p->align('center')->bold(true)->text("*** {$type} ***")->bold(false);
         $p->align('left')->rule('=');
 
-        $p->columns('Buyurtma:', $order->order_number);
-        $p->columns('Vaqt:', (string) $when);
-        if ($order->eta_minutes) {
-            $p->columns('Tayyor:', "~{$order->eta_minutes} daq");
+        $p->columns('Buyurtma:', $d->orderNumber);
+        $p->columns('Vaqt:', (string) $d->when);
+        if ($d->etaMinutes) {
+            $p->columns('Tayyor:', "~{$d->etaMinutes} daq");
         }
         $p->rule();
 
-        foreach ($order->items as $it) {
+        foreach ($d->items as $it) {
             $prefix = $it['qty'].'x  ';
             $lines = $p->wrap((string) $it['name'], $p->width() - mb_strlen($prefix), mb_strlen($prefix));
             $p->bold(true);
@@ -69,7 +68,7 @@ class ReceiptFormatter
             }
             $p->bold(false);
 
-            if (! empty($it['note'])) {
+            if ($it['note'] !== null) {
                 foreach ($p->wrap((string) $it['note'], $p->width() - 7, 7) as $i => $line) {
                     $p->text($i === 0 ? '     ! '.$line : $line);
                 }
@@ -77,40 +76,34 @@ class ReceiptFormatter
         }
         $p->rule();
 
-        if ($order->note) {
+        if ($d->note !== null) {
             $p->bold(true)->text('IZOH:')->bold(false);
-            foreach ($p->wrap($order->note) as $line) {
+            foreach ($p->wrap($d->note) as $line) {
                 $p->text($line);
             }
             $p->rule();
         }
 
         // Mijoz: ism va telefon — olib ketish buyurtmasida ham (mijoz kelganda topish/qo'ng'iroq uchun).
-        $name = EscPos::clean((string) $order->user?->full_name);
+        $name = EscPos::clean($d->customerName);
         if ($name !== '') {
             foreach ($p->wrap('Mijoz: '.$name) as $line) {
                 $p->text($line);
             }
         }
-        $p->text('Tel: '.(EscPos::clean((string) $order->contactPhone()) ?: '-'));
-        if ($order->hasDistinctContactPhone()) {
-            $p->text('Tel (Telegram): '.EscPos::clean((string) $order->user->phone));
+        $p->text('Tel: '.(EscPos::clean($d->phone) ?: '-'));
+        if ($d->telegramPhone !== null) {
+            $p->text('Tel (Telegram): '.EscPos::clean($d->telegramPhone));
         }
         $p->rule();
 
-        if ($order->delivery_type !== DeliveryType::Pickup && $order->address_snapshot) {
-            $snap = $order->address_snapshot;
+        if ($d->addressText !== null) {
             $p->bold(true)->text('MANZIL:')->bold(false);
-            foreach ($p->wrap(trim(($snap['address_text'] ?? '').' '.($snap['district'] ?? ''))) as $line) {
+            foreach ($p->wrap($d->addressText) as $line) {
                 $p->text($line);
             }
-            $extra = array_filter([
-                ($snap['entrance'] ?? null) ? 'kirish '.$snap['entrance'] : null,
-                ($snap['floor'] ?? null) ? 'qavat '.$snap['floor'] : null,
-                ($snap['apartment'] ?? null) ? 'xonadon '.$snap['apartment'] : null,
-            ]);
-            if ($extra) {
-                foreach ($p->wrap(implode(', ', $extra)) as $line) {
+            if ($d->addressExtra !== '') {
+                foreach ($p->wrap($d->addressExtra) as $line) {
                     $p->text($line);
                 }
             }
@@ -119,17 +112,17 @@ class ReceiptFormatter
 
         // Egasi DM'i / oshxona xabari / kartasi bilan bir xil ma'no. Chekka faqat ASCII — emoji va "−" yo'q,
         // matn emojisiz, ASCII minus bilan. Restoran/platforma taqsimoti chekda KO'RSATILMAYDI — faqat hisobotlarda.
-        if ($order->hasDiscount()) {
-            $p->columns('Chegirma:', '-'.$som($order->discount_amount));
+        if ($d->discount > 0) {
+            $p->columns('Chegirma:', '-'.$som($d->discount));
         }
-        if ($order->delivery_paid_to_taxi) {
+        if ($d->deliveryPaidToTaxi) {
             // Faqat taomlar summasi olinadi; yetkazish haqini mijoz taksiga alohida to'laydi.
             foreach ($p->wrap('Yetkazish haqi: mijoz taksiga alohida tolaydi') as $line) {
                 $p->text($line);
             }
         }
-        $p->bold(true)->size(0, 1)->columns('MIJOZDAN OLINADI:', $som($order->total))->size(0, 0)->bold(false);
-        $p->text('Tolov: '.$this->paymentLabel($order->payment_method));
+        $p->bold(true)->size(0, 1)->columns('MIJOZDAN OLINADI:', $som($d->total))->size(0, 0)->bold(false);
+        $p->text('Tolov: '.$this->paymentLabel($d->payment));
 
         if ($codepageTable) {
             $this->codepageTable($p, $restaurant->receiptCodepage());
@@ -141,6 +134,70 @@ class ReceiptFormatter
             'escpos' => $p->raw(),
             'text' => $p->plain(),
         ];
+    }
+
+    /**
+     * Chek ma'lumoti — ESC/POS cheki ham, brauzer cheki ham shundan quriladi (mantiq bitta joyda:
+     * qaysi qator qachon chiqishi, telefonlar farqi, manzil, chegirma). Qiymatlar xom, formatlashsiz.
+     */
+    public function data(Order $order): ReceiptData
+    {
+        $order->loadMissing('restaurant', 'user');
+
+        $pickup = $order->delivery_type === DeliveryType::Pickup;
+
+        $items = [];
+        foreach ($order->items as $it) {
+            $items[] = [
+                'qty' => (int) $it['qty'],
+                'name' => (string) $it['name'],
+                'note' => ! empty($it['note']) ? (string) $it['note'] : null,
+            ];
+        }
+
+        $addressText = null;
+        $addressExtra = '';
+        if (! $pickup && $order->address_snapshot) {
+            $snap = $order->address_snapshot;
+            $addressText = trim(($snap['address_text'] ?? '').' '.($snap['district'] ?? ''));
+            $addressExtra = implode(', ', array_filter([
+                ($snap['entrance'] ?? null) ? 'kirish '.$snap['entrance'] : null,
+                ($snap['floor'] ?? null) ? 'qavat '.$snap['floor'] : null,
+                ($snap['apartment'] ?? null) ? 'xonadon '.$snap['apartment'] : null,
+            ]));
+        }
+
+        return new ReceiptData(
+            restaurantName: (string) $order->restaurant?->name,
+            orderNumber: (string) $order->order_number,
+            pickup: $pickup,
+            when: $order->created_at?->timezone(config('app.display_timezone'))->format('d.m.Y H:i'),
+            etaMinutes: $order->eta_minutes ? (int) $order->eta_minutes : null,
+            items: $items,
+            note: $order->note ? (string) $order->note : null,
+            // Mijoz: ism va telefon — olib ketish buyurtmasida ham (mijoz kelganda topish/qo'ng'iroq uchun).
+            customerName: (string) $order->user?->full_name,
+            phone: (string) $order->contactPhone(),
+            telegramPhone: $order->hasDistinctContactPhone() ? (string) $order->user->phone : null,
+            addressText: $addressText,
+            addressExtra: $addressExtra,
+            discount: $order->hasDiscount() ? (int) $order->discount_amount : 0,
+            deliveryPaidToTaxi: (bool) $order->delivery_paid_to_taxi,
+            total: (int) $order->total,
+            payment: $order->payment_method,
+        );
+    }
+
+    /** Tiyinni «245 000» ko'rinishiga (so'mda, mingliklar bo'shliq bilan). */
+    public static function amount(int $tiyin): string
+    {
+        return number_format(intdiv($tiyin, 100), 0, '.', ' ');
+    }
+
+    /** Tiyinni «245 000 som» ko'rinishiga (ASCII — ESC/POS cheki). */
+    public static function som(int $tiyin): string
+    {
+        return self::amount($tiyin).' som';
     }
 
     /**

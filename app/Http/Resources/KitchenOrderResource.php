@@ -23,6 +23,8 @@ class KitchenOrderResource extends JsonResource
             'restaurant' => [
                 'id' => $this->restaurant_id,
                 'name' => $this->restaurant?->name,
+                // Chek brauzer orqali chiqadi: panel "Qabul qilish"da /kitchen/orders/{id}/receipt ni chop etadi.
+                'browser_print' => $this->restaurant?->usesBrowserPrint() ?? false,
             ],
             'status' => $this->status->value,
             'status_label' => $this->status->label(),
