@@ -6,6 +6,7 @@ use App\Enums\NutritionStatus;
 use App\Jobs\EstimateProductNutrition;
 use App\Models\Product;
 use App\Models\ProductPriceHistory;
+use App\Services\Stock\StockService;
 
 class ProductObserver
 {
@@ -68,6 +69,11 @@ class ProductObserver
         }
 
         $this->recordPriceChange($product);
+
+        // Restoran qoldiqni qo'lda o'zgartirdi (forma yoki jadvalda inline) — Mini App/tinglovchilar bilsin.
+        if ($product->wasChanged('stock_quantity')) {
+            app(StockService::class)->announce([$product->id]);
+        }
     }
 
     /**

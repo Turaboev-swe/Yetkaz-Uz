@@ -183,6 +183,13 @@ tugab qolganda eng tez ishlatiladigan amal.
   bildiring.
 - Buyurtma faqat bitta restorandan bo'ladi — aralash savat yo'q.
 
+### Mahsulot qoldig'i (stock)
+
+`products.stock_quantity`: `NULL` — cheklanmagan, `0` — «Tugadi» (qoldiqdan hisoblanadi, `is_available` ga tegilmaydi).
+Buyurtma yaratishda **tranzaksiya ichida atomik** kamayadi (`StockService::reserve`), bekor qilinganda
+`orders.stock_reserved` ledger'i bo'yicha **idempotent** qaytadi (`OrderStatusService::applyTransition` →
+`OrderStatus::releasesStock()`). Qoldiqni faqat `StockService` orqali o'zgartiring. Yangi terminal buyurtma holati
+qo'shilsa, qoldiq qaytishi haqida `releasesStock()` da qaror qiling. To'liq tavsif: `docs/stock.md`.
 ### Umumiy taom qidiruvi
 
 Foydalanuvchi taom nomini yozsa (masalan "lag'mon"), tizim yetkazish radiusidagi

@@ -2,8 +2,10 @@
 
 namespace App\Services\Stock;
 
+use App\Events\ProductStockChanged;
 use App\Exceptions\InsufficientStockException;
 use App\Models\Order;
+use App\Models\Product;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -59,6 +61,8 @@ class StockService
         if ($shortages !== []) {
             throw new InsufficientStockException($shortages);
         }
+
+        $this->announce(array_keys($reserved));
 
         return $reserved;
     }
@@ -122,7 +126,35 @@ class StockService
             }
         }
 
+        $this->announce($reset);
+
         return $reset;
+    }
+
+    /**
+     * Qoldig'i o'zgargan mahsulotlar haqida Reverb hodisasi (restoran bo'yicha bitta). Tranzaksiya ichida chaqirilsa —
+     * commit'dan KEYIN yuboriladi; rollback bo'lsa umuman yuborilmaydi. Joriy qiymatlar bazadan o'qiladi.
+     *
+     * @param  list<int>  $productIds
+     */
+    public function announce(array $productIds): void
+    {
+        if ($productIds === []) {
+            return;
+        }
+
+        DB::afterCommit(function () use ($productIds): void {
+            $products = Product::withoutGlobalScopes()->with('category:id,restaurant_id')->whereIn('id', $productIds)->get();
+
+            foreach ($products->groupBy(fn (Product $p) => $p->category->restaurant_id) as $restaurantId => $group) {
+                ProductStockChanged::dispatch((int) $restaurantId, $group->map(fn (Product $p): array => [
+                    'id' => $p->id,
+                    'stock' => $p->stock_quantity,
+                    'sold_out' => $p->isSoldOut(),
+                    'low_stock' => $p->showsLowStock(),
+                ])->values()->all());
+            }
+        });
     }
 
     /**
@@ -180,6 +212,8 @@ class StockService
             ]);
 
             $order->forceFill(['stock_reserved' => $reserved, 'stock_released_at' => $releasedAt])->syncOriginalAttributes(['stock_reserved', 'stock_released_at']);
+
+            $this->announce(array_keys($restored));
 
             return $restored;
         });
