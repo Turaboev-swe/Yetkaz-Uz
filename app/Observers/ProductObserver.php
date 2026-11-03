@@ -41,6 +41,26 @@ class ProductObserver
         }
     }
 
+    /**
+     * Kunlik tiklash sozlamasi saqlandi — «oxirgi tiklanish» shu lahza deb belgilanadi: bugungi vaqt allaqachon o'tgan
+     * bo'lsa ham egasi hozir kiritgan qoldiq darhol qayta yozilib ketmaydi (keyingi tiklash — ertaga yoki hali kelmagan
+     * bugungi vaqtda). Faqat sozlama o'zgarganda; qoldiqning o'zi o'zgarsa tegilmaydi.
+     */
+    public function saving(Product $product): void
+    {
+        if ($product->daily_stock === null) {
+            return;
+        }
+
+        // Forma '06:00' yuboradi, baza '06:00:00' qaytaradi — soat:daqiqa bo'yicha solishtiramiz, aks holda mahsulotning
+        // har qanday tahriri «sozlama o'zgardi» deb hisoblanardi.
+        $timeChanged = substr((string) $product->getOriginal('daily_reset_time'), 0, 5) !== substr((string) $product->daily_reset_time, 0, 5);
+
+        if ($product->isDirty('daily_stock') || $timeChanged) {
+            $product->stock_reset_at = now();
+        }
+    }
+
     public function updated(Product $product): void
     {
         if ($product->wasChanged(['name', 'description']) && $product->nutrition_status === NutritionStatus::Pending) {
