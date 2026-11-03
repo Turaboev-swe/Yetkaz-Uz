@@ -13,7 +13,7 @@ use Illuminate\Validation\ValidationException;
 /**
  * Restoran formasidagi "Tarif" bo'limi: tarif maydonlari to'g'ridan-to'g'ri restaurants jadvaliga
  * yozilmaydi, TariffService orqali tarif tarixiga yoziladi ("Qaysi oydan" bilan). Tarif tarixi
- * davr hisobining manbasi; restaurants.billing_* faqat "joriy tarif" sifatida sinxronlanadi.
+ * davr hisobining manbasi; restaurants.billing_* faqat JORIY oy tarifi sifatida sinxronlanadi.
  */
 trait HandlesBillingTariff
 {
@@ -30,7 +30,7 @@ trait HandlesBillingTariff
         // (bo'sh sana '' — saqlangan eski sanaga qaytmaslik uchun).
         $this->billingStartedAt = array_key_exists('billing_started_at', $data) ? (string) ($data['billing_started_at'] ?? '') : null;
 
-        foreach (['billing_plan', 'commission_rate_bp', 'monthly_fee', 'effective_month'] as $key) {
+        foreach (['billing_plan', 'commission_rate_bp', 'monthly_fee', 'effective_month', 'billing_correction_reason', 'billing_correction_confirm'] as $key) {
             if (array_key_exists($key, $data)) {
                 $this->billingInput[$key] = $data[$key];
                 unset($data[$key]);
@@ -50,7 +50,7 @@ trait HandlesBillingTariff
         [$plan, $rateBp, $fee, $effective] = $this->billingValues();
 
         try {
-            app(TariffService::class)->check($restaurant, $plan, $rateBp, $fee, $effective, $this->billingStartedAt);
+            app(TariffService::class)->check($restaurant, $plan, $rateBp, $fee, $effective, $this->billingStartedAt, ...$this->billingCorrection());
         } catch (ValidationException $e) {
             throw ValidationException::withMessages(
                 collect($e->errors())->mapWithKeys(fn ($messages, $key) => ["data.{$key}" => $messages])->all(),
@@ -66,8 +66,21 @@ trait HandlesBillingTariff
 
         [$plan, $rateBp, $fee, $effective] = $this->billingValues();
 
-        app(TariffService::class)->apply($restaurant->refresh(), $plan, $rateBp, $fee, $effective, Filament::auth()->id());
+        app(TariffService::class)->apply($restaurant->refresh(), $plan, $rateBp, $fee, $effective, Filament::auth()->id(), ...$this->billingCorrection());
         $restaurant->refresh();
+    }
+
+    /**
+     * Joriy oy fixed hisobini bekor qilib foizga tuzatish: sabab va tasdiq (forma maydonlari).
+     *
+     * @return array{0: ?string, 1: bool}
+     */
+    private function billingCorrection(): array
+    {
+        return [
+            filled($this->billingInput['billing_correction_reason'] ?? null) ? (string) $this->billingInput['billing_correction_reason'] : null,
+            (bool) ($this->billingInput['billing_correction_confirm'] ?? false),
+        ];
     }
 
     /** @return array{0: ?BillingPlan, 1: int, 2: int, 3: CarbonImmutable} */

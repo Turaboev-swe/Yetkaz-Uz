@@ -263,6 +263,7 @@ class BillingCalculator
             ->select("ri.{$column}")
             ->whereColumn('ri.restaurant_id', 'restaurants.id')
             ->where('ri.period', $date)
+            ->where('ri.status', '<>', InvoiceStatus::Void->value) // bekor qilingan hisob hisobga olinmaydi
             ->limit(1);
 
         return Restaurant::query()

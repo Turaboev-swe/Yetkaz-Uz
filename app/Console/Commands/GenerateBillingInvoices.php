@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Services\Billing\BillingCalculator;
 use App\Services\Billing\InvoiceService;
+use App\Services\Billing\TariffService;
 use Carbon\CarbonImmutable;
 use Illuminate\Console\Command;
 
@@ -26,8 +27,9 @@ class GenerateBillingInvoices extends Command
 
     protected $description = 'Restoranlar uchun oylik obuna hisob-kitoblarini yaratish/yangilash (fixed — oldindan, percent — oy tugagach)';
 
-    public function handle(InvoiceService $invoices): int
+    public function handle(InvoiceService $invoices, TariffService $tariffs): int
     {
+        $tariffs->syncAllCurrentTariffs(); // oy almashganda joriy tarif ustunlari yangilansin
         $option = $this->option('period');
 
         if ($option !== null && ! preg_match('/^\d{4}-(0[1-9]|1[0-2])$/', (string) $option)) {

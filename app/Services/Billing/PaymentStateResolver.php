@@ -72,6 +72,7 @@ class PaymentStateResolver
             : max(0, (int) $row->{$prefix.'amount_due'} - (int) $row->{$prefix.'amount_paid'});
 
         $badge = match ($status) {
+            InvoiceStatus::Void => PaymentBadge::NoInvoice, // so'rovlar void'ni qaytarmaydi; himoya
             InvoiceStatus::Waived => PaymentBadge::Waived,
             InvoiceStatus::Paid => PaymentBadge::Paid,
             InvoiceStatus::Partial => PaymentBadge::Partial,

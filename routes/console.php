@@ -14,5 +14,11 @@ Schedule::command('billing:generate-invoices')
     ->timezone(config('app.display_timezone'))
     ->withoutOverlapping();
 
+// Joriy tarif (restaurants.billing_*) oy almashganda kelajak yozuviga o'tishi uchun: har kuni 00:05 (Asia/Tashkent).
+Schedule::command('billing:sync-tariffs')
+    ->dailyAt('00:05')
+    ->timezone(config('app.display_timezone'))
+    ->withoutOverlapping();
+
 // Chek chiqmagan buyurtmalarni belgilash: agent o'chiq yoki printer ishlamasa ham (Reverb xatosiga tayanmaydi).
 Schedule::command('print:check-unprinted')->everyMinute()->withoutOverlapping();
