@@ -218,7 +218,7 @@ class BrowserPrintTest extends TestCase
 
     // --- Chek sahifasi (oldindan ko'rish) -------------------------------------------------------------
 
-    public function test_receipt_page_has_the_brand_logo_restaurant_order_and_the_amount_due(): void
+    public function test_receipt_page_has_the_text_header_prices_restaurant_order_and_the_amount_due(): void
     {
         $order = $this->order(null, [
             'order_number' => 'YT-000123',
@@ -249,17 +249,23 @@ class BrowserPrintTest extends TestCase
             ->assertSee('MIJOZDAN OLINADI')
             ->assertSee('245 000 so‘m')
             ->assertSee('naqd')
-            ->assertSee('Yetkaz Uz orqali buyurtma')
+            ->assertSee('Botga o‘tish uchun skanerlang')
+            ->assertSee('50 000')   // 2 x 25 000 — qator jami (buyurtma paytidagi narx)
+            ->assertSee('30 000')
             ->assertSee('@Yetkaz_uzbot', false)
             ->getContent();
 
-        // Kenglik/qog'oz va logo: @page, kontrast filtri, 40 mm, ildiz-nisbiy yo'l.
+        // Qog'oz kengligi, ixcham o'lchamlar, LOGO YO'Q (faqat matnli shapka).
         $this->assertStringContainsString('@page { size: 80mm auto; margin: 0; }', $html);
-        $this->assertStringContainsString('<img src="/images/yetkaz-logo.png"', $html);
-        $this->assertStringContainsString('filter: grayscale(100%) contrast(180%)', $html);
-        $this->assertStringContainsString('width: 40mm', $html);
-        $this->assertStringContainsString('width: 72mm', $html);
+        $this->assertStringContainsString('width: 64mm', $html);
+        $this->assertStringContainsString('.brand { font-size: 14px; font-weight: 700', $html);
+        $this->assertStringContainsString('.order-no { font-size: 18px; font-weight: 700', $html);
+        $this->assertStringContainsString('.total-sum { margin-left: auto; font-size: 16px; font-weight: 700', $html);
+        $this->assertStringContainsString('font-size: 12px;', $html);
         $this->assertStringContainsString('color: #000', $html);
+        $this->assertStringNotContainsString('<img', $html);
+        $this->assertStringNotContainsString('yetkaz-logo', $html);
+        $this->assertStringNotContainsString('grayscale', $html);
     }
 
     public function test_receipt_page_embeds_the_bot_qr_as_an_inline_svg_with_no_external_service(): void
@@ -268,9 +274,9 @@ class BrowserPrintTest extends TestCase
 
         $html = $this->actingAs($this->owner, 'staff')->get("/kitchen/orders/{$order->id}/receipt")->assertOk()->getContent();
 
-        $this->assertStringContainsString(QrCode::svg('https://t.me/Yetkaz_uzbot'), $html);
+        $this->assertStringContainsString(QrCode::svg('https://t.me/Yetkaz_uzbot', margin: 1), $html);
         $this->assertStringContainsString('<svg', $html);
-        // Hech qanday tashqi rasm/skript/uslub: faqat o'z domenidagi logo va inline SVG.
+        // Hech qanday tashqi rasm/skript/uslub: faqat inline SVG.
         $this->assertDoesNotMatchRegularExpression('#(src|href)=["\']https?://#i', $html);
         $this->assertStringNotContainsString('qrserver', $html);
         $this->assertStringNotContainsString('googleapis', $html);
@@ -286,7 +292,7 @@ class BrowserPrintTest extends TestCase
         $html = $this->actingAs($staff, 'staff')->get("/kitchen/orders/{$order->id}/receipt")->assertOk()->getContent();
 
         $this->assertStringContainsString('@page { size: 58mm auto; margin: 0; }', $html);
-        $this->assertStringContainsString('width: 48mm', $html);
+        $this->assertStringContainsString('width: 44mm', $html);
         $this->assertStringNotContainsString('size: 80mm', $html);
     }
 
@@ -296,6 +302,7 @@ class BrowserPrintTest extends TestCase
             'delivery_type' => DeliveryType::Pickup,
             'address_snapshot' => null,
             'contact_phone' => '+998935556677',
+            'items' => [['product_id' => 1, 'name' => 'Osh', 'price' => 2_300_000, 'qty' => 3, 'prep' => 10, 'note' => null]],
             'subtotal' => 6_900_000,
             'total' => 5_900_000,
         ]);
@@ -305,8 +312,10 @@ class BrowserPrintTest extends TestCase
             ->assertOk()
             ->assertSee('OLIB KETISH')
             ->assertDontSee('MANZIL')
-            ->assertSee('Chegirma')
-            ->assertSee('-10 000 so‘m')
+            ->assertSee('Taomlar:')
+            ->assertSee('69 000')
+            ->assertSee('Chegirma:')
+            ->assertSee('-10 000')
             ->assertSee('59 000 so‘m')
             ->assertSee('+998935556677')
             ->assertSee('Tel (Telegram)')
@@ -315,14 +324,16 @@ class BrowserPrintTest extends TestCase
 
     public function test_receipt_page_hides_rows_that_do_not_apply(): void
     {
-        $order = $this->order(null, ['note' => null, 'eta_minutes' => null, 'contact_phone' => '+998900000000']);
+        $order = $this->order(null, ['note' => null, 'eta_minutes' => null, 'contact_phone' => '+998900000000', 'delivery_fee' => 0]);
 
         $this->actingAs($this->owner, 'staff')->get("/kitchen/orders/{$order->id}/receipt")
             ->assertOk()
             ->assertDontSee('IZOH')
             ->assertDontSee('Chegirma')
             ->assertDontSee('Tel (Telegram)')
-            ->assertDontSee('Tayyor:');
+            ->assertDontSee('Tayyor')
+            ->assertDontSee('Taomlar:')      // chegirma ham, yetkazish haqi ham yo'q — qisqa hisob kerak emas
+            ->assertDontSee('Yetkazish:');
     }
 
     public function test_receipt_page_escapes_customer_supplied_text(): void
@@ -382,10 +393,11 @@ class BrowserPrintTest extends TestCase
 
         $data = $formatter->data($order);
 
-        $this->assertSame([['qty' => 3, 'name' => "Lag'mon", 'note' => 'achchiq emas']], $data->items);
+        $this->assertSame([['qty' => 3, 'name' => "Lag'mon", 'note' => 'achchiq emas', 'total' => 7_500_000]], $data->items);
+        $this->assertSame(7_500_000, $data->itemsTotal);
         $this->assertSame('+998935556677', $data->phone);
         $this->assertSame('+998900000000', $data->telegramPhone);
-        $this->assertSame('Chilonzor, 5-uy Chilonzor', $data->addressText);
+        $this->assertSame('Chilonzor, 5-uy', $data->addressText, 'tuman matnda bor — qayta qo‘shilmaydi');
         $this->assertSame($order->total, $data->total);
 
         // Bir xil ma'lumot ESC/POS matnida ham bor (mantiq takrorlanmaydi — ikkalasi data() dan).
@@ -393,7 +405,9 @@ class BrowserPrintTest extends TestCase
         $this->assertStringContainsString('3x  Lag\'mon', $text);
         $this->assertStringContainsString('Tel: +998935556677', $text);
         $this->assertStringContainsString('Tel (Telegram): +998900000000', $text);
-        $this->assertStringContainsString('Chilonzor, 5-uy Chilonzor', $text);
+        $this->assertStringContainsString('Chilonzor, 5-uy', $text);
+        $this->assertStringNotContainsString('Chilonzor, 5-uy Chilonzor', $text);
+        $this->assertMatchesRegularExpression("/3x  Lag'mon\\s+75 000\$/m", $text, 'narx o‘ng ustunda');
         $this->assertStringContainsString('60 000 som', $text);
     }
 
@@ -516,7 +530,7 @@ class BrowserPrintTest extends TestCase
         $fresh = $r->fresh();
         $this->assertSame(PosType::Browser, $fresh->pos_type);
         $this->assertSame(58, $fresh->receipt_paper_mm);
-        $this->assertSame(48, $fresh->receiptPrintableMm());
+        $this->assertSame(44, $fresh->receiptPrintableMm());
     }
 
     public function test_escpos_form_is_unchanged_with_three_options_and_agent_fields(): void
@@ -534,8 +548,8 @@ class BrowserPrintTest extends TestCase
 
     public function test_printable_width_comes_from_config_per_paper_size(): void
     {
-        $this->assertSame(72, $this->restaurant(['receipt_paper_mm' => 80])->receiptPrintableMm());
-        $this->assertSame(48, $this->restaurant(['receipt_paper_mm' => 58])->receiptPrintableMm());
+        $this->assertSame(64, $this->restaurant(['receipt_paper_mm' => 80])->receiptPrintableMm());
+        $this->assertSame(44, $this->restaurant(['receipt_paper_mm' => 58])->receiptPrintableMm());
     }
 
     // --- QR ----------------------------------------------------------------------------------------------
@@ -568,15 +582,16 @@ class BrowserPrintTest extends TestCase
 
         $this->assertStringContainsString('@Boshqa_bot', $html);
         $this->assertStringNotContainsString('@@Boshqa_bot', $html);
-        $this->assertStringContainsString(QrCode::svg('https://t.me/Boshqa_bot'), $html);
+        $this->assertStringContainsString(QrCode::svg('https://t.me/Boshqa_bot', margin: 1), $html);
     }
 
-    public function test_logo_path_is_configurable_so_the_file_can_be_swapped(): void
+    public function test_there_is_no_logo_code_or_setting_left(): void
     {
-        config(['print.browser.logo' => 'images/receipt-logo.png']);
-        $order = $this->order();
+        $this->assertArrayNotHasKey('logo', config('print.browser'));
+        $this->assertArrayNotHasKey('logo_width_mm', config('print.browser'));
 
+        $order = $this->order();
         $this->actingAs($this->owner, 'staff')->get("/kitchen/orders/{$order->id}/receipt")
-            ->assertOk()->assertSee('<img src="/images/receipt-logo.png"', false);
+            ->assertOk()->assertDontSee('<img', false)->assertDontSee('yetkaz-logo', false);
     }
 }

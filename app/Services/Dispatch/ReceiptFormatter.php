@@ -7,6 +7,7 @@ use App\Enums\PaymentMethod;
 use App\Models\Order;
 use App\Models\Restaurant;
 use App\Models\User;
+use App\Support\OrderAddress;
 use Illuminate\Support\Carbon;
 
 /**
@@ -61,10 +62,17 @@ class ReceiptFormatter
 
         foreach ($d->items as $it) {
             $prefix = $it['qty'].'x  ';
-            $lines = $p->wrap((string) $it['name'], $p->width() - mb_strlen($prefix), mb_strlen($prefix));
+            // Qator jami o'ng ustunda (birinchi qator oxirida); nom unga yetmaydigan qilib o'raladi.
+            $price = $it['total'] === null ? '' : self::amount($it['total']);
+            $first = $p->width() - mb_strlen($prefix) - ($price === '' ? 0 : mb_strlen($price) + 1);
+            $lines = $p->wrap((string) $it['name'], max(1, $first), mb_strlen($prefix)) ?: [''];
             $p->bold(true);
             foreach ($lines as $i => $line) {
-                $p->text($i === 0 ? $prefix.$line : $line);
+                if ($i === 0) {
+                    $price === '' ? $p->text($prefix.$line) : $p->columns($prefix.$line, $price);
+                } else {
+                    $p->text($line);
+                }
             }
             $p->bold(false);
 
@@ -112,8 +120,15 @@ class ReceiptFormatter
 
         // Egasi DM'i / oshxona xabari / kartasi bilan bir xil ma'no. Chekka faqat ASCII — emoji va "−" yo'q,
         // matn emojisiz, ASCII minus bilan. Restoran/platforma taqsimoti chekda KO'RSATILMAYDI — faqat hisobotlarda.
+        // Qisqa hisob: qator jami - chegirma + yetkazish = MIJOZDAN OLINADI (faqat qiymati borlari).
+        if ($d->hasBreakdown()) {
+            $p->columns('Taomlar:', $som($d->itemsTotal));
+        }
         if ($d->discount > 0) {
             $p->columns('Chegirma:', '-'.$som($d->discount));
+        }
+        if ($d->deliveryFee > 0) {
+            $p->columns('Yetkazish:', $som($d->deliveryFee));
         }
         if ($d->deliveryPaidToTaxi) {
             // Faqat taomlar summasi olinadi; yetkazish haqini mijoz taksiga alohida to'laydi.
@@ -145,21 +160,29 @@ class ReceiptFormatter
         $order->loadMissing('restaurant', 'user');
 
         $pickup = $order->delivery_type === DeliveryType::Pickup;
+        $tz = config('app.display_timezone');
+        $createdAt = $order->created_at?->timezone($tz);
 
+        // Narx — buyurtma paytidagi SNAPSHOT (items.price, tiyin, bir dona uchun), menyudagi hozirgi narx emas.
         $items = [];
         foreach ($order->items as $it) {
+            $qty = (int) $it['qty'];
             $items[] = [
-                'qty' => (int) $it['qty'],
+                'qty' => $qty,
                 'name' => (string) $it['name'],
                 'note' => ! empty($it['note']) ? (string) $it['note'] : null,
+                'total' => isset($it['price']) ? (int) $it['price'] * $qty : null,
             ];
         }
+        $priced = $items !== [] && ! in_array(null, array_column($items, 'total'), true);
+        $itemsTotal = $priced ? (int) array_sum(array_column($items, 'total')) : (int) $order->subtotal;
 
         $addressText = null;
         $addressExtra = '';
         if (! $pickup && $order->address_snapshot) {
             $snap = $order->address_snapshot;
-            $addressText = trim(($snap['address_text'] ?? '').' '.($snap['district'] ?? ''));
+            // Tuman matnda bo'lsa qayta qo'shilmaydi (apostrof/registr farqiga qaramay); xom koordinata — tuman nomi.
+            $addressText = OrderAddress::line($snap) ?? '';
             $addressExtra = implode(', ', array_filter([
                 ($snap['entrance'] ?? null) ? 'kirish '.$snap['entrance'] : null,
                 ($snap['floor'] ?? null) ? 'qavat '.$snap['floor'] : null,
@@ -171,21 +194,36 @@ class ReceiptFormatter
             restaurantName: (string) $order->restaurant?->name,
             orderNumber: (string) $order->order_number,
             pickup: $pickup,
-            when: $order->created_at?->timezone(config('app.display_timezone'))->format('d.m.Y H:i'),
+            when: $createdAt?->format('d.m.Y H:i'),
+            whenShort: $createdAt === null ? null : ($createdAt->isSameDay(now($tz)) ? $createdAt->format('H:i') : $createdAt->format('d.m H:i')),
             etaMinutes: $order->eta_minutes ? (int) $order->eta_minutes : null,
             items: $items,
+            itemsTotal: $itemsTotal,
             note: $order->note ? (string) $order->note : null,
             // Mijoz: ism va telefon — olib ketish buyurtmasida ham (mijoz kelganda topish/qo'ng'iroq uchun).
-            customerName: (string) $order->user?->full_name,
+            customerName: self::realName((string) $order->user?->full_name),
             phone: (string) $order->contactPhone(),
             telegramPhone: $order->hasDistinctContactPhone() ? (string) $order->user->phone : null,
             addressText: $addressText,
             addressExtra: $addressExtra,
             discount: $order->hasDiscount() ? (int) $order->discount_amount : 0,
+            // Taksi rejimida yetkazish haqi summaga qo'shilmaydi (mijoz taksiga alohida to'laydi; fee = 0).
+            deliveryFee: $order->delivery_paid_to_taxi ? 0 : (int) $order->delivery_fee,
             deliveryPaidToTaxi: (bool) $order->delivery_paid_to_taxi,
             total: (int) $order->total,
             payment: $order->payment_method,
         );
+    }
+
+    /** Mijoz ismi o'rnida turadigan umumiy so'zlar — ism emas, chekka chiqarilmaydi. */
+    private const PLACEHOLDER_NAMES = ['mijoz', 'клиент', 'customer'];
+
+    /** Haqiqiy ism yoki '' (bo'sh ism va «Mijoz» kabi o'rinbosar so'z — ism yo'q). */
+    private static function realName(string $name): string
+    {
+        $name = trim($name);
+
+        return in_array(mb_strtolower($name), self::PLACEHOLDER_NAMES, true) ? '' : $name;
     }
 
     /** Tiyinni «245 000» ko'rinishiga (so'mda, mingliklar bo'shliq bilan). */

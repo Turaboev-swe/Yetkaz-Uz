@@ -1,6 +1,6 @@
 // Brauzer orqali chek chiqarish (pos_type = browser): chek sahifasi yashirin iframe'da yuklanadi,
-// rasmlar yuklangach window.print() chaqiriladi. Yorliqdagi `--kiosk-printing` tufayli dialog chiqmaydi.
-// Sof funksiyalar (shouldAutoPrint, imagesReady, createPrintQueue) node:test bilan tekshiriladi.
+// yuklangach window.print() chaqiriladi (chekda tashqi rasm yo'q: QR inline SVG). Yorliqdagi `--kiosk-printing` tufayli dialog chiqmaydi.
+// Sof funksiyalar (shouldAutoPrint, createPrintQueue) node:test bilan tekshiriladi.
 
 import { api } from './api.js';
 
@@ -12,26 +12,6 @@ export const receiptUrl = (orderId) => `/kitchen/orders/${orderId}/receipt`;
  */
 export function shouldAutoPrint(before, after) {
     return Boolean(before && after && before.status === 'new' && after.status === 'accepted' && after.restaurant?.browser_print);
-}
-
-/**
- * Hujjatdagi barcha rasmlar yuklanguncha (yoki xato bo'lguncha) kutadi — logo yuklanmay turib chop etilmasin.
- * Rasm hech yuklanmasa ham `timeoutMs` dan keyin davom etadi (chek logosiz bo'lsa ham chiqishi kerak).
- */
-export function imagesReady(doc, timeoutMs = 5000) {
-    const waits = Array.from(doc.images || [])
-        .filter((img) => !img.complete)
-        .map(
-            (img) =>
-                new Promise((resolve) => {
-                    img.addEventListener('load', resolve, { once: true });
-                    img.addEventListener('error', resolve, { once: true });
-                }),
-        );
-
-    if (waits.length === 0) return Promise.resolve();
-
-    return Promise.race([Promise.all(waits), new Promise((resolve) => setTimeout(resolve, timeoutMs))]);
 }
 
 /**
@@ -77,7 +57,6 @@ function printOnce(orderId) {
                 if (!doc || !doc.querySelector('.receipt')) {
                     throw new Error('Chek ochilmadi (sessiya tugagan bo‘lishi mumkin) — sahifani yangilang.');
                 }
-                await imagesReady(doc);
 
                 frame.contentWindow.focus();
                 frame.contentWindow.print();

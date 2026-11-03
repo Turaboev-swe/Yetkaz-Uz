@@ -24,20 +24,23 @@ return [
     // ASCII'ni buzadigan jadvalni (masalan yapon) tanlasa — `print-agent:test-receipt --table` bilan tekshiring.
     'default_codepage' => 16,
 
-    // Brauzer cheki (pos_type = browser): oshxona panelidan Windows printeriga, HTML/CSS maketda.
+    // Brauzer cheki (pos_type = browser): oshxona panelidan Windows printeriga, ixcham HTML/CSS maketda (logosiz).
     'browser' => [
-        // public/ ga nisbatan logo yo'li. Fayl almashtirilsa (yoki shu yerga yangi yo'l berilsa) chekka o'zi tushadi.
-        'logo' => env('BROWSER_RECEIPT_LOGO', 'images/yetkaz-logo.png'),
-        'logo_width_mm' => 40,
+        // Chek matnlari tili (lang/uz, lang/ru). Mijoz tilidan mustaqil: chek oshxona/restoran uchun.
+        'locale' => env('BROWSER_RECEIPT_LOCALE', 'uz'),
 
         // Chek tagidagi QR-kod ochadigan bot (t.me/<username>). Serverda SVG qilib yaratiladi, tashqi servis yo'q.
         'bot_username' => env('BROWSER_RECEIPT_BOT', 'Yetkaz_uzbot'),
-        'qr_mm' => 30,
 
-        // Qog'oz kengligi (mm) -> haqiqiy bosiladigan kenglik (printer chetlarida bo'sh joy qoladi).
-        'printable_mm' => [58 => 48, 80 => 72],
+        // QR tomoni, mm. 203 dpi printerda 8 nuqta/mm: 15.5 mm = 124 nuqta = 31 modul x 4 nuqta (modul butun nuqta
+        // bo'lsin — aks holda chetlari xiralashadi). Bot havolasi uchun modul soni 31 (QrCode::svg, margin = 1).
+        'qr_mm' => 15.5,
+
+        // Qog'oz kengligi (mm) -> chek matni kengligi. Printer drayveri chetlarda bo'sh joy qoldiradi va 80 mm qog'ozda
+        // bosiladigan maydon odatda 72 mm dan ham torroq (haqiqiy XP-80C da 72 mm chekda o'ng chet kesilgan) —
+        // shuning uchun xavfsiz qiymatlar. Kesilsa kamaytiring, chetda ko'p bo'sh joy qolsa oshiring.
+        'printable_mm' => [58 => 44, 80 => 64],
     ],
-
     // Agent `pending` endpoint'i faqat shu soatdan yangi buyurtmalarni qaytaradi; eskilari
     // chop etilmaydi, lekin panelda «Chek chiqmadi» bo'lib ko'rinib turadi.
     'pending_window_hours' => 3,

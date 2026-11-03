@@ -3,7 +3,7 @@ import { test } from 'node:test';
 
 // api.js modul yuklanganda window.__KITCHEN__ ni o'qiydi — node'da yo'q, shuning uchun o'rnatamiz.
 globalThis.window = { __KITCHEN__: { csrf: 'x' } };
-const { createPrintQueue, imagesReady, receiptUrl, shouldAutoPrint } = await import('./browserPrint.js');
+const { createPrintQueue, receiptUrl, shouldAutoPrint } = await import('./browserPrint.js');
 
 const order = (status, browser = true) => ({ id: 7, status, restaurant: { id: 1, browser_print: browser } });
 
@@ -26,50 +26,6 @@ test('no auto print when the restaurant is not in browser mode or data is missin
 
 test('receipt url points at the kitchen receipt page', () => {
     assert.equal(receiptUrl(42), '/kitchen/orders/42/receipt');
-});
-
-function fakeImage(complete) {
-    const handlers = {};
-    return {
-        complete,
-        addEventListener: (name, fn) => {
-            handlers[name] = fn;
-        },
-        fire: (name) => handlers[name]?.(),
-    };
-}
-
-test('imagesReady resolves at once when every image is already loaded', async () => {
-    await imagesReady({ images: [fakeImage(true), fakeImage(true)] }, 50);
-    await imagesReady({ images: [] }, 50);
-});
-
-test('imagesReady waits for pending images before resolving', async () => {
-    const img = fakeImage(false);
-    let done = false;
-    const p = imagesReady({ images: [img] }, 5000).then(() => {
-        done = true;
-    });
-
-    await new Promise((r) => setTimeout(r, 10));
-    assert.equal(done, false, 'rasm yuklanmaguncha kutadi');
-
-    img.fire('load');
-    await p;
-    assert.equal(done, true);
-});
-
-test('a broken image does not block printing forever', async () => {
-    const img = fakeImage(false);
-    const p = imagesReady({ images: [img] }, 5000);
-    img.fire('error');
-    await p;
-});
-
-test('imagesReady gives up after the timeout (receipt prints without the logo)', async () => {
-    const started = Date.now();
-    await imagesReady({ images: [fakeImage(false)] }, 30);
-    assert.ok(Date.now() - started < 1000);
 });
 
 test('print queue runs jobs one at a time, in order', async () => {

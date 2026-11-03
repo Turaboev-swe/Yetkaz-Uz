@@ -53,6 +53,19 @@ class OrderAddressTest extends TestCase
         $this->assertNull(OrderAddress::line(null));
     }
 
+    public function test_district_not_duplicated_across_apostrophe_and_case_variants(): void
+    {
+        // Manzil ASCII ', tuman nomi ‘ ’ bilan (yoki aksincha) — bir xil tuman, ikki marta chiqmaydi.
+        $this->assertSame(
+            "Qo'rg'ontepa tumani",
+            OrderAddress::line(['address_text' => "Qo'rg'ontepa tumani", 'district' => 'Qo‘rg‘ontepa tumani']),
+        );
+        $this->assertSame(
+            'Qo‘rg‘ontepa tumani, Bobur 5',
+            OrderAddress::line(['address_text' => 'Qo‘rg‘ontepa tumani, Bobur 5', 'district' => "QO'RG'ONTEPA  TUMANI"]),
+        );
+    }
+
     public function test_extra_lists_entrance_floor_apartment(): void
     {
         $this->assertSame(
