@@ -73,6 +73,21 @@ class Product extends Model
         return $this->stock_quantity !== null && $this->stock_quantity <= 0;
     }
 
+    /**
+     * «Faqat N ta qoldi!» ko'rsatilsinmi: qoldiq bor (0 emas), cheklangan va `yetkaz.stock_display_threshold` ga teng
+     * yoki kam (threshold `null` bo'lsa — doim). Cheklanmagan mahsulotda hech qachon.
+     */
+    public function showsLowStock(): bool
+    {
+        if ($this->stock_quantity === null || $this->stock_quantity <= 0) {
+            return false;
+        }
+
+        $threshold = config('yetkaz.stock_display_threshold', 5);
+
+        return $threshold === null || $this->stock_quantity <= (int) $threshold;
+    }
+
     /** Taom aksiyada — `old_price` bor va joriy narxdan yuqori. */
     public function isOnSale(): bool
     {
