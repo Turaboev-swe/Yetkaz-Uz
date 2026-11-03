@@ -292,6 +292,7 @@ return [
         'iiko' => 'iiko',
         'escpos' => 'ESC/POS printer',
         'manual' => "Qo'lda (panel)",
+        'browser' => 'Brauzer orqali chop etish',
     ],
     'discount_type' => [
         'percent' => 'Foiz (%)',
@@ -319,4 +320,33 @@ return [
     ],
 
     'eta_range' => 'Taxminiy yetkazib berish: :from–:to daqiqa.',
+
+    // Brauzer cheki (/kitchen/orders/{id}/receipt) — oshxona kassasidan Windows printeriga chiqadi.
+    'receipt' => [
+        'brand' => 'YETKAZ UZ',
+        'title' => 'Chek',
+        'type_delivery' => 'YETKAZISH',
+        'type_pickup' => 'OLIB KETISH',
+        'order' => 'Buyurtma',
+        'time' => 'Vaqt',
+        'ready' => 'Tayyor',
+        'minutes_short' => 'daq',
+        'note' => 'IZOH',
+        'customer' => 'Mijoz',
+        'phone' => 'Tel',
+        'phone_telegram' => 'Tel (Telegram)',
+        'address' => 'MANZIL',
+        'discount' => 'Chegirma',
+        'taxi_note' => 'Yetkazish haqi: mijoz taksiga alohida to‘laydi',
+        'to_collect' => 'MIJOZDAN OLINADI',
+        'payment' => 'To‘lov',
+        'payment_cash' => 'naqd',
+        'payment_payme' => 'Payme (onlayn)',
+        'payment_click' => 'Click (onlayn)',
+        'currency' => 'so‘m',
+        'footer' => 'Yetkaz Uz orqali buyurtma',
+        'scan' => 'Botga o‘tish uchun QR-kodni skanerlang',
+        'print_button' => 'Chop etish',
+        'preview_hint' => 'Oldindan ko‘rish — chop etilmaydi.',
+    ],
 ];

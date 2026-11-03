@@ -24,6 +24,20 @@ return [
     // ASCII'ni buzadigan jadvalni (masalan yapon) tanlasa — `print-agent:test-receipt --table` bilan tekshiring.
     'default_codepage' => 16,
 
+    // Brauzer cheki (pos_type = browser): oshxona panelidan Windows printeriga, HTML/CSS maketda.
+    'browser' => [
+        // public/ ga nisbatan logo yo'li. Fayl almashtirilsa (yoki shu yerga yangi yo'l berilsa) chekka o'zi tushadi.
+        'logo' => env('BROWSER_RECEIPT_LOGO', 'images/yetkaz-logo.png'),
+        'logo_width_mm' => 40,
+
+        // Chek tagidagi QR-kod ochadigan bot (t.me/<username>). Serverda SVG qilib yaratiladi, tashqi servis yo'q.
+        'bot_username' => env('BROWSER_RECEIPT_BOT', 'Yetkaz_uzbot'),
+        'qr_mm' => 30,
+
+        // Qog'oz kengligi (mm) -> haqiqiy bosiladigan kenglik (printer chetlarida bo'sh joy qoladi).
+        'printable_mm' => [58 => 48, 80 => 72],
+    ],
+
     // Agent `pending` endpoint'i faqat shu soatdan yangi buyurtmalarni qaytaradi; eskilari
     // chop etilmaydi, lekin panelda «Chek chiqmadi» bo'lib ko'rinib turadi.
     'pending_window_hours' => 3,

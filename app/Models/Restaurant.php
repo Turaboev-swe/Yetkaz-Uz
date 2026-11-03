@@ -167,6 +167,15 @@ class Restaurant extends Model
         return $this->pos_type === PosType::EscPos && filled($this->print_agent_token);
     }
 
+    /**
+     * Chek oshxona panelidan brauzer orqali chop etiladimi (pos_type = browser). Print agent monitoringi
+     * (heartbeat, «Agent o'chiq», «Chek chiqmadi») bunday restoranga tegishli EMAS — usesPrintAgent() false.
+     */
+    public function usesBrowserPrint(): bool
+    {
+        return $this->pos_type === PosType::Browser;
+    }
+
     /** Print agenti sozlangan restoranlar (usesPrintAgent bilan bir xil shart). */
     public function scopeWithPrintAgent(Builder $query): Builder
     {
@@ -179,6 +188,14 @@ class Restaurant extends Model
     public function receiptPaperMm(): int
     {
         return (int) ($this->receipt_paper_mm ?? config('print.default_paper_mm'));
+    }
+
+    /** Brauzer cheki: qog'ozning haqiqiy bosiladigan kengligi, mm (printer chetlarini hisobga olib, 80 mm -> 72). */
+    public function receiptPrintableMm(): int
+    {
+        $printable = (array) config('print.browser.printable_mm');
+
+        return (int) ($printable[$this->receiptPaperMm()] ?? $printable[config('print.default_paper_mm')]);
     }
 
     /**

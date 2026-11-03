@@ -47,7 +47,11 @@ class AgentController extends Controller
     {
         $restaurant = $this->restaurant($request);
 
-        $restaurant->forceFill(['print_agent_last_seen_at' => now()])->saveQuietly();
+        // Brauzer rejimidagi restoranda agent monitoringi yo'q: eski agent qolib ketgan bo'lsa ham
+        // «tirik» belgisi yozilmaydi (panelda agent holati chiqmaydi).
+        if (! $restaurant->usesBrowserPrint()) {
+            $restaurant->forceFill(['print_agent_last_seen_at' => now()])->saveQuietly();
+        }
 
         return response()->json(['ok' => true, 'server_time' => now()->toIso8601String()]);
     }
@@ -61,6 +65,11 @@ class AgentController extends Controller
     public function pending(Request $request, ReceiptFormatter $formatter): JsonResponse
     {
         $restaurant = $this->restaurant($request);
+
+        // Brauzer rejimida cheklar oshxona panelidan chiqadi — eski agent ikkinchi nusxa chiqarmasin.
+        if ($restaurant->usesBrowserPrint()) {
+            return response()->json(['data' => []]);
+        }
 
         $orders = Order::query()
             ->withoutGlobalScopes()

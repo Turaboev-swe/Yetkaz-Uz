@@ -9,6 +9,7 @@ enum PosType: string
     case Iiko = 'iiko';
     case EscPos = 'escpos';
     case Manual = 'manual';
+    case Browser = 'browser';
 
     /** POS API orqali ishlaydimi (chekni POS o'zi chiqaradi). */
     public function usesExternalApi(): bool
@@ -20,6 +21,12 @@ enum PosType: string
     public function usesPrintAgent(): bool
     {
         return $this === self::EscPos;
+    }
+
+    /** Chek oshxona panelidan (brauzer) Windows printeriga chiqadimi — agentsiz, `/kitchen` sahifasi orqali. */
+    public function usesBrowserPrint(): bool
+    {
+        return $this === self::Browser;
     }
 
     public function label(): string

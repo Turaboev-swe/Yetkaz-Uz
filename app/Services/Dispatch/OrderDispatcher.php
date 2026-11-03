@@ -13,12 +13,14 @@ class OrderDispatcher
     public function __construct(
         private readonly EscPosDriver $escPos,
         private readonly ManualDriver $manual,
+        private readonly BrowserDriver $browser,
     ) {}
 
     public function dispatch(Order $order): DispatchResult
     {
         $driver = match ($order->restaurant->pos_type) {
             PosType::EscPos => $this->escPos,
+            PosType::Browser => $this->browser,
             // jowi/poster/iiko integratsiyasi yo'q — hozircha manual kabi
             default => $this->manual,
         };
