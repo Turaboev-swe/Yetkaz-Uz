@@ -191,6 +191,9 @@ export default function OrderCard({ order, onAdvance, onCancel, onPrint = async 
                                 .join(' · ')}
                         </div>
                     )}
+                    {addr.landmark && (
+                        <div className="text-[13px] text-gray-300">🧭 Mo‘ljal: {addr.landmark}</div>
+                    )}
                     {addr.lat && addr.lng && (
                         <a
                             href={`https://maps.google.com/?q=${addr.lat},${addr.lng}`}

@@ -34,6 +34,7 @@ final readonly class ReceiptData
         public ?string $telegramPhone,
         public ?string $addressText,
         public string $addressExtra,
+        public ?string $landmark,
         public int $discount,
         public int $deliveryFee,
         public bool $deliveryPaidToTaxi,

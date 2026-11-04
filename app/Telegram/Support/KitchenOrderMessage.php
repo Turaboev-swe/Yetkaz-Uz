@@ -84,6 +84,10 @@ class KitchenOrderMessage
                 $extra = OrderAddress::extra($order->address_snapshot);
                 $lines[] = '📍 '.$t('address').': '.$esc($extra !== null ? "$addr ($extra)" : $addr);
             }
+            $landmark = OrderAddress::landmark($order->address_snapshot);
+            if ($landmark !== null) {
+                $lines[] = '🧭 '.$t('landmark').': '.$esc($landmark);
+            }
             $map = OrderAddress::mapUrl($order->address_snapshot);
             if ($map !== null) {
                 $lines[] = '🗺 <a href="'.$esc($map).'">'.$t('map').'</a>';

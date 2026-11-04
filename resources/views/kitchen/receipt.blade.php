@@ -9,7 +9,7 @@
     $money = fn (int $tiyin): string => $amount($tiyin).' '.$t('currency');
 
     $customer = $p($d->customerName);
-    $hasAddress = $d->addressText !== null && ($d->addressText !== '' || $d->addressExtra !== '');
+    $hasAddress = $d->addressText !== null && ($d->addressText !== '' || $d->addressExtra !== '' || $d->landmark !== null);
 @endphp
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
@@ -163,6 +163,9 @@
 
             @if ($hasAddress)
                 <div class="small"><b>{{ $t('address') }}:</b> {{ $p($d->addressText) }}@if ($d->addressExtra !== ''), {{ $p($d->addressExtra) }}@endif</div>
+                @if ($d->landmark !== null)
+                    <div class="small"><b>{{ $t('landmark') }}:</b> {{ $p($d->landmark) }}</div>
+                @endif
             @endif
 
             <hr>

@@ -127,6 +127,7 @@ return [
         'total' => 'Jami',
         'som' => "so'm",
         'address' => 'Manzil',
+        'landmark' => 'Mo‘ljal',
         'pickup' => 'Olib ketish',
         'work_hours' => 'Ish vaqti',
         'note' => 'Izoh',
@@ -152,6 +153,7 @@ return [
         'delivery' => '🛵 Yetkazib berish',
         'pickup' => '🏃 Olib ketish',
         'address' => 'Manzil',
+        'landmark' => 'Mo‘ljal',
         'map' => 'Xaritada ko‘rish',
         'note' => 'Izoh',
         // Egasi DM'i va /kitchen kartasi bilan bir xil matn.
@@ -342,6 +344,7 @@ return [
         'phone' => 'Tel',
         'phone_telegram' => 'Tel (Telegram)',
         'address' => 'MANZIL',
+        'landmark' => 'MO‘LJAL',
         'discount' => 'Chegirma',
         'items_total' => 'Taomlar',
         'delivery' => 'Yetkazish',
