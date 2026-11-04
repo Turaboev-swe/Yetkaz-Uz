@@ -21,7 +21,7 @@ PORT="${APP_FORWARD_PORT:-8010}"
 echo "→ tunnel konteyneri qayta yaratilmoqda…"
 docker rm -f "$NAME" >/dev/null 2>&1 || true
 docker run -d --name "$NAME" --network host --restart unless-stopped \
-  cloudflare/cloudflared:latest tunnel --url "http://localhost:${PORT}" --no-autoupdate >/dev/null
+  cloudflare/cloudflared:latest tunnel --protocol http2 --url "http://localhost:${PORT}" --no-autoupdate >/dev/null
 
 echo "→ manzil kutilmoqda…"
 URL=""
