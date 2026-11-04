@@ -127,6 +127,7 @@ return [
         'total' => 'Jami',
         'som' => "so'm",
         'address' => 'Manzil',
+        'landmark' => 'Mo‘ljal',
         'pickup' => 'Olib ketish',
         'work_hours' => 'Ish vaqti',
         'note' => 'Izoh',
@@ -152,6 +153,7 @@ return [
         'delivery' => '🛵 Yetkazib berish',
         'pickup' => '🏃 Olib ketish',
         'address' => 'Manzil',
+        'landmark' => 'Mo‘ljal',
         'map' => 'Xaritada ko‘rish',
         'note' => 'Izoh',
         // Egasi DM'i va /kitchen kartasi bilan bir xil matn.
@@ -320,6 +322,19 @@ return [
     ],
 
     'eta_range' => 'Taxminiy yetkazib berish: :from–:to daqiqa.',
+    // Ko'cha yoki mo'ljal majburiy (geokoder ko'cha nomini topmaganda)
+    'street_required' => 'Xaritada ko‘cha nomi topilmadi. Ko‘cha nomini yoki mo‘ljalni kiriting.',
+
+    // Bot: lokatsiyadan keyin ko'cha topilmasa ko'cha yoki mo'ljal so'rash (o'tkazib yuborish yo'q)
+    'address_flow' => [
+        'ask_street' => "📍 Lokatsiya qabul qilindi, lekin xaritada ko‘cha nomi topilmadi.\nKo‘cha nomini yozing (masalan: Bobur ko‘chasi 12).",
+        'ask_landmark' => "Mo‘ljalni yozing (masalan: Hokimiyat orqasida, ko‘k darvoza).\nKuryer manzilni shu bo‘yicha topadi.",
+        'dont_know_street' => 'Ko‘cha nomini bilmayman',
+        'cancel' => '❌ Bekor qilish',
+        'too_short' => 'Iltimos, kamida 3 ta belgi yozing.',
+        'cancelled' => 'Manzil saqlanmadi.',
+    ],
+
     // Mahsulot qoldig'i (stock)
     'stock' => [
         'only_left' => 'Kechirasiz, :name dan faqat :count ta qoldi.',
@@ -339,6 +354,7 @@ return [
         'phone' => 'Tel',
         'phone_telegram' => 'Tel (Telegram)',
         'address' => 'MANZIL',
+        'landmark' => 'MO‘LJAL',
         'discount' => 'Chegirma',
         'items_total' => 'Taomlar',
         'delivery' => 'Yetkazish',

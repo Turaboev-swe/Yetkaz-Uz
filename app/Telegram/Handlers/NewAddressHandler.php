@@ -5,6 +5,7 @@ namespace App\Telegram\Handlers;
 use App\Models\User;
 use App\Services\Geo\AddressGeocoder;
 use App\Services\User\AddressService;
+use App\Telegram\Conversations\NewAddressConversation;
 use App\Telegram\Support\Keyboards;
 use SergiX44\Nutgram\Nutgram;
 
@@ -27,18 +28,20 @@ class NewAddressHandler
         /** @var User $user */
         $user = $bot->get('user');
 
-        $geo = $geocoder->describe($location->latitude, $location->longitude);
+        // Geokoder ko'cha nomini topmasa — ko'cha yoki mo'ljal MAJBURIY: suhbat boshlanadi (o'tkazib yuborib bo'lmaydi).
+        if ($geocoder->describe($location->latitude, $location->longitude)['street'] === null) {
+            NewAddressConversation::begin($bot, data: [$location->latitude, $location->longitude]);
+
+            return;
+        }
+
         $label = __('messages.addresses.label', ['n' => $user->addresses()->count() + 1]);
 
-        $address = $addresses->create($user, [
+        // Tuman, qishloq/mahalla va ko'cha geokodlanib, address_text yig'iladi (AddressService::createForPoint).
+        $address = $addresses->createForPoint($user, $location->latitude, $location->longitude, [
             'label' => $label,
-            'district_id' => $geo['district_id'],
-            'lat' => $location->latitude,
-            'lng' => $location->longitude,
-            'address_text' => $geo['address_text'],
             'is_default' => true,
         ]);
-
         $bot->sendMessage(
             __('messages.addresses.added', ['address' => $address->displayAddress()]),
             reply_markup: Keyboards::mainMenu(),

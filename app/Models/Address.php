@@ -29,6 +29,7 @@ class Address extends Model
         'lat',
         'lng',
         'address_text',
+        'street',
         'resolved_address',
         'entrance',
         'floor',

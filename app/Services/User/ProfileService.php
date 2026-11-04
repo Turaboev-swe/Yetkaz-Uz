@@ -58,21 +58,22 @@ class ProfileService
     }
 
     /**
-     * Ro'yxatdan o'tishning oxirgi qadami: uy manzilini saqlaydi (AddressService —
-     * reverse geocoding shu yerda) va profilni tugatadi. Geokodlash HTTP so'rovi
-     * DB tranzaksiyasidan tashqarida bo'lishi uchun bu yerda alohida tranzaksiya yo'q.
+     * Ro'yxatdan o'tishning oxirgi qadami: uy manzilini saqlaydi (AddressService::createForPoint — reverse geocoding
+     * shu yerda) va profilni tugatadi. Geokoder ko'cha topmasa ko'cha yoki mo'ljal berilishi SHART
+     * (StreetRequiredException) — bot buni oldindan so'raydi. Geokodlash HTTP so'rovi DB tranzaksiyasidan tashqarida
+     * bo'lishi uchun bu yerda alohida tranzaksiya yo'q.
      */
     public function completeWithHomeAddress(
         User $user,
         float $lat,
         float $lng,
-        ?string $addressText = null,
+        ?string $street = null,
+        ?string $landmark = null,
     ): Address {
-        $address = $this->addresses->create($user, [
+        $address = $this->addresses->createForPoint($user, $lat, $lng, [
             'label' => Address::LABEL_HOME,
-            'lat' => $lat,
-            'lng' => $lng,
-            'address_text' => $addressText ?: $this->coordsAsText($lat, $lng),
+            'street' => $street,
+            'note' => $landmark,
             'is_default' => true,
         ]);
 
@@ -119,10 +120,5 @@ class ProfileService
     private function cleanName(string $name): string
     {
         return trim(preg_replace('/\s+/', ' ', $name) ?? $name);
-    }
-
-    private function coordsAsText(float $lat, float $lng): string
-    {
-        return sprintf('%.6f, %.6f', $lat, $lng);
     }
 }

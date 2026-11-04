@@ -115,6 +115,12 @@ class ReceiptFormatter
                     $p->text($line);
                 }
             }
+            if ($d->landmark !== null) {
+                $p->bold(true)->text('MOLJAL:')->bold(false);
+                foreach ($p->wrap($d->landmark) as $line) {
+                    $p->text($line);
+                }
+            }
             $p->rule();
         }
 
@@ -206,6 +212,8 @@ class ReceiptFormatter
             telegramPhone: $order->hasDistinctContactPhone() ? (string) $order->user->phone : null,
             addressText: $addressText,
             addressExtra: $addressExtra,
+            // Mo'ljal faqat yetkazishda (olib ketishda manzil yo'q).
+            landmark: $pickup ? null : OrderAddress::landmark($order->address_snapshot),
             discount: $order->hasDiscount() ? (int) $order->discount_amount : 0,
             // Taksi rejimida yetkazish haqi summaga qo'shilmaydi (mijoz taksiga alohida to'laydi; fee = 0).
             deliveryFee: $order->delivery_paid_to_taxi ? 0 : (int) $order->delivery_fee,

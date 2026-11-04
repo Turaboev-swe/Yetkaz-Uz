@@ -18,6 +18,7 @@ class AddressResource extends JsonResource
             'lat' => $this->lat,
             'lng' => $this->lng,
             'address_text' => $this->address_text,
+            'street' => $this->street,
             // Mijozga ko'rsatiladigan manzil — hech qachon bo'sh yoki xom koordinata.
             'resolved_address' => $this->resource->displayAddress(),
             'district_id' => $this->district_id,

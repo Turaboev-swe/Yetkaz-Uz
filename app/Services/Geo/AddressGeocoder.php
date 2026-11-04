@@ -3,52 +3,48 @@
 namespace App\Services\Geo;
 
 use App\Models\District;
+use App\Support\AddressText;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 /**
- * Nuqta (lat/lng) -> tuman + o'qiladigan manzil matni.
+ * Nuqta (lat/lng) -> tuman + ko'cha + qishloq/mahalla + o'qiladigan manzil matni.
  *
  * Tuman DOIM `districts` jadvalidagi o'zbekcha nom bilan qaytadi
  * (eng yaqin markaz bo'yicha; Nominatim county mos kelsa — o'sha).
- * Ko'cha/uy Nominatim reverse'dan (accept-language=uz), xatoda —
- * faqat tuman nomi.
+ * Ko'cha/uy Nominatim reverse'dan (accept-language=uz). Yo'l RAQAMI (D137, M-39) ko'cha emas:
+ * OSM'da ko'chalarning aksariyati nomsiz, Nominatim bunda `road` o'rniga `ref` qaytaradi.
+ * Ko'cha topilmasa qishloq/mahalla (hamlet/village/...) nomi, u ham bo'lmasa — faqat tuman.
  */
 class AddressGeocoder
 {
-    /** @return array{district_id: int|null, district_name: string|null, address_text: string} */
+    /**
+     * @return array{district_id: int|null, district_name: string|null, street: string|null, locality: string|null, address_text: string}
+     */
     public function describe(float $lat, float $lng): array
     {
         $nearest = $this->nearestDistrict($lat, $lng);
         $osm = $this->reverse($lat, $lng);
 
         $district = $this->matchDistrict($osm['county'] ?? $osm['city'] ?? null) ?? $nearest;
-
-        $street = trim(implode(' ', array_filter([
-            $osm['road'] ?? null,
-            $osm['house_number'] ?? null,
-        ])));
-
-        $parts = array_filter([
-            $street !== '' ? $street : ($osm['neighbourhood'] ?? $osm['suburb'] ?? null),
-            $district?->name,
-        ]);
+        $street = $this->streetFrom($osm);
+        $locality = $this->localityFrom($osm, $district?->name);
 
         // Xom koordinata HECH QACHON matn sifatida qaytmaydi — bo'lmasa tuman nomi.
-        $text = $parts !== []
-            ? implode(', ', $parts)
-            : (string) $district?->name;
+        $text = AddressText::compose($street, $locality, $district?->name);
 
         return [
             'district_id' => $district?->id,
             'district_name' => $district?->name,
+            'street' => $street,
+            'locality' => $locality,
             'address_text' => mb_substr($text, 0, 250),
         ];
     }
 
     /**
-     * Nuqta -> qisqa, o'qiladigan manzil ("Bobur ko'chasi 12, Qo'rg'ontepa tumani").
+     * Nuqta -> qisqa, o'qiladigan manzil ("Bobur ko'chasi 12, Yangi qishloq, Qo'rg'ontepa tumani").
      * Manzil yaratilganda `resolved_address` uchun keshlanadi.
      *
      * Nominatim ishlamasa NULL qaytadi — chaqiruvchi o'z zaxirasini ishlatadi
@@ -66,17 +62,9 @@ class AddressGeocoder
         $district = $this->matchDistrict($osm['county'] ?? $osm['city'] ?? null)
             ?? $this->nearestDistrict($lat, $lng);
 
-        $street = trim(implode(' ', array_filter([
-            $osm['road'] ?? null,
-            $osm['house_number'] ?? null,
-        ])));
+        $text = AddressText::compose($this->streetFrom($osm), $this->localityFrom($osm, $district?->name), $district?->name);
 
-        $parts = array_filter([
-            $street !== '' ? $street : ($osm['neighbourhood'] ?? $osm['suburb'] ?? null),
-            $district?->name,
-        ]);
-
-        return $parts !== [] ? mb_substr(implode(', ', $parts), 0, 255) : null;
+        return $text !== '' ? mb_substr($text, 0, 255) : null;
     }
 
     public function nearestDistrict(float $lat, float $lng): ?District
@@ -87,7 +75,51 @@ class AddressGeocoder
     }
 
     /**
+     * Ko'cha nomi (+ uy raqami). Yo'l raqami (`ref`) ko'cha emas; uy raqami ko'chasiz ma'noga ega emas.
+     *
+     * @param  array<string, string>  $osm
+     */
+    private function streetFrom(array $osm): ?string
+    {
+        $road = trim((string) ($osm['road'] ?? ''));
+
+        if ($road === '' || AddressText::isRouteRef($road)) {
+            return null;
+        }
+
+        return trim($road.' '.trim((string) ($osm['house_number'] ?? '')));
+    }
+
+    /**
+     * Qishloq/mahalla nomi: kichigidan kattasiga (neighbourhood -> quarter -> suburb -> hamlet -> village).
+     * Tuman nomi bilan bir xil bo'lsa (masalan town = tuman markazi) — olinmaydi.
+     *
+     * @param  array<string, string>  $osm
+     */
+    private function localityFrom(array $osm, ?string $districtName): ?string
+    {
+        foreach (['neighbourhood', 'quarter', 'suburb', 'hamlet', 'village'] as $key) {
+            $name = trim((string) ($osm[$key] ?? ''));
+
+            if ($name === '') {
+                continue;
+            }
+
+            if ($districtName !== null && AddressText::normalize($name) === AddressText::normalize($districtName)) {
+                continue;
+            }
+
+            return $name;
+        }
+
+        return null;
+    }
+
+    /**
      * Nominatim reverse -> address bo'laklari (uz tilida). Xatoda [].
+     *
+     * Kesh: muvaffaqiyatli javob 1 kun; XATO (tarmoq, 4xx/5xx) atigi `geo.nominatim.error_cache_seconds` (standart 60 s) —
+     * Nominatim bir marta yiqilsa shu nuqta kun bo'yi bo'sh qolmasin, lekin har so'rov unga urilib ham ketmasin.
      *
      * @return array<string, string>
      */
@@ -95,30 +127,45 @@ class AddressGeocoder
     {
         $key = sprintf('geo:rev:%.4f:%.4f', $lat, $lng);
 
-        return Cache::remember($key, now()->addDay(), function () use ($lat, $lng) {
-            try {
-                $response = Http::withHeaders(['User-Agent' => config('geo.nominatim.user_agent')])
-                    ->timeout(8)
-                    ->get(rtrim(config('geo.nominatim.base_url'), '/').'/reverse', [
-                        'lat' => $lat,
-                        'lon' => $lng,
-                        'format' => 'jsonv2',
-                        'accept-language' => 'uz',
-                        'zoom' => 16,
-                        'addressdetails' => 1,
-                    ]);
-            } catch (\Throwable $e) {
-                Log::warning('[geo] reverse xato', ['msg' => $e->getMessage()]);
+        $cached = Cache::get($key);
+        if (is_array($cached)) {
+            return $cached;
+        }
 
-                return [];
-            }
+        [$address, $ok] = $this->fetchReverse($lat, $lng);
 
-            if (! $response->successful()) {
-                return [];
-            }
+        Cache::put($key, $address, $ok
+            ? now()->addDay()
+            : now()->addSeconds((int) config('geo.nominatim.error_cache_seconds', 60)));
 
-            return array_map('strval', $response->json('address') ?? []);
-        });
+        return $address;
+    }
+
+    /** @return array{0: array<string, string>, 1: bool} [address bo'laklari, so'rov muvaffaqiyatlimi] */
+    private function fetchReverse(float $lat, float $lng): array
+    {
+        try {
+            $response = Http::withHeaders(['User-Agent' => config('geo.nominatim.user_agent')])
+                ->timeout(8)
+                ->get(rtrim(config('geo.nominatim.base_url'), '/').'/reverse', [
+                    'lat' => $lat,
+                    'lon' => $lng,
+                    'format' => 'jsonv2',
+                    'accept-language' => 'uz',
+                    'zoom' => 16,
+                    'addressdetails' => 1,
+                ]);
+        } catch (\Throwable $e) {
+            Log::warning('[geo] reverse xato', ['msg' => $e->getMessage()]);
+
+            return [[], false];
+        }
+
+        if (! $response->successful()) {
+            return [[], false];
+        }
+
+        return [array_map('strval', $response->json('address') ?? []), true];
     }
 
     /** Nominatim county/city nomini `districts` jadvaliga solishtiradi. */
@@ -128,19 +175,10 @@ class AddressGeocoder
             return null;
         }
 
-        $target = $this->normalize($name);
+        $target = AddressText::normalize($name);
 
         return District::query()->active()->get()
-            ->first(fn (District $d) => $this->normalize($d->name) === $target);
-    }
-
-    /** Kichik harf, o'zbek apostroflari birlashtirilgan, " tumani"/" shahri" olib tashlangan. */
-    private function normalize(string $s): string
-    {
-        $s = str_replace(['ʻ', 'ʼ', 'ʹ', '‘', '’', '`', '´'], "'", mb_strtolower(trim($s)));
-        $s = preg_replace('/\s+(tumani|shahri|tuman|district|rayoni|район[а]?)$/u', '', $s) ?? $s;
-
-        return trim($s);
+            ->first(fn (District $d) => AddressText::normalize($d->name) === $target);
     }
 
     private function haversine(float $lat1, float $lng1, float $lat2, float $lng2): float

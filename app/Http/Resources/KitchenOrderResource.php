@@ -4,6 +4,7 @@ namespace App\Http\Resources;
 
 use App\Models\Order;
 use App\Services\Chat\OrderChatService;
+use App\Support\OrderAddress;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -50,6 +51,7 @@ class KitchenOrderResource extends JsonResource
                 'entrance' => $snap['entrance'] ?? null,
                 'floor' => $snap['floor'] ?? null,
                 'apartment' => $snap['apartment'] ?? null,
+                'landmark' => OrderAddress::landmark($snap),
                 'lat' => $snap['lat'] ?? null,
                 'lng' => $snap['lng'] ?? null,
             ],

@@ -5,6 +5,7 @@ namespace App\Jobs;
 use App\Enums\DeliveryType;
 use App\Models\Order;
 use App\Models\Staff;
+use App\Support\OrderAddress;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -142,6 +143,10 @@ class NotifyRestaurantOfNewOrder implements ShouldQueue
             ]);
             if ($extra !== []) {
                 $lines[] = $e(implode(' · ', $extra));
+            }
+            $landmark = OrderAddress::landmark($snap);
+            if ($landmark !== null) {
+                $lines[] = '🧭 Mo‘ljal: '.$e($landmark);
             }
         }
 

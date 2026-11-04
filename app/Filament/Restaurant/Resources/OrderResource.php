@@ -103,7 +103,10 @@ class OrderResource extends Resource
                 ->formatStateUsing(fn (?CourierType $state): string => $state ? $state->icon().' '.$state->label() : '—'),
             Infolists\Components\TextEntry::make('courier_name')->label('Kuryer ismi')->placeholder('—'),
             Infolists\Components\TextEntry::make('courier_phone')->label('Kuryer telefoni')->placeholder('—'),
-            Infolists\Components\KeyValueEntry::make('address_snapshot')->label('Manzil')->columnSpanFull(),
+            Infolists\Components\TextEntry::make('address_snapshot.landmark')->label('Mo‘ljal')->placeholder('—')->columnSpanFull(),
+            // Mo'ljal alohida qatorda ko'rsatiladi — xom kalit/qiymat jadvalida takrorlanmasin.
+            Infolists\Components\KeyValueEntry::make('address_snapshot')->label('Manzil')->columnSpanFull()
+                ->state(fn (Order $record): array => collect($record->address_snapshot ?? [])->except(['landmark'])->all()),
             Infolists\Components\RepeatableEntry::make('items')
                 ->label('Taomlar')
                 ->schema([

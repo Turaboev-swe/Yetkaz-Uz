@@ -145,6 +145,9 @@ class SendOrderConfirmationToCustomer implements ShouldQueue
             }
         } else {
             $out[] = '📍 '.$esc($t('address')).': '.$esc(OrderAddress::line($order->address_snapshot) ?? '—');
+            if ($landmark = OrderAddress::landmark($order->address_snapshot)) {
+                $out[] = '🧭 '.$esc($t('landmark')).': '.$esc($landmark);
+            }
         }
 
         // --- Izoh (mijoz checkout paytida yozgan bo'lsa) ---

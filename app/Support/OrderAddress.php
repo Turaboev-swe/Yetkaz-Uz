@@ -38,6 +38,19 @@ final class OrderAddress
     }
 
     /**
+     * Mo'ljal ("Hokimiyat orqasida") — mijoz manzilga yozgan, buyurtma snapshot'iga `landmark` bo'lib tushadi.
+     * Eski buyurtmalarda yo'q — null.
+     *
+     * @param  array<string, mixed>|null  $snapshot
+     */
+    public static function landmark(?array $snapshot): ?string
+    {
+        $landmark = trim((string) ($snapshot['landmark'] ?? ''));
+
+        return $landmark === '' ? null : $landmark;
+    }
+
+    /**
      * Kirish / qavat / xonadon — bo'lsa "kirish 2 · qavat 3 · xonadon 12".
      *
      * @param  array<string, mixed>|null  $snapshot

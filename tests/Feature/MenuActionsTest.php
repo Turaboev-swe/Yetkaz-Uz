@@ -20,11 +20,15 @@ class MenuActionsTest extends TestCase
 
     private const TG_ID = 555300;
 
+    /** Nominatim javobi (address bo'laklari): test ichida o'zgartiriladi. */
+    private array $nominatim = [];
+
     protected function setUp(): void
     {
         parent::setUp();
         config()->set('telegram.mini_app_url', 'https://mini.example/app');
-        Http::fake(); // "📍 Yangi manzil" geokodlash — tashqi so'rovsiz
+        // "📍 Yangi manzil" geokodlash — tashqi so'rovsiz; javob $this->nominatim dan.
+        Http::fake(fn () => Http::response(['address' => $this->nominatim]));
     }
 
     private function bot(): Nutgram
@@ -115,6 +119,8 @@ class MenuActionsTest extends TestCase
 
     public function test_new_address_location_is_saved_as_default(): void
     {
+        // Geokoder ko'cha topdi — manzil savolsiz saqlanadi (topilmasa NewAddressConversation: StreetBotFlowTest).
+        $this->nominatim = ['road' => "Navoiy ko'chasi"];
         $user = $this->registered();
         $bot = $this->bot();
 

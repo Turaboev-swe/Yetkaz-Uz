@@ -284,6 +284,9 @@ class OrderService
         return [
             'label' => $address->label,
             'address_text' => $address->address_text,
+            // Ko'cha va mo'ljal (addresses.street / addresses.note) buyurtma paytidagi SNAPSHOT: oshxona, chek va xabarlar shundan.
+            'street' => filled($address->street) ? trim((string) $address->street) : null,
+            'landmark' => filled($address->note) ? trim((string) $address->note) : null,
             'district' => $address->district?->name,
             'lat' => $address->lat,
             'lng' => $address->lng,

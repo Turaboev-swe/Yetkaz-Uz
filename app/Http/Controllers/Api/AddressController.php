@@ -7,7 +7,6 @@ use App\Http\Requests\StoreAddressRequest;
 use App\Http\Requests\UpdateAddressRequest;
 use App\Http\Resources\AddressResource;
 use App\Models\Address;
-use App\Services\Geo\AddressGeocoder;
 use App\Services\User\AddressService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -15,10 +14,7 @@ use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 class AddressController extends Controller
 {
-    public function __construct(
-        private readonly AddressService $addresses,
-        private readonly AddressGeocoder $geocoder,
-    ) {}
+    public function __construct(private readonly AddressService $addresses) {}
 
     public function index(Request $request): AnonymousResourceCollection
     {
@@ -35,14 +31,9 @@ class AddressController extends Controller
     {
         $data = $request->validated();
 
-        // Tuman va (berilmagan bo'lsa) manzil matni — nuqtadan geokodlanadi.
-        if (empty($data['district_id']) || empty($data['address_text'])) {
-            $geo = $this->geocoder->describe((float) $data['lat'], (float) $data['lng']);
-            $data['district_id'] ??= $geo['district_id'];
-            $data['address_text'] ??= $geo['address_text'];
-        }
-
-        $address = $this->addresses->create($request->user(), $data);
+        // Tuman, qishloq/mahalla va ko'cha nuqtadan geokodlanadi; mijoz kiritgan ko'cha ustun. Geokoder ko'cha topmasa va
+        // ko'cha ham, mo'ljal (note) ham yo'q bo'lsa — 422 (StreetRequiredException). address_text server tomonda yig'iladi.
+        $address = $this->addresses->createForPoint($request->user(), (float) $data['lat'], (float) $data['lng'], $data);
 
         return (new AddressResource($address->load('district')))->response()->setStatusCode(201);
     }

@@ -2,8 +2,11 @@
 
 namespace App\Telegram\Conversations;
 
+use App\Exceptions\StreetRequiredException;
 use App\Models\User;
+use App\Services\Geo\AddressGeocoder;
 use App\Services\User\ProfileService;
+use App\Telegram\Conversations\Concerns\AsksForStreet;
 use App\Telegram\Support\Keyboards;
 use SergiX44\Nutgram\Conversations\Conversation;
 use SergiX44\Nutgram\Nutgram;
@@ -19,9 +22,12 @@ use SergiX44\Nutgram\Nutgram;
  * - telefon faqat request_contact tugmasi orqali
  * - ism/telefon/lokatsiya bir marta so'raladi
  * - lokatsiya "Uy" yorlig'i, is_default = true bilan saqlanadi
+ * - geokoder ko'cha nomini topmasa ko'cha YOKI mo'ljal so'raladi (AsksForStreet; o'tkazib yuborib bo'lmaydi)
  */
 class RegistrationConversation extends Conversation
 {
+    use AsksForStreet;
+
     protected ?string $step = 'askPhone';
 
     public function askPhone(Nutgram $bot): void
@@ -103,11 +109,45 @@ class RegistrationConversation extends Conversation
             return;
         }
 
-        $this->profiles()->completeWithHomeAddress(
-            user: $this->user($bot),
-            lat: $location->latitude,
-            lng: $location->longitude,
-        );
+        $this->handleNewPoint($bot, $location->latitude, $location->longitude);
+    }
+
+    /** Lokatsiya (yoki suhbat paytida qayta yuborilgan lokatsiya): ko'cha topilsa savolsiz, topilmasa so'rab saqlanadi. */
+    protected function handleNewPoint(Nutgram $bot, float $lat, float $lng): void
+    {
+        $this->lat = $lat;
+        $this->lng = $lng;
+
+        if (app(AddressGeocoder::class)->describe($lat, $lng)['street'] !== null) {
+            $this->finishAddress($bot, null, null);
+
+            return;
+        }
+
+        $this->askStreet($bot);
+    }
+
+    /** Ro'yxatdan o'tishda lokatsiya majburiy — bekor qilish tugmasi yo'q. */
+    protected function canCancel(): bool
+    {
+        return false;
+    }
+
+    protected function finishAddress(Nutgram $bot, ?string $street, ?string $landmark): void
+    {
+        try {
+            $this->profiles()->completeWithHomeAddress(
+                user: $this->user($bot),
+                lat: (float) $this->lat,
+                lng: (float) $this->lng,
+                street: $street,
+                landmark: $landmark,
+            );
+        } catch (StreetRequiredException) {
+            $this->askStreet($bot);
+
+            return;
+        }
 
         $bot->sendMessage(
             __('messages.registration.done'),

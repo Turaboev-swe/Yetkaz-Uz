@@ -13,6 +13,9 @@ return [
         'base_url' => env('NOMINATIM_URL', 'https://nominatim.openstreetmap.org'),
         'contact' => env('NOMINATIM_CONTACT', 'https://github.com/Turaboev-swe/Yetkaz-Uz'),
         'user_agent' => env('APP_NAME', 'Yetkaz').'/1.0 (+'.env('NOMINATIM_CONTACT', 'https://github.com/Turaboev-swe/Yetkaz-Uz').')',
+
+        // Reverse xatosi (tarmoq, 4xx/5xx) shuncha soniya keshlanadi; muvaffaqiyatli javob 1 kun (AddressGeocoder::reverse).
+        'error_cache_seconds' => (int) env('NOMINATIM_ERROR_CACHE_SECONDS', 60),
     ],
 
     /*

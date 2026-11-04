@@ -19,10 +19,14 @@ class RegistrationFlowTest extends TestCase
 
     private const TG_ID = 555001;
 
+    /** Nominatim javobi (address bo'laklari): test ichida o'zgartiriladi. */
+    private array $nominatim = [];
+
     protected function setUp(): void
     {
         parent::setUp();
-        Http::fake(); // uy manzili — reverse geocoding tashqi so'rovsiz
+        // Uy manzili — reverse geocoding tashqi so'rovsiz; javob $this->nominatim dan (ko'cha topilmasa bot so'raydi).
+        Http::fake(fn () => Http::response(['address' => $this->nominatim]));
     }
 
     private function bot(): Nutgram
@@ -73,7 +77,8 @@ class RegistrationFlowTest extends TestCase
         $bot->assertReplyText(__('messages.registration.ask_location'));
         $this->assertSame('Ali Valiyev', User::byTelegramId(self::TG_ID)->value('full_name'));
 
-        // 3. lokatsiya
+        // 3. lokatsiya (geokoder ko'cha topdi — savolsiz saqlanadi)
+        $this->nominatim = ['road' => "Bobur ko'chasi", 'house_number' => '12'];
         $bot->hearMessage(['location' => ['latitude' => 41.311, 'longitude' => 69.279]])->reply();
 
         $user = User::byTelegramId(self::TG_ID)->firstOrFail();

@@ -91,6 +91,7 @@ class AddressGeocodingTest extends TestCase
             'label' => 'Uy',
             'lat' => 40.7335,
             'lng' => 72.7620,
+            'street' => "Bobur ko'chasi 3",
         ], $headers)
             ->assertCreated()
             ->assertJsonPath('data.district', "Qo'rg'ontepa tumani");

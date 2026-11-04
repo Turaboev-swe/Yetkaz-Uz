@@ -34,6 +34,29 @@ final class Keyboards
     }
 
     /**
+     * Ko'cha so'ralganda: «Ko'cha nomini bilmayman» (mo'ljal so'raladi) va, mavjud manzilga qo'shishda, «Bekor qilish».
+     * «O'tkazib yuborish» tugmasi YO'Q — ko'cha yoki mo'ljaldan kamida bittasi majburiy.
+     */
+    public static function streetPrompt(bool $withCancel = true): ReplyKeyboardMarkup
+    {
+        $keyboard = ReplyKeyboardMarkup::make(resize_keyboard: true)
+            ->addRow(KeyboardButton::make(__('messages.address_flow.dont_know_street')));
+
+        if ($withCancel) {
+            $keyboard->addRow(KeyboardButton::make(__('messages.address_flow.cancel')));
+        }
+
+        return $keyboard;
+    }
+
+    /** Mo'ljal so'ralganda: faqat «Bekor qilish». */
+    public static function cancelOnly(): ReplyKeyboardMarkup
+    {
+        return ReplyKeyboardMarkup::make(resize_keyboard: true)
+            ->addRow(KeyboardButton::make(__('messages.address_flow.cancel')));
+    }
+
+    /**
      * Asosiy menyu — 3 qator, 2 ustun.
      *
      *   🍿 Buyurtma berish    |  📍 Yangi manzil   (request_location)

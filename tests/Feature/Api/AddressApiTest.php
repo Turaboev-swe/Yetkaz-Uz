@@ -36,7 +36,8 @@ class AddressApiTest extends TestCase
             'label' => 'Uy',
             'lat' => 41.311,
             'lng' => 69.279,
-            'address_text' => 'Amir Temur 1',
+            // Geokoder ko'cha topmaydigan joyda ko'cha (yoki mo'ljal) majburiy — testlar nuqtani Nominatim'siz yuboradi.
+            'street' => "Amir Temur ko'chasi 1",
         ], $overrides);
     }
 
