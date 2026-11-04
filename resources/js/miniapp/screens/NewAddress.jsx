@@ -4,20 +4,31 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { api } from '../lib/api';
 import { showBackButton, haptic, notify } from '../lib/telegram';
+import { composeAddress, streetOrLandmarkMissing } from '../lib/addressForm';
 
 const ANDIJAN = { lat: 40.7825, lng: 72.35 };
 const LABELS = ['Uy', 'Ish', 'Boshqa'];
 
-/** B: "Yangi manzil" — xaritada nuqta tanlanadi, label so'raladi, saqlanadi. */
+/**
+ * B: "Yangi manzil" — xaritada nuqta tanlanadi, ko'cha (tahrirlanadi) va mo'ljal kiritiladi, label so'raladi, saqlanadi.
+ *
+ * Ko'cha geokoderdan avtomatik to'ldiriladi (OSM'da ko'cha nomi ko'pincha yo'q — shunda maydon bo'sh qoladi).
+ * Geokoder ko'cha topmasa ko'cha YOKI mo'ljaldan kamida bittasi majburiy (server ham tekshiradi).
+ * Tuman va qishloq/mahalla nomi avtomatik qo'shiladi — mijoz faqat ko'chani yozadi.
+ */
 export default function NewAddress() {
     const navigate = useNavigate();
     const mapEl = useRef(null);
     const mapRef = useRef(null);
     const revTimer = useRef(null);
+    // Oxirgi AVTOMAT to'ldirilgan ko'cha: maydon unga teng bo'lsa (mijoz tegmagan) xarita siljiganda yangilanadi.
+    const autoStreet = useRef('');
 
     const [point, setPoint] = useState(ANDIJAN);
-    const [geo, setGeo] = useState(null); // { district_name, address_text }
+    const [geo, setGeo] = useState(null); // { district_name, locality, street, address_text }
     const [loadingGeo, setLoadingGeo] = useState(false);
+    const [street, setStreet] = useState('');
+    const [landmark, setLandmark] = useState('');
     const [label, setLabel] = useState('Uy');
     const [customLabel, setCustomLabel] = useState('');
     const [saving, setSaving] = useState(false);
@@ -30,7 +41,12 @@ export default function NewAddress() {
         setLoadingGeo(true);
         revTimer.current = setTimeout(() => {
             api.reverse(lat, lng)
-                .then((r) => setGeo(r.data))
+                .then((r) => {
+                    const found = r.data?.street || '';
+                    setGeo(r.data);
+                    setStreet((cur) => (cur === autoStreet.current ? found : cur));
+                    autoStreet.current = found;
+                })
                 .catch(() => setGeo(null))
                 .finally(() => setLoadingGeo(false));
         }, 400);
@@ -58,16 +74,30 @@ export default function NewAddress() {
         };
     }, [reverse]);
 
+    const streetFound = Boolean(geo?.street);
+    const missing = streetOrLandmarkMissing(street, landmark);
+    // Geokoder ko'cha topmagan joyda majburiylik haqida tushuntirish ko'rinadi (yozishni boshlagach yo'qoladi).
+    const showRequiredHint = !loadingGeo && !streetFound && missing;
+    const preview = composeAddress(street, geo?.locality, geo?.district_name);
+
     const save = async () => {
+        if (missing) {
+            notify('error');
+            setError('Ko‘cha nomini yoki mo‘ljalni kiriting.');
+            return;
+        }
+
         const finalLabel = label === 'Boshqa' ? customLabel.trim() || 'Manzil' : label;
         setSaving(true);
         setError(null);
         try {
+            // Manzil matni (ko'cha + qishloq + tuman) serverda yig'iladi — mijozdan faqat ko'cha va mo'ljal.
             const res = await api.createAddress({
                 label: finalLabel,
                 lat: point.lat,
                 lng: point.lng,
-                address_text: geo?.address_text,
+                street: street.trim() || null,
+                note: landmark.trim() || null,
                 is_default: true,
             });
             notify('success');
@@ -75,7 +105,8 @@ export default function NewAddress() {
             // shu manzil uchun to'g'ridan-to'g'ri so'raladi (qayta tasdiqlashsiz).
             navigate('/', { replace: true, state: { justAddedAddressId: res.data.id } });
         } catch (e) {
-            setError(e.message);
+            // 422: server "ko'cha yoki mo'ljal kerak" desa — aynan shu xabar.
+            setError(e.body?.errors?.street?.[0] || e.message);
             setSaving(false);
         }
     };
@@ -91,17 +122,48 @@ export default function NewAddress() {
             </div>
 
             <div
-                className="rounded-t-2xl px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-3"
+                className="max-h-[70vh] overflow-y-auto rounded-t-2xl px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-3"
                 style={{ background: 'var(--tg-secondary-bg)' }}
             >
                 <div className="mb-3 min-h-[2.5rem]">
                     <p className="text-[14px] font-semibold" style={{ color: 'var(--tg-text)' }}>
-                        {loadingGeo ? 'Aniqlanmoqda…' : geo?.address_text || geo?.district_name || 'Xaritani suring'}
+                        {loadingGeo ? 'Aniqlanmoqda…' : preview || 'Xaritani suring'}
                     </p>
-                    {geo?.district_name && geo.district_name !== geo.address_text && !loadingGeo && (
-                        <p className="text-[12px]" style={{ color: 'var(--tg-hint)' }}>{geo.district_name}</p>
-                    )}
                 </div>
+
+                <label className="mb-1 block text-[12px] font-medium" style={{ color: 'var(--tg-hint)' }} htmlFor="addr-street">
+                    Ko‘cha
+                </label>
+                <input
+                    id="addr-street"
+                    value={street}
+                    onChange={(e) => setStreet(e.target.value)}
+                    placeholder={streetFound ? 'Ko‘cha nomi' : 'Ko‘cha nomini yozing'}
+                    maxLength={255}
+                    autoComplete="off"
+                    className="mb-2 w-full rounded-xl px-3 py-2 text-[14px] outline-none"
+                    style={{ background: 'var(--tg-section-bg)', color: 'var(--tg-text)' }}
+                />
+
+                <label className="mb-1 block text-[12px] font-medium" style={{ color: 'var(--tg-hint)' }} htmlFor="addr-landmark">
+                    {streetFound || street.trim() ? 'Mo‘ljal (ixtiyoriy)' : 'Mo‘ljal'}
+                </label>
+                <input
+                    id="addr-landmark"
+                    value={landmark}
+                    onChange={(e) => setLandmark(e.target.value)}
+                    placeholder="Masalan: Hokimiyat orqasida"
+                    maxLength={500}
+                    autoComplete="off"
+                    className="mb-2 w-full rounded-xl px-3 py-2 text-[14px] outline-none"
+                    style={{ background: 'var(--tg-section-bg)', color: 'var(--tg-text)' }}
+                />
+
+                {showRequiredHint && (
+                    <p className="mb-3 text-[12px]" style={{ color: 'var(--tg-destructive)' }}>
+                        Xaritada ko‘cha nomi topilmadi. Ko‘cha nomini yoki mo‘ljalni kiriting.
+                    </p>
+                )}
 
                 <div className="mb-3 flex gap-2">
                     {LABELS.map((l) => (
@@ -137,7 +199,7 @@ export default function NewAddress() {
 
                 <button
                     onClick={save}
-                    disabled={saving}
+                    disabled={saving || loadingGeo || missing}
                     className="h-11 w-full rounded-xl text-[15px] font-semibold disabled:opacity-60"
                     style={{ background: 'var(--tg-button)', color: 'var(--tg-button-text)' }}
                 >
