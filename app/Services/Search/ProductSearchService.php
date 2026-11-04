@@ -36,6 +36,8 @@ class ProductSearchService
             ->join('categories', 'categories.id', '=', 'products.category_id')
             ->join('restaurants', 'restaurants.id', '=', 'categories.restaurant_id')
             ->where('products.is_available', true)
+            // Tugagan (qoldiq 0) taom qidiruvda chiqmaydi: maqsad — "qayerdan buyurtma qilsam bo'ladi". Menyuda esa «Tugadi».
+            ->inStock()
             ->where('categories.is_active', true)
             ->where('restaurants.is_open', true)
             ->when(! TestAccess::isTester($viewer), fn ($q) => $q->where('restaurants.is_test', false))

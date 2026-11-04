@@ -53,6 +53,12 @@ export default function DishDetailSheet({ product, restaurantLogoUrl, qty, onAdd
                         )}
                     </div>
 
+                    {product.low_stock && !product.sold_out && (
+                        <p className="mt-1 text-[13px] font-semibold" style={{ color: 'var(--tg-destructive)' }}>
+                            Faqat {product.stock} ta qoldi!
+                        </p>
+                    )}
+
                     {product.prep_time_min > 0 && (
                         <p className="mt-1 text-[13px]" style={{ color: 'var(--tg-hint)' }}>
                             Tayyorlash: ~{product.prep_time_min} daqiqa
@@ -83,7 +89,18 @@ export default function DishDetailSheet({ product, restaurantLogoUrl, qty, onAdd
                     )}
 
                     <div className="sticky bottom-0 -mx-4 mt-4 px-4 pt-2" style={{ background: 'var(--tg-secondary-bg)' }}>
-                        <QtyControl qty={qty} onAdd={onAdd} onRemove={onRemove} addLabel="+ Savatga qo‘shish" />
+                        {product.sold_out ? (
+                            <button
+                                type="button"
+                                disabled
+                                className="h-9 w-full rounded-xl text-[13px] font-semibold"
+                                style={{ background: 'var(--tg-section-bg)', color: 'var(--tg-hint)' }}
+                            >
+                                Tugadi
+                            </button>
+                        ) : (
+                            <QtyControl qty={qty} onAdd={onAdd} onRemove={onRemove} addLabel="+ Savatga qo‘shish" max={product.stock} />
+                        )}
                     </div>
                 </>
             )}

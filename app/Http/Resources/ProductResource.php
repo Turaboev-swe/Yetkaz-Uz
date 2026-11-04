@@ -22,6 +22,11 @@ class ProductResource extends JsonResource
             'old_price' => $this->when($this->resource->isOnSale(), fn () => $this->old_price),
             'photo_url' => Media::url($this->photo_url),
             'prep_time_min' => $this->prep_time_min,
+            // Qoldiq: `stock` — null = cheklanmagan; Mini App savatni shu sondan oshirmaydi (server baribir qayta tekshiradi).
+            // `sold_out` — «Tugadi» (qoldiq 0, qoldiqdan hisoblanadi); `low_stock` — «Faqat N ta qoldi!» ko'rsatilsinmi.
+            'stock' => $this->stock_quantity,
+            'sold_out' => $this->resource->isSoldOut(),
+            'low_stock' => $this->resource->showsLowStock(),
             // Kaloriya — FAQAT restoran egasi tasdiqlagan bo'lsa; aks holda
             // kalitlar umuman yo'q (pending AI taxmini mijozga chiqmaydi).
             'calories' => $this->when($this->resource->hasApprovedNutrition(), fn () => $this->calories_estimate),

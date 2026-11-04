@@ -30,6 +30,9 @@ class Product extends Model
         'photo_url',
         'prep_time_min',
         'is_available',
+        'stock_quantity',
+        'daily_stock',
+        'daily_reset_time',
         'sort_order',
         'calories_estimate',
         'is_light',
@@ -44,12 +47,45 @@ class Product extends Model
             'old_price' => 'integer',
             'prep_time_min' => 'integer',
             'is_available' => 'boolean',
+            'stock_quantity' => 'integer',
+            'daily_stock' => 'integer',
+            'stock_reset_at' => 'datetime',
             'sort_order' => 'integer',
             'calories_estimate' => 'integer',
             'is_light' => 'boolean',
             'nutrition_status' => NutritionStatus::class,
             'nutrition_generated_at' => 'datetime',
         ];
+    }
+
+    /** Qoldiq cheklanganmi (NULL = cheklanmagan: bugungi xatti-harakat). */
+    public function hasLimitedStock(): bool
+    {
+        return $this->stock_quantity !== null;
+    }
+
+    /**
+     * «Tugadi»: qoldiq 0. `is_available` ga TEGILMAYDI — u restoranning qo'lda yashirishi (mijozga ko'rinmaydi),
+     * «Tugadi» esa qoldiqdan hisoblanadi va restoran sonni oshirsa o'zi qaytadi.
+     */
+    public function isSoldOut(): bool
+    {
+        return $this->stock_quantity !== null && $this->stock_quantity <= 0;
+    }
+
+    /**
+     * «Faqat N ta qoldi!» ko'rsatilsinmi: qoldiq bor (0 emas), cheklangan va `yetkaz.stock_display_threshold` ga teng
+     * yoki kam (threshold `null` bo'lsa — doim). Cheklanmagan mahsulotda hech qachon.
+     */
+    public function showsLowStock(): bool
+    {
+        if ($this->stock_quantity === null || $this->stock_quantity <= 0) {
+            return false;
+        }
+
+        $threshold = config('yetkaz.stock_display_threshold', 5);
+
+        return $threshold === null || $this->stock_quantity <= (int) $threshold;
     }
 
     /** Taom aksiyada — `old_price` bor va joriy narxdan yuqori. */
@@ -85,6 +121,12 @@ class Product extends Model
     public function scopeAvailable(Builder $query): Builder
     {
         return $query->where('is_available', true);
+    }
+
+    /** Qoldig'i bor yoki cheklanmagan (sotib olsa bo'ladigan). */
+    public function scopeInStock(Builder $query): Builder
+    {
+        return $query->where(fn (Builder $q) => $q->whereNull($this->qualifyColumn('stock_quantity'))->orWhere($this->qualifyColumn('stock_quantity'), '>', 0));
     }
 
     /** RestaurantScope tomonidan chaqiriladi (restaurant_owner uchun). */

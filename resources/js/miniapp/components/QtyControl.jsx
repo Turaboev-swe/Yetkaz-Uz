@@ -1,7 +1,12 @@
 import { haptic } from '../lib/telegram';
 
-/** "+ Qo'shish" tugmasi -> qo'shilgach (− N +) boshqaruvi. */
-export default function QtyControl({ qty, onAdd, onRemove, addLabel = '+ Qo‘shish' }) {
+/**
+ * "+ Qo'shish" tugmasi -> qo'shilgach (− N +) boshqaruvi.
+ * `max` — qoldiq (null/yo'q = cheklanmagan): qty unga yetganda "+" o'chadi.
+ */
+export default function QtyControl({ qty, onAdd, onRemove, addLabel = '+ Qo‘shish', max = null }) {
+    const atMax = max !== null && max !== undefined && qty >= max;
+
     if (!qty) {
         return (
             <button
@@ -38,7 +43,8 @@ export default function QtyControl({ qty, onAdd, onRemove, addLabel = '+ Qo‘sh
                     haptic('light');
                     onAdd();
                 }}
-                className="flex h-9 w-9 items-center justify-center text-lg font-bold"
+                disabled={atMax}
+                className="flex h-9 w-9 items-center justify-center text-lg font-bold disabled:opacity-30"
                 aria-label="Ko‘paytirish"
             >
                 +

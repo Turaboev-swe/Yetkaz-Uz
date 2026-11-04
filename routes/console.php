@@ -22,3 +22,7 @@ Schedule::command('billing:sync-tariffs')
 
 // Chek chiqmagan buyurtmalarni belgilash: agent o'chiq yoki printer ishlamasa ham (Reverb xatosiga tayanmaydi).
 Schedule::command('print:check-unprinted')->everyMinute()->withoutOverlapping();
+
+// Kunlik qoldiq: har daqiqa `daily_reset_time` (Asia/Tashkent) kelgan mahsulotlarda stock_quantity = daily_stock.
+// Vaqt zonasi va «kuniga bir marta» mantig'i StockService::resetDaily() da (scheduler soati UTC bo'lsa ham to'g'ri).
+Schedule::command('stock:reset-daily')->everyMinute()->withoutOverlapping();

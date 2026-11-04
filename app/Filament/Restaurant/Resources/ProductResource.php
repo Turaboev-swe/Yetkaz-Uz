@@ -99,8 +99,41 @@ class ProductResource extends Resource
                 ->label('Mavjud')
                 ->default(true),
 
+            self::stockSection(),
+
             self::nutritionSection(),
         ]);
+    }
+
+    /**
+     * Qoldiq (stock). Bo'sh = cheklanmagan (mavjud mahsulotlar shunday qoladi). 0 = «Tugadi» (mijozga kulrang),
+     * soni oshirilsa mahsulot o'zi qaytadi — `is_available` ga tegilmaydi. Kunlik qoldiq: har kuni belgilangan
+     * vaqtda (Asia/Tashkent) shu songa tiklanadi (`stock:reset-daily`, har daqiqa).
+     */
+    private static function stockSection(): Forms\Components\Section
+    {
+        return Forms\Components\Section::make('Qoldiq')
+            ->description('Buyurtma berilganda kamayadi, bekor qilinganda qaytadi. 0 bo\'lganda mijozga «Tugadi» ko\'rinadi.')
+            ->columns(3)
+            ->schema([
+                Forms\Components\TextInput::make('stock_quantity')
+                    ->label('Qoldiq (dona)')
+                    ->numeric()->integer()->minValue(0)->maxValue(1_000_000)
+                    ->placeholder('∞ cheklanmagan')
+                    ->helperText('Bo\'sh qoldirilsa — cheklanmagan.'),
+
+                Forms\Components\TextInput::make('daily_stock')
+                    ->label('Kunlik qoldiq')
+                    ->numeric()->integer()->minValue(0)->maxValue(1_000_000)
+                    ->live(onBlur: true)
+                    ->helperText('Ixtiyoriy: har kuni shu songa tiklanadi.'),
+
+                Forms\Components\TimePicker::make('daily_reset_time')
+                    ->label('Qayta tiklanish vaqti')
+                    ->seconds(false)
+                    ->required(fn (Forms\Get $get): bool => filled($get('daily_stock')))
+                    ->helperText('Toshkent vaqti bilan, masalan 06:00.'),
+            ]);
     }
 
     /**
@@ -174,6 +207,8 @@ class ProductResource extends Resource
         return $table
             ->defaultSort('sort_order')
             ->reorderable('sort_order')
+            // Buyurtmalar qoldiqni kamaytiradi — jadval o'zi yangilanib turadi (panelda Echo yo'q, shuning uchun polling).
+            ->poll('15s')
             ->columns([
                 // Eng ko'p ishlatiladigan amal — bir bosishli "mavjud/tugadi" toggle.
                 Tables\Columns\ToggleColumn::make('is_available')
@@ -209,6 +244,23 @@ class ProductResource extends Resource
                     ->formatStateUsing(fn (int $state): string => number_format(intdiv($state, 100), 0, '.', ' ')." so'm")
                     ->sortable(),
 
+                // Qoldiqni tezkor tahrirlash: bo'sh = cheklanmagan (∞), 0 = «Tugadi», raqam = shuncha dona.
+                Tables\Columns\TextInputColumn::make('stock_quantity')
+                    ->label('Qoldiq (dona)')
+                    ->type('number')
+                    ->inputMode('numeric')
+                    ->step(1)
+                    ->placeholder('∞')
+                    ->tooltip('Bo\'sh — cheklanmagan, 0 — Tugadi')
+                    ->rules(['nullable', 'integer', 'min:0', 'max:1000000'])
+                    ->sortable(),
+
+                Tables\Columns\TextColumn::make('stock_state')
+                    ->label('')
+                    ->state(fn (Product $record): ?string => $record->isSoldOut() ? 'Tugadi' : null)
+                    ->badge()
+                    ->color('danger'),
+
                 Tables\Columns\TextColumn::make('prep_time_min')
                     ->label('Daqiqa')
                     ->suffix(' min')
@@ -235,6 +287,10 @@ class ProductResource extends Resource
                     ->relationship('category', 'name'),
                 Tables\Filters\TernaryFilter::make('is_available')
                     ->label('Mavjudlik'),
+                Tables\Filters\Filter::make('sold_out')
+                    ->label('Tugagan (qoldiq 0)')
+                    ->toggle()
+                    ->query(fn (Builder $query): Builder => $query->where('stock_quantity', '<=', 0)),
                 Tables\Filters\Filter::make('no_photo')
                     ->label('Rasmsiz mahsulotlar')
                     ->toggle()
