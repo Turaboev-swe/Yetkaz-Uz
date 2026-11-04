@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Exceptions\StreetRequiredException;
 use App\Models\Address;
 use App\Models\User;
 use App\Services\User\ProfileService;
@@ -89,7 +90,7 @@ class ProfileServiceTest extends TestCase
         $this->service->saveContact($user, '998901112233');
         $this->service->saveName($user, 'Ali');
 
-        $address = $this->service->completeWithHomeAddress($user, 41.311, 69.279);
+        $address = $this->service->completeWithHomeAddress($user, 41.311, 69.279, street: "Bobur ko'chasi 12");
 
         $this->assertSame(Address::LABEL_HOME, $address->label);
         $this->assertTrue($address->is_default);
@@ -98,13 +99,41 @@ class ProfileServiceTest extends TestCase
         $this->assertTrue($this->service->isRegistered($user->fresh()));
     }
 
-    public function test_address_text_falls_back_to_coordinates(): void
+    public function test_the_home_address_text_is_built_from_the_street_and_never_from_raw_coordinates(): void
     {
         $user = User::factory()->incomplete()->create();
 
-        $address = $this->service->completeWithHomeAddress($user, 41.3111111, 69.2799999);
+        $address = $this->service->completeWithHomeAddress($user, 41.3111111, 69.2799999, street: "Bobur ko'chasi 12");
 
-        $this->assertSame('41.311111, 69.280000', $address->address_text);
+        $this->assertSame("Bobur ko'chasi 12", $address->street);
+        $this->assertStringStartsWith("Bobur ko'chasi 12", $address->address_text);
+        $this->assertDoesNotMatchRegularExpression('/\d+\.\d{4,}/', $address->address_text);
+    }
+
+    public function test_a_landmark_alone_completes_the_profile(): void
+    {
+        $user = User::factory()->incomplete()->create();
+
+        $address = $this->service->completeWithHomeAddress($user, 41.3, 69.2, landmark: 'Maktab yonida');
+
+        $this->assertNull($address->street);
+        $this->assertSame('Maktab yonida', $address->note);
+        $this->assertTrue($user->fresh()->profile_completed);
+    }
+
+    public function test_without_a_street_or_landmark_the_profile_is_not_completed(): void
+    {
+        $user = User::factory()->incomplete()->create();
+
+        try {
+            $this->service->completeWithHomeAddress($user, 41.3, 69.2);
+            $this->fail('ko‘cha yoki mo‘ljalsiz tugallanmasligi kerak edi');
+        } catch (StreetRequiredException) {
+            // kutilgan
+        }
+
+        $this->assertFalse($user->fresh()->profile_completed);
+        $this->assertSame(0, $user->addresses()->count());
     }
 
     public function test_is_registered_false_until_all_three_pieces_present(): void
@@ -118,7 +147,7 @@ class ProfileServiceTest extends TestCase
         $this->service->saveName($user, 'Ali');
         $this->assertFalse($this->service->isRegistered($user->fresh()));
 
-        $this->service->completeWithHomeAddress($user, 41.3, 69.2);
+        $this->service->completeWithHomeAddress($user, 41.3, 69.2, street: 'Navoiy ko‘chasi');
         $this->assertTrue($this->service->isRegistered($user->fresh()));
     }
 }
