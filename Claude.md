@@ -151,6 +151,9 @@ Bu qoidalarni buzmang, ular loyihaning asosi.
   raqamga qo'ng'iroq qiladi; u Telegram raqamidan farq qilsa, ikkalasi ko'rsatiladi.
 - Profilni o'zgartirish faqat "Sozlamalar" bo'limida bo'ladi.
 - Foydalanuvchi bir nechta manzil saqlashi mumkin ("Uy", "Ish"), biri `is_default`.
+- Manzil matni: `addresses.street` (ko'cha) + qishloq/mahalla + tuman (`AddressText::compose`); `addresses.note` — «Mo'ljal».
+  Geokoder (OSM) ko'cha nomini topmasa ko'cha **yoki** mo'ljaldan kamida bittasi majburiy (API va bot), o'tkazib yuborib
+  bo'lmaydi. Yo'l raqami (D137) ko'cha emas. Mo'ljal buyurtma snapshot'iga (`landmark`) tushadi. Tafsilot: `docs/address-street.md`.
 
 ### Panellar va rol izolyatsiyasi
 
