@@ -86,7 +86,17 @@ class AddressResolvedAddressTest extends TestCase
 
     // --- Nominatim xato bo'lganda zaxira ---------------------------
 
-    public function test_falls_back_to_label_when_nominatim_fails(): void
+    public function test_a_legacy_address_without_a_resolved_text_falls_back_to_its_label(): void
+    {
+        // Eski manzil (ko'cha ustunidan oldin yaratilgan): resolved_address yo'q — koordinata/matn emas, faqat label.
+        $address = app(AddressService::class)->create($this->user, [
+            'label' => 'Ish', 'lat' => 40.7278, 'lng' => 72.7629, 'address_text' => 'Amir Temur 5', 'resolved_address' => null,
+        ]);
+
+        $this->assertSame('Ish', $address->displayAddress());
+    }
+
+    public function test_when_nominatim_fails_the_customers_street_still_builds_the_text(): void
     {
         Http::fake(['*nominatim*' => Http::response('', 500)]);
 
@@ -94,12 +104,12 @@ class AddressResolvedAddressTest extends TestCase
             'label' => 'Ish',
             'lat' => 40.7278,
             'lng' => 72.7629,
-            'address_text' => 'Amir Temur 5',
-            'district_id' => $this->district->id,
+            'street' => 'Amir Temur ko‘chasi 5',
         ], $this->headers())->assertCreated()
-            ->assertJsonPath('data.resolved_address', 'Ish');   // koordinata/matn emas — faqat label
+            ->assertJsonPath('data.street', 'Amir Temur ko‘chasi 5')
+            ->assertJsonPath('data.resolved_address', 'Amir Temur ko‘chasi 5, '.$this->district->name);
 
-        $this->assertNull(Address::latest('id')->value('resolved_address'));
+        $this->assertNotNull(Address::latest('id')->value('resolved_address'));
     }
 
     public function test_raw_address_text_never_leaks_into_the_display(): void

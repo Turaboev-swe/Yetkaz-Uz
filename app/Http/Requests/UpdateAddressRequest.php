@@ -19,6 +19,7 @@ class UpdateAddressRequest extends FormRequest
             'lat' => ['sometimes', 'required', 'numeric', 'between:-90,90'],
             'lng' => ['sometimes', 'required', 'numeric', 'between:-180,180'],
             'address_text' => ['sometimes', 'required', 'string', 'max:500'],
+            'street' => ['sometimes', 'nullable', 'string', 'max:255'],
             'entrance' => ['sometimes', 'nullable', 'string', 'max:32'],
             'floor' => ['sometimes', 'nullable', 'string', 'max:32'],
             'apartment' => ['sometimes', 'nullable', 'string', 'max:32'],

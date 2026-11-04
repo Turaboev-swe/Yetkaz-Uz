@@ -320,6 +320,9 @@ return [
     ],
 
     'eta_range' => 'Taxminiy yetkazib berish: :from–:to daqiqa.',
+    // Ko'cha yoki mo'ljal majburiy (geokoder ko'cha nomini topmaganda)
+    'street_required' => 'Xaritada ko‘cha nomi topilmadi. Ko‘cha nomini yoki mo‘ljalni kiriting.',
+
     // Mahsulot qoldig'i (stock)
     'stock' => [
         'only_left' => 'Kechirasiz, :name dan faqat :count ta qoldi.',
