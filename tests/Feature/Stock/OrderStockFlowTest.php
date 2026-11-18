@@ -139,7 +139,7 @@ class OrderStockFlowTest extends TestCase
 
         $this->orderRequest([['product_id' => $osh->id, 'qty' => 3]])
             ->assertStatus(422)
-            ->assertJsonPath('message', 'Kechirasiz, Osh dan faqat 2 ta qoldi.')
+            ->assertJsonPath('message', 'Afsus, Osh dan faqat 2 ta qoldi.')
             ->assertJsonPath('code', 'insufficient_stock')
             ->assertJsonPath('shortages.0.product_id', $osh->id)
             ->assertJsonPath('shortages.0.available', 2);
@@ -156,7 +156,7 @@ class OrderStockFlowTest extends TestCase
 
         $this->orderRequest([['product_id' => $osh->id, 'qty' => 3]])
             ->assertStatus(422)
-            ->assertJsonPath('message', 'Извините, Osh осталось только 2 шт.');
+            ->assertJsonPath('message', 'К сожалению, Osh осталось только 2 шт.');
     }
 
     public function test_a_sold_out_product_cannot_be_ordered(): void
@@ -165,7 +165,79 @@ class OrderStockFlowTest extends TestCase
 
         $this->orderRequest([['product_id' => $osh->id, 'qty' => 1]])
             ->assertStatus(422)
-            ->assertJsonPath('message', 'Kechirasiz, Osh tugagan.');
+            ->assertJsonPath('message', 'Afsus, Osh tugab qoldi.');
+    }
+
+    /** is_available = false bo'lib qolgan taom (savatda turgan paytda restoran yashirgan) — nomi bilan aytiladi. */
+    public function test_a_hidden_product_is_refused_by_name_like_a_sold_out_one(): void
+    {
+        $osh = $this->product(null);
+        $osh->update(['is_available' => false]);
+
+        $this->orderRequest([['product_id' => $osh->id, 'qty' => 1]])
+            ->assertStatus(422)
+            ->assertJsonPath('message', 'Afsus, Osh tugab qoldi.')
+            ->assertJsonPath('code', 'insufficient_stock')
+            ->assertJsonPath('shortages.0.product_id', $osh->id)
+            ->assertJsonPath('shortages.0.available', 0);
+
+        $this->assertSame(0, Order::withoutGlobalScopes()->count());
+    }
+
+    public function test_the_hidden_product_message_follows_the_customers_language(): void
+    {
+        $osh = $this->product(null);
+        $osh->update(['is_available' => false]);
+        $this->user->update(['language' => 'ru']);
+
+        $this->orderRequest([['product_id' => $osh->id, 'qty' => 1]])
+            ->assertStatus(422)
+            ->assertJsonPath('message', 'К сожалению, Osh закончилось.');
+    }
+
+    public function test_hidden_and_short_lines_are_reported_together_and_nothing_is_reserved(): void
+    {
+        $osh = $this->product(null);
+        $osh->update(['is_available' => false]);
+        $non = $this->product(1, 'Non');
+        $lagmon = $this->product(10, 'Lag\'mon');
+
+        $this->orderRequest([
+            ['product_id' => $osh->id, 'qty' => 1],
+            ['product_id' => $non->id, 'qty' => 3],
+            ['product_id' => $lagmon->id, 'qty' => 2],
+        ])
+            ->assertStatus(422)
+            ->assertJsonPath('message', 'Afsus, Osh tugab qoldi. Afsus, Non dan faqat 1 ta qoldi.')
+            ->assertJsonCount(2, 'shortages');
+
+        $this->assertSame(1, $this->stock($non));
+        $this->assertSame(10, $this->stock($lagmon), 'butun buyurtma rad etildi — hech narsa band qilinmadi');
+    }
+
+    public function test_a_product_that_does_not_exist_gets_the_generic_message(): void
+    {
+        $this->orderRequest([['product_id' => 999_999, 'qty' => 1]])
+            ->assertStatus(422)
+            ->assertJsonPath('errors.items.0', "Savatdagi ba'zi taomlar endi mavjud emas. Savatni yangilang.");
+    }
+
+    public function test_the_estimate_reports_hidden_products_before_checkout(): void
+    {
+        $osh = $this->product(null);
+        $osh->update(['is_available' => false]);
+        $non = $this->product(1, 'Non');
+
+        $r = $this->postJson('/api/orders/estimate', [
+            'restaurant_id' => $this->restaurant->id,
+            'delivery_type' => 'pickup',
+            'items' => [['product_id' => $osh->id, 'qty' => 1], ['product_id' => $non->id, 'qty' => 2]],
+        ], $this->headers())->assertOk();
+
+        $this->assertEqualsCanonicalizing(
+            [['product_id' => $osh->id, 'available' => 0], ['product_id' => $non->id, 'available' => 1]],
+            collect($r->json('data.stock_shortages'))->map(fn ($s) => ['product_id' => $s['product_id'], 'available' => $s['available']])->all(),
+        );
     }
 
     public function test_a_short_line_rolls_back_the_other_lines_too(): void
@@ -206,7 +278,7 @@ class OrderStockFlowTest extends TestCase
         $osh = $this->product(1);
 
         $this->place([['product_id' => $osh->id, 'qty' => 1]]);
-        $this->orderRequest([['product_id' => $osh->id, 'qty' => 1]])->assertStatus(422)->assertJsonPath('message', 'Kechirasiz, Osh tugagan.');
+        $this->orderRequest([['product_id' => $osh->id, 'qty' => 1]])->assertStatus(422)->assertJsonPath('message', 'Afsus, Osh tugab qoldi.');
 
         $this->assertSame(0, $this->stock($osh));
         $this->assertSame(1, Order::withoutGlobalScopes()->count());

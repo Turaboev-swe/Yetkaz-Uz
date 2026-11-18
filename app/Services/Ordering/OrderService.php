@@ -7,6 +7,7 @@ use App\Enums\OrderStatus;
 use App\Enums\PaymentMethod;
 use App\Enums\PaymentStatus;
 use App\Events\OrderPlaced;
+use App\Exceptions\InsufficientStockException;
 use App\Exceptions\PhoneRequiredException;
 use App\Jobs\AlertAdminOfUnacceptedOrder;
 use App\Jobs\DispatchOrderJob;
@@ -210,11 +211,21 @@ class OrderService
             return [];
         }
 
-        $lines = Product::query()->forRestaurant($restaurant->id)->whereIn('id', array_keys($qtyById))->get(['id', 'name'])
+        $products = Product::query()->forRestaurant($restaurant->id)->whereIn('id', array_keys($qtyById))->get(['id', 'name', 'is_available']);
+
+        $lines = $products
             ->map(fn (Product $p) => ['product_id' => $p->id, 'name' => $p->name, 'qty' => $qtyById[$p->id]])
             ->all();
 
-        return $this->stock->shortages($lines);
+        // Menyudan yashirilgan taom ham checkout'dan OLDIN ma'lum bo'lsin (place() uni baribir rad etadi).
+        $hidden = $products->where('is_available', false)
+            ->map(fn (Product $p): array => ['product_id' => $p->id, 'name' => $p->name, 'available' => 0])
+            ->values()->all();
+
+        $hiddenIds = array_column($hidden, 'product_id');
+        $limited = array_values(array_filter($this->stock->shortages($lines), fn (array $s): bool => ! in_array($s['product_id'], $hiddenIds, true)));
+
+        return [...$hidden, ...$limited];
     }
 
     /**
@@ -258,14 +269,29 @@ class OrderService
             $qtyById[(int) $item['product_id']] = ($qtyById[(int) $item['product_id']] ?? 0) + (int) $item['qty'];
         }
 
-        $products = Product::query()
+        $found = Product::query()
             ->forRestaurant($restaurant->id)
-            ->available()
             ->whereIn('id', array_keys($qtyById))
             ->get();
 
-        if ($products->count() !== count($qtyById)) {
+        // Umuman topilmagan taom (o'chirilgan / boshqa restoran) — nomini aytib bo'lmaydi: umumiy xabar.
+        if ($found->count() !== count($qtyById)) {
             throw ValidationException::withMessages(['items' => __('messages.cart_item_unavailable')]);
+        }
+
+        $products = $found->where('is_available', true);
+
+        // Restoran taomni menyudan yashirgan (is_available = false) — qoldiq kabi, NOMI bilan aytiladi ("Afsus, X tugab
+        // qoldi.") va Mini App savatdan o'sha qatorni olib tashlaydi. Qolgan qatorlarning qoldiq yetishmasligi ham shu
+        // xabarga qo'shiladi, mijoz hammasini bir martada ko'rsin.
+        if ($products->count() !== $found->count()) {
+            $hidden = $found->where('is_available', false)
+                ->map(fn (Product $p): array => ['product_id' => $p->id, 'name' => $p->name, 'available' => 0])
+                ->values()->all();
+
+            $rest = $products->map(fn (Product $p): array => ['product_id' => $p->id, 'name' => $p->name, 'qty' => $qtyById[$p->id]])->values()->all();
+
+            throw new InsufficientStockException([...$hidden, ...$this->stock->shortages($rest)]);
         }
 
         return $products->map(fn (Product $p) => [

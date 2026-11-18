@@ -3,6 +3,7 @@
 use App\Http\Controllers\KitchenAuthController;
 use App\Http\Controllers\KitchenChatController;
 use App\Http\Controllers\KitchenController;
+use App\Http\Controllers\KitchenMenuController;
 use App\Http\Controllers\KitchenReceiptController;
 use Illuminate\Support\Facades\Route;
 
@@ -34,6 +35,9 @@ Route::middleware(['panel.session:yetkaz_staff_session', 'web'])->prefix('kitche
         Route::get('/orders', [KitchenController::class, 'orders']);
         Route::get('/print-status', [KitchenController::class, 'printStatus']);
         Route::get('/couriers', [KitchenController::class, 'couriers']);
+        // "Menyu" bo'limi: taom «Tugadi / Bor» (qoldiq bilan).
+        Route::get('/menu', [KitchenMenuController::class, 'index']);
+        Route::patch('/products/{productId}/sold-out', [KitchenMenuController::class, 'update'])->whereNumber('productId');
         Route::patch('/orders/{orderId}/advance', [KitchenController::class, 'advance'])->whereNumber('orderId');
         Route::patch('/orders/{orderId}/cancel', [KitchenController::class, 'cancel'])->whereNumber('orderId');
         // Brauzer cheki: sahifa (oldindan ko'rish ham shu) va "chop etildi" belgisi.
