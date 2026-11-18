@@ -192,7 +192,9 @@ tugab qolganda eng tez ishlatiladigan amal.
 Buyurtma yaratishda **tranzaksiya ichida atomik** kamayadi (`StockService::reserve`), bekor qilinganda
 `orders.stock_reserved` ledger'i bo'yicha **idempotent** qaytadi (`OrderStatusService::applyTransition` →
 `OrderStatus::releasesStock()`). Qoldiqni faqat `StockService` orqali o'zgartiring. Yangi terminal buyurtma holati
-qo'shilsa, qoldiq qaytishi haqida `releasesStock()` da qaror qiling. To'liq tavsif: `docs/stock.md`.
+qo'shilsa, qoldiq qaytishi haqida `releasesStock()` da qaror qiling. Oshxona paneli (`/kitchen → Menyu`) «Tugadi/Bor»
+tugmasi ham qoldiq bilan ishlaydi (`StockService::setSoldOut`: Tugadi = 0, Bor = `daily_stock` yoki `NULL`);
+`is_available = false` taom menyudan yashirin qoladi, savatda qolsa checkoutda nomi bilan rad etiladi. To'liq tavsif: `docs/stock.md`.
 ### Umumiy taom qidiruvi
 
 Foydalanuvchi taom nomini yozsa (masalan "lag'mon"), tizim yetkazish radiusidagi

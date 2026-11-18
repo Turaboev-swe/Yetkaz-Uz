@@ -103,7 +103,7 @@ class StockServiceTest extends TestCase
             $this->service()->reserve([$this->line($osh, 3)]);
             $this->fail('qoldiq yetmasa istisno kutilgan edi');
         } catch (InsufficientStockException $e) {
-            $this->assertSame('Kechirasiz, Osh dan faqat 2 ta qoldi.', $e->getMessage());
+            $this->assertSame('Afsus, Osh dan faqat 2 ta qoldi.', $e->getMessage());
             $this->assertSame([['product_id' => $osh->id, 'name' => 'Osh', 'available' => 2]], $e->shortages);
         }
 
@@ -115,7 +115,7 @@ class StockServiceTest extends TestCase
         $osh = $this->product(0);
 
         $this->expectException(InsufficientStockException::class);
-        $this->expectExceptionMessage('Kechirasiz, Osh tugagan.');
+        $this->expectExceptionMessage('Afsus, Osh tugab qoldi.');
 
         $this->service()->reserve([$this->line($osh, 1)]);
     }
@@ -130,7 +130,7 @@ class StockServiceTest extends TestCase
             $this->service()->reserve([$this->line($osh, 2), $this->line($non, 1), $this->line($ok, 1)]);
             $this->fail();
         } catch (InsufficientStockException $e) {
-            $this->assertSame('Kechirasiz, Osh dan faqat 1 ta qoldi. Kechirasiz, Non tugagan.', $e->getMessage());
+            $this->assertSame('Afsus, Osh dan faqat 1 ta qoldi. Afsus, Non tugab qoldi.', $e->getMessage());
             $this->assertCount(2, $e->shortages);
         }
     }

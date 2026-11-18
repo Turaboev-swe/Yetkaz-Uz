@@ -33,6 +33,8 @@ async function request(path, method = 'GET', body = null) {
 export const api = {
     orders: () => request('/orders'),
     printStatus: () => request('/print-status'),
+    menu: (restaurantId) => request(`/menu?restaurant_id=${encodeURIComponent(restaurantId)}`),
+    setSoldOut: (productId, soldOut) => request(`/products/${productId}/sold-out`, 'PATCH', { sold_out: soldOut }),
     couriers: (restaurantId) => request(`/couriers?restaurant_id=${encodeURIComponent(restaurantId)}`),
     advance: (id, fields = null) => request(`/orders/${id}/advance`, 'PATCH', fields),
     chatMessages: (id) => request(`/orders/${id}/messages`),

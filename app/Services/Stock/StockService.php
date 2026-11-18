@@ -68,6 +68,34 @@ class StockService
     }
 
     /**
+     * Oshxona panelidagi «Tugadi / Bor» tugmasi (qoldiq bilan ishlaydi, `is_available` ga tegilmaydi).
+     *
+     *  - Tugadi: `stock_quantity = 0` (allaqachon 0 bo'lsa — hech narsa o'zgarmaydi).
+     *  - Bor:    faqat hozir 0 bo'lsa `stock_quantity = daily_stock` (kunlik qoldiq bo'lmasa NULL = cheklanmagan).
+     *            Qoldiq boshqa qurilmada allaqachon oshirilgan bo'lsa (> 0) — ustiga yozilmaydi.
+     *
+     * Bitta shartli UPDATE: planshetdagi eskirgan holat va parallel buyurtma bilan poyga yo'q. O'zgarsa Reverb hodisasi.
+     *
+     * @return bool qoldiq haqiqatan o'zgardimi
+     */
+    public function setSoldOut(Product $product, bool $soldOut): bool
+    {
+        $query = DB::table('products')->where('id', $product->id);
+
+        $affected = $soldOut
+            ? $query->where(fn ($q) => $q->whereNull('stock_quantity')->orWhere('stock_quantity', '>', 0))
+                ->update(['stock_quantity' => 0, 'updated_at' => now()])
+            : $query->where('stock_quantity', '<=', 0)
+                ->update(['stock_quantity' => DB::raw('daily_stock'), 'updated_at' => now()]);
+
+        if ($affected === 1) {
+            $this->announce([(int) $product->id]);
+        }
+
+        return $affected === 1;
+    }
+
+    /**
      * Faqat o'qiydi (hech narsa band qilmaydi): qaysi qatorga qoldiq yetmaydi.
      *
      * @param  array<int, array{product_id: int, name: string, qty: int}>  $lines

@@ -337,8 +337,8 @@ return [
 
     // Mahsulot qoldig'i (stock)
     'stock' => [
-        'only_left' => 'Kechirasiz, :name dan faqat :count ta qoldi.',
-        'sold_out' => 'Kechirasiz, :name tugagan.',
+        'only_left' => 'Afsus, :name dan faqat :count ta qoldi.',
+        'sold_out' => 'Afsus, :name tugab qoldi.',
     ],
 
 
