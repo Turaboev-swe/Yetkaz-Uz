@@ -7,6 +7,7 @@ import { pushSupported, enablePush, disablePush } from './lib/push';
 import { agentTransition, offlineAgents, shouldPingFailed } from './lib/printStatus';
 import { printReceipt, shouldAutoPrint } from './lib/browserPrint';
 import OrderCard from './components/OrderCard';
+import MenuPanel from './components/MenuPanel';
 
 const { restaurants = [], staffName, csrf, pushSubscribed } = window.__KITCHEN__;
 const DONE = new Set(['delivered', 'cancelled']);
@@ -21,6 +22,7 @@ export default function App() {
     const [soundOn, setSoundOn] = useState(soundReady());
     const [muted, setMuted] = useState(false);
     const [busyId, setBusyId] = useState(null);
+    const [tab, setTab] = useState('orders'); // 'orders' | 'menu'
     const [couriersBy, setCouriersBy] = useState({}); // restaurant_id -> xodimlar
     const [pushOn, setPushOn] = useState(pushSubscribed);
     const [pushBusy, setPushBusy] = useState(false);
@@ -309,8 +311,25 @@ export default function App() {
                 </div>
             </header>
 
-            <main className="p-4">
-                {offline.length > 0 && (
+            <nav className="flex gap-2 border-b border-gray-800 bg-[#0f1115] px-4 pt-3" aria-label="Bo‘limlar">
+                {[
+                    ['orders', `Buyurtmalar${pendingCount > 0 ? ` (${pendingCount} yangi)` : ''}`],
+                    ['menu', 'Menyu'],
+                ].map(([key, label]) => (
+                    <button
+                        key={key}
+                        onClick={() => setTab(key)}
+                        aria-current={tab === key ? 'page' : undefined}
+                        className={`rounded-t-xl px-5 py-2.5 text-[15px] font-bold ${
+                            tab === key ? 'bg-[#171a21] text-white' : 'text-gray-400 hover:text-gray-200'
+                        }`}
+                    >
+                        {label}
+                    </button>
+                ))}
+            </nav>
+
+            <main className="p-4">                {offline.length > 0 && (
                     <div
                         className="mb-4 rounded-xl px-4 py-3 text-[15px] font-bold"
                         style={{ background: '#7f1d1d', color: '#fecaca' }}
@@ -334,17 +353,19 @@ export default function App() {
                         {pushError}
                     </div>
                 )}
-                {loading && <p className="p-8 text-center text-gray-500">Yuklanmoqda…</p>}
                 {error && (
                     <div className="mb-4 rounded-xl bg-red-950 p-3 text-[14px] text-red-300">
                         {error} <button onClick={load} className="ml-2 underline">qayta</button>
                     </div>
                 )}
-                {!loading && orders.length === 0 && (
+                {tab === 'menu' && <MenuPanel restaurants={restaurants} onError={setError} />}
+
+                {tab === 'orders' && loading && <p className="p-8 text-center text-gray-500">Yuklanmoqda…</p>}
+                {tab === 'orders' && !loading && orders.length === 0 && (
                     <p className="p-12 text-center text-[16px] text-gray-500">Faol buyurtma yo‘q</p>
                 )}
 
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                <div className={`grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 ${tab === 'orders' ? '' : 'hidden'}`}>
                     {orders.map((o) => (
                         <OrderCard
                             key={o.id}
