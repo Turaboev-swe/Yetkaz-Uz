@@ -81,19 +81,129 @@ tranzaksiya commit bo'lgandan keyin, rollbackda yuborilmaydi.
   rasmiylashtirish ochilganda yangilaydi; checkout'da server baribir qayta tekshiradi. Jonli yangilash keyingi
   bosqich: `menu.{id}` ga `laravel-echo` bilan obuna bo'lish kifoya (kanal ochiq, qo'shimcha avtorizatsiya kerak emas).
 
-## Ma'lum cheklovlar (alohida muammolar)
-1. **Qabul qilinmagan (`new`) buyurtma abadiy pending bo'lib qolishi mumkin.** Restoran uni endi **rad eta oladi**
-   (`/kitchen` da «❌ Rad etish», oshxona botida «❌ Rad etish»; sabab majburiy, mijozga sabab bilan xabar boradi,
-   qoldiq o'zi qaytadi — `OrderStatusService::CANCELLABLE = new | accepted | preparing`). Lekin hech kim tegmasa
-   (restoran o'chiq/e'tiborsiz) buyurtma o'zi yopilmaydi: faqat push takrori va 7 daqiqada admin ogohlantirishi bor, qoldig'i
-   band bo'lib qoladi (faqat restoran qoldiq kiritgan taomlarda). Hal qilish: muddati o'tganda avtomatik `cancelled`
-   (alohida vazifa, `feature/order-reject-timeout`) — `OrderStatusService` orqali o'tsa qoldiq o'zi qaytadi.
-2. `on_the_way` dan bekor qilib bo'lmaydi (faqat `delivered`).
-3. Mijoz tomonidan bekor qilish va `/admin` da buyurtmani bekor qilish amali **yo'q** — `cancelled` ga faqat
-   `OrderStatusService::cancel()` olib boradi (`/kitchen`, oshxona boti). Yangi yo'l qo'shilsa u shu servis orqali o'tsin —
-   qoldiq o'zi qaytadi.
-4. Qisman buyurtma qurilmagan (yuqoriga qarang).
+## Bekor qilish yo'llari va poyga himoyasi
 
+`cancelled` ga FAQAT `OrderStatusService::cancel()` olib boradi (`new | accepted | preparing` dan; `on_the_way` va
+`delivered` dan emas). Qoldiq qaytishi, mijozga xabar va Reverb hodisasi shu yerdan o'tadi — yo'llar:
+
+| Kim | Qayerda | `changed_by` | Sabab |
+|---|---|---|---|
+| Restoran | `/kitchen` («❌ Rad etish» — `new`da, «❌ Bekor» — keyin) | `kitchen:{staff_id}` | majburiy |
+| Restoran | oshxona boti (`kcancel`) | `kitchen:{staff_id}` | tayyor sabab yoki matn |
+| Platforma admini | `/admin → Buyurtmalar` — «Bekor qilish» (ro'yxat qatori va buyurtma sahifasi), faqat `platform_admin` | `admin:{staff_id}` | majburiy, mijozga ko'rsatiladi |
+
+Mijozning o'zi bekor qilishi va avtomatik muddatli bekor qilish (timeout) **qurilmagan** (alohida vazifalar).
+
+**Poyga himoyasi** (`OrderStatusService::applyTransition`): chaqiruvchi o'tishni xotiradagi holat bo'yicha tekshiradi, keyin
+tranzaksiya ichida qator `lockForUpdate` bilan qulflanib, bazadagi JORIY holat qayta o'qiladi. U o'zgarib bo'lgan bo'lsa
+hech narsa yozilmaydi va «Buyurtma holati allaqachon o'zgargan (hozir: …). Ro'yxatni yangilang.» (422) qaytadi. Natija:
+admin «Bekor qilish» va oshxona «Qabul qilish» bir vaqtda bosilsa faqat bittasi o'tadi; bekor qilingan buyurtma keyin
+qabul qilinmaydi, qoldiq ikki marta qaytmaydi, ikkinchi planshet buyurtmani ikki qadam o'tkaza olmaydi. Testlar:
+`OrderStatusLockTest` (eskirgan nusxa) va `OrderStatusRaceTest` (ikki alohida OS jarayoni, haqiqiy parallel).
+
+## Bekor qilish sababi va tahlil (faqat o'qish)
+
+Saqlanishi: `orders.cancellation_reason` (varchar 500; 2026-09-08 dan oldingi bekorlarda NULL), `orders.cancelled_at` (UTC);
+kim va qaysi holatdan — `order_status_history` (`status = 'cancelled'`, `changed_by`, oldingisi — shu buyurtmaning avvalgi
+tarix yozuvi). Quyidagi so'rovlar `BEGIN READ ONLY` ichida — yozishga urinish xato beradi. Serverda:
+
+```bash
+cd /opt/yetkaz
+# so'rovlarni /tmp/cancelled.sql ga qo'ying (quyidagi blok), keyin:
+docker compose -f docker-compose.prod.yml exec -T postgres psql -U yetkaz -d yetkaz -v ON_ERROR_STOP=1 < /tmp/cancelled.sql
+```
+
+```sql
+-- Bekor qilingan buyurtmalar tahlili — FAQAT O'QISH (BEGIN READ ONLY: yozishga urinish xato beradi).
+BEGIN READ ONLY;
+
+-- 0) Umumiy: nechta, qachondan qachongacha (UTC), nechtasida sabab yo'q
+SELECT COUNT(*)                                                                         AS jami_bekor,
+       MIN(cancelled_at)                                                                AS birinchi_utc,
+       MAX(cancelled_at)                                                                AS oxirgi_utc,
+       COUNT(*) FILTER (WHERE cancellation_reason IS NULL OR btrim(cancellation_reason) = '') AS sababsiz
+FROM orders
+WHERE status = 'cancelled';
+
+-- 1) Sabab bo'yicha taqsimot (harf registri va bo'shliqlar birlashtirilgan)
+SELECT COALESCE(NULLIF(lower(btrim(cancellation_reason)), ''), '(sabab yo''q)') AS sabab,
+       COUNT(*)                                                                 AS soni,
+       ROUND(100.0 * COUNT(*) / SUM(COUNT(*)) OVER (), 1)                       AS foiz
+FROM orders
+WHERE status = 'cancelled'
+GROUP BY 1
+ORDER BY soni DESC, sabab;
+
+-- 2) Restoran bo'yicha: bekor / jami buyurtma va foiz
+SELECT r.id,
+       r.name,
+       COUNT(*) FILTER (WHERE o.status = 'cancelled')                                          AS bekor,
+       COUNT(*)                                                                                AS jami,
+       ROUND(100.0 * COUNT(*) FILTER (WHERE o.status = 'cancelled') / NULLIF(COUNT(*), 0), 1)  AS bekor_foiz
+FROM restaurants r
+JOIN orders o ON o.restaurant_id = r.id
+GROUP BY r.id, r.name
+HAVING COUNT(*) FILTER (WHERE o.status = 'cancelled') > 0
+ORDER BY bekor DESC, r.name;
+
+-- 3) Restoran x sabab
+SELECT r.name                                                                   AS restoran,
+       COALESCE(NULLIF(lower(btrim(o.cancellation_reason)), ''), '(sabab yo''q)') AS sabab,
+       COUNT(*)                                                                 AS soni
+FROM orders o
+JOIN restaurants r ON r.id = o.restaurant_id
+WHERE o.status = 'cancelled'
+GROUP BY 1, 2
+ORDER BY restoran, soni DESC;
+
+-- 4) Kim bekor qilgan (changed_by) va qaysi holatdan: manba = kitchen | admin | staff | ...
+--    kitchen:{id} / admin:{id} / staff:{id} — staff jadvalidagi ism bilan; boshqa qiymatlar o'zi chiqadi.
+SELECT split_part(h.changed_by, ':', 1)          AS manba,
+       COALESCE(s.name, h.changed_by, '(NULL)')  AS kim,
+       COALESCE(prev.status, '?')                AS oldingi_holat,
+       COUNT(*)                                  AS soni
+FROM order_status_history h
+LEFT JOIN staff s
+       ON s.id = CASE WHEN h.changed_by ~ '^[a-z]+:[0-9]+$' THEN split_part(h.changed_by, ':', 2)::bigint END
+LEFT JOIN LATERAL (
+        SELECT p.status
+        FROM order_status_history p
+        WHERE p.order_id = h.order_id AND p.id < h.id
+        ORDER BY p.id DESC
+        LIMIT 1
+     ) prev ON TRUE
+WHERE h.status = 'cancelled'
+GROUP BY 1, 2, 3
+ORDER BY soni DESC, kim;
+
+-- 5) Faqat manba bo'yicha qisqa jadval
+SELECT COALESCE(NULLIF(split_part(changed_by, ':', 1), ''), '(NULL)') AS manba, COUNT(*) AS soni
+FROM order_status_history
+WHERE status = 'cancelled'
+GROUP BY 1
+ORDER BY soni DESC;
+
+-- 6) Tarixsiz bekorlar: status = cancelled, lekin tarixda 'cancelled' yozuvi yo'q (kod orqali emas — qo'lda DB/tinker)
+SELECT COUNT(*) AS tarixsiz_bekor
+FROM orders o
+WHERE o.status = 'cancelled'
+  AND NOT EXISTS (SELECT 1 FROM order_status_history h WHERE h.order_id = o.id AND h.status = 'cancelled');
+
+ROLLBACK;
+```
+
+Izoh: «oldingi_holat» tarixdagi oldingi yozuvdan olinadi; `manba` `kitchen` / `admin` bo'lmasa yoki 6-so'rov noldan katta
+bo'lsa — buyurtma kod orqali emas, qo'lda (DB/tinker) bekor qilingan.
+
+## Ma'lum cheklovlar (alohida muammolar)
+1. **Qabul qilinmagan (`new`) buyurtma abadiy pending bo'lib qolishi mumkin.** Restoran uni rad eta oladi, admin bekor qila
+   oladi, lekin hech kim tegmasa buyurtma o'zi yopilmaydi: faqat push takrori va 7 daqiqada admin ogohlantirishi bor, qoldig'i
+   band bo'lib qoladi (faqat restoran qoldiq kiritgan taomlarda). Hal qilish: muddati o'tganda avtomatik `cancelled`
+   (alohida vazifa) — `OrderStatusService` orqali o'tsa qoldiq o'zi qaytadi, qulf poygani ham hal qiladi.
+2. `on_the_way` dan bekor qilib bo'lmaydi (faqat `delivered`).
+3. Mijozning o'zi bekor qilishi **yo'q** (alohida vazifa). Yangi yo'l qo'shilsa u `OrderStatusService::cancel()` orqali
+   o'tsin — qoldiq va xabar o'zi ishlaydi.
+4. Qisman buyurtma qurilmagan (yuqoriga qarang).
 ## Deploy (serverda)
 
 `origin/main` da stock bilan birga **street-address** ham bor. Serverda ikkalasi ham hali bo'lmasa, bitta deploy ikkalasini
@@ -101,6 +211,12 @@ olib chiqadi: migratsiyalar `2026_11_09_000001` (stock) va `2026_11_10_000001` (
 **nullable ustun / indeks / CHECK** qo'shadi — mavjud ma'lumot o'zgarmaydi, qayta yozish yo'q. Seeder ishga tushmaydi,
 test ma'lumot yo'q (bu commitlar faqat kod va testlar).
 
+**`feature/order-reject-timeout` (new dan rad etish, admin «Bekor qilish», holat qulfi) alohida migratsiya QO'SHMAYDI** —
+faqat kod, lang va frontend. Stock bilan birga yoki undan keyin chiqarilsa ham pending migratsiyalar ro'yxati o'zgarmaydi
+(faqat stock/street yoki serverda yetishmagan eskilari). Tartib bir xil: backup → pull → build → migrate → up -d →
+reload/restart → tekshiruv. Qo'shimcha tekshiruv (deploydan keyin): `/admin → Buyurtmalar` da buyurtma sahifasida
+«Bekor qilish» tugmasi (faqat bekor qilinadigan holatda) va `/kitchen` da yangi buyurtmada «❌ Rad etish» chiqishi
+(planshetlarda `Ctrl+F5`). Real buyurtmani sinash uchun bekor QILMANG — tugma ko'rinishi yetarli.
 ```bash
 cd /opt/yetkaz
 F="-f docker-compose.prod.yml"

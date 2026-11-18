@@ -195,6 +195,9 @@ Buyurtma yaratishda **tranzaksiya ichida atomik** kamayadi (`StockService::reser
 qo'shilsa, qoldiq qaytishi haqida `releasesStock()` da qaror qiling. Oshxona paneli (`/kitchen → Menyu`) «Tugadi/Bor»
 tugmasi ham qoldiq bilan ishlaydi (`StockService::setSoldOut`: Tugadi = 0, Bor = `daily_stock` yoki `NULL`);
 `is_available = false` taom menyudan yashirin qoladi, savatda qolsa checkoutda nomi bilan rad etiladi. To'liq tavsif: `docs/stock.md`.
+Buyurtma holati FAQAT `OrderStatusService` orqali o'zgaradi (yagona `applyTransition`): u tranzaksiyada qatorni qulflab
+joriy holatni qayta tekshiradi — eskirgan planshet/bot/admin nusxasi o'tolmaydi. Bekor qilish: `new | accepted | preparing`
+dan (`OrderStatusService::cancel`; restoran `/kitchen` va bot, admin `/admin → Buyurtmalar`, sabab majburiy).
 ### Umumiy taom qidiruvi
 
 Foydalanuvchi taom nomini yozsa (masalan "lag'mon"), tizim yetkazish radiusidagi
