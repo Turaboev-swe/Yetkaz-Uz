@@ -18,15 +18,19 @@ use Illuminate\Validation\ValidationException;
  *
  *   yetkazish:  new -> accepted -> preparing -> on_the_way -> delivered
  *   olib ketish: new -> accepted -> preparing -> delivered ("Mijoz oldi")
- *   bekor qilish: accepted | preparing -> cancelled  (faqat shu ikki holatdan)
+ *   bekor qilish: new | accepted | preparing -> cancelled  (new — "rad etish"; on_the_way / delivered dan emas)
  *
  * Har o'zgarishда: tarix yozuvi, timestamp, Reverb hodisasi, mijozга bot xabari.
  * `/kitchen` va bot ikkalasi HAM shu servisni chaqiradi — mantiq takrorlanmaydi.
  */
 class OrderStatusService
 {
-    /** Bekor qilish mumkin bo'lgan holatlar. */
-    private const CANCELLABLE = [OrderStatus::Accepted, OrderStatus::Preparing];
+    /**
+     * Bekor qilish mumkin bo'lgan holatlar. `new` — restoran buyurtmani QABUL QILMASDAN rad etadi: qabul qilish mijozga
+     * xabar, chek va kuryer taklifini ishga tushirgani uchun, kerak bo'lmagan buyurtmani avval qabul qilib keyin bekor
+     * qilish noto'g'ri. Qoldiq `releasesStock()` orqali o'zi qaytadi.
+     */
+    private const CANCELLABLE = [OrderStatus::New, OrderStatus::Accepted, OrderStatus::Preparing];
 
     public function __construct(private readonly StockService $stock) {}
 
@@ -51,7 +55,7 @@ class OrderStatusService
     }
 
     /**
-     * Buyurtmani bekor qiladi. Faqat `accepted` / `preparing` holatidа —
+     * Buyurtmani bekor qiladi (`new` da — rad etish). Faqat `new` / `accepted` / `preparing` holatidа —
      * `on_the_way` / `delivered` dан bekor qilib bo'lmaydi.
      *
      * TO'LOV: hozircha faqat naqd pul — qaytarish (refund) shart emas. Onlayn
@@ -113,10 +117,31 @@ class OrderStatusService
         return $order;
     }
 
-    /** Statusni yozadi: DB (status + timestamp), tarix, Reverb hodisasi. */
+    /**
+     * Statusni yozadi: DB (status + timestamp), tarix, Reverb hodisasi.
+     *
+     * POYGA HIMOYASI: chaqiruvchi (advance/cancel) o'tishni xotiradagi `$order->status` bo'yicha tekshirgan. Tranzaksiya
+     * ichida qator `lockForUpdate` bilan qulflanib, bazadagi JORIY holat qayta o'qiladi; u o'zgarib bo'lgan bo'lsa
+     * (boshqa planshet, oshxona boti yoki admin allaqachon o'tkazgan) — hech narsa yozilmaydi va tushunarli xato qaytadi.
+     * Shuning uchun admin «Bekor qilish» bilan oshxona «Qabul qilish» bir vaqtda bosilsa faqat bittasi o'tadi, ikkinchisi
+     * eskirgan holat bilan bekor qilingan buyurtmani «tiriltira» olmaydi (yoki qabul qilingan buyurtmani ikkinchi marta
+     * yopib qoldiqni ikki marta qaytara olmaydi).
+     */
     private function applyTransition(Order $order, OrderStatus $to, string $changedBy): void
     {
-        DB::transaction(function () use ($order, $to, $changedBy) {
+        $expected = $order->status;
+
+        DB::transaction(function () use ($order, $to, $changedBy, $expected) {
+            $current = Order::withoutGlobalScopes()->lockForUpdate()->whereKey($order->getKey())->value('status');
+            // Eloquent `value()` cast'ni qo'llaydi (OrderStatus); null — qator o'chirilgan.
+            $currentStatus = $current instanceof OrderStatus || $current === null ? $current : OrderStatus::from((string) $current);
+
+            if ($currentStatus !== $expected) {
+                throw ValidationException::withMessages([
+                    'status' => __('messages.order_status.changed', ['status' => $currentStatus?->label() ?? '—']),
+                ]);
+            }
+
             $order->status = $to;
 
             match ($to) {

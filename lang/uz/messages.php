@@ -170,6 +170,7 @@ return [
         'btn_delivered' => '✅ Yetkazildi',
         'btn_picked_up' => '✅ Mijoz oldi',
         'btn_cancel' => '❌ Bekor qilish',
+        'btn_reject' => '❌ Rad etish',
         'cb_no_access' => "Ruxsat yo'q",
         'cb_stale' => 'Buyurtma allaqachon yangilangan',
         'cb_final' => 'Buyurtma allaqachon yakunlangan',
@@ -276,6 +277,8 @@ return [
         'on_the_way' => "Yo'lga chiqdi",
         'delivered' => 'Yetkazildi',
         'cancelled' => 'Bekor qilindi',
+        // Holat poygasi: buyurtma boshqa joyda (planshet / bot / admin) allaqachon o'zgartirilgan.
+        'changed' => "Buyurtma holati allaqachon o'zgargan (hozir: :status). Ro'yxatni yangilang.",
     ],
     'payment_method' => [
         'cash' => 'Naqd',

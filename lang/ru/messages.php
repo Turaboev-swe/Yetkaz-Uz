@@ -168,6 +168,7 @@ return [
         'btn_delivered' => '✅ Доставлен',
         'btn_picked_up' => '✅ Клиент забрал',
         'btn_cancel' => '❌ Отменить',
+        'btn_reject' => '❌ Отклонить',
         'cb_no_access' => 'Нет доступа',
         'cb_stale' => 'Заказ уже обновлён',
         'cb_final' => 'Заказ уже завершён',
@@ -274,6 +275,7 @@ return [
         'on_the_way' => 'В пути',
         'delivered' => 'Доставлен',
         'cancelled' => 'Отменён',
+        'changed' => 'Статус заказа уже изменён (сейчас: :status). Обновите список.',
     ],
     'payment_method' => [
         'cash' => 'Наличные',

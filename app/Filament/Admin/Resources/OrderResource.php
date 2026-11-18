@@ -5,6 +5,7 @@ namespace App\Filament\Admin\Resources;
 use App\Enums\CourierType;
 use App\Enums\OrderStatus;
 use App\Enums\PaymentStatus;
+use App\Filament\Admin\Actions\CancelOrderAction;
 use App\Filament\Admin\Resources\OrderResource\Pages;
 use App\Models\Order;
 use App\Models\Restaurant;
@@ -89,6 +90,7 @@ class OrderResource extends Resource
             ])
             ->actions([
                 Tables\Actions\ViewAction::make(),
+                CancelOrderAction::row(),
             ]);
     }
 
