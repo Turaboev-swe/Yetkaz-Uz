@@ -4,7 +4,7 @@ DC := docker compose
 DC_PROD := docker compose -f docker-compose.prod.yml
 
 .PHONY: help build up down down-v restart restart-bot reload logs bot-logs shell psql redis \
-        migrate fresh seed test key install-deps horizon tunnel storage-link \
+        migrate fresh seed test key install-deps horizon tunnel tunnel-refresh storage-link \
         prod-build prod-up prod-down prod-logs prod-migrate prod-shell prod-ps
 
 help: ## Buyruqlar ro'yxati
@@ -40,6 +40,9 @@ bot-logs: ## Bot loglari (long polling, getMe, kelgan updatelar)
 
 tunnel: ## Mini App tunnel (yangi trycloudflare manzili -> .env -> bot)
 	./bin/miniapp-tunnel.sh
+
+tunnel-refresh: ## Tunnel manzili o'zgargan bo'lsa: .env + menyu tugmasi + restart (tunnelni qayta yaratmaydi)
+	./scripts/refresh-tunnel.sh
 
 shell: ## app konteyneriga kirish
 	$(DC) exec app bash
