@@ -170,6 +170,7 @@ return [
         'btn_delivered' => '✅ Yetkazildi',
         'btn_picked_up' => '✅ Mijoz oldi',
         'btn_cancel' => '❌ Bekor qilish',
+        'btn_reject' => '❌ Rad etish',
         'cb_no_access' => "Ruxsat yo'q",
         'cb_stale' => 'Buyurtma allaqachon yangilangan',
         'cb_final' => 'Buyurtma allaqachon yakunlangan',

@@ -277,7 +277,7 @@ export default function OrderCard({ order, onAdvance, onCancel, onPrint = async 
                             className="h-14 shrink-0 rounded-xl px-4 text-[14px] font-bold disabled:opacity-50"
                             style={{ background: '#3f1d1d', color: '#fca5a5' }}
                         >
-                            ❌ Bekor
+                            {order.status === 'new' ? '❌ Rad etish' : '❌ Bekor'}
                         </button>
                     )}
                 </div>
@@ -292,7 +292,7 @@ export default function OrderCard({ order, onAdvance, onCancel, onPrint = async 
                         className="w-full max-w-sm rounded-2xl border border-gray-700 bg-[#1b1f27] p-5"
                         onClick={(e) => e.stopPropagation()}
                     >
-                        <div className="text-[17px] font-bold">Buyurtmani bekor qilish</div>
+                        <div className="text-[17px] font-bold">{order.status === 'new' ? 'Buyurtmani rad etish' : 'Buyurtmani bekor qilish'}</div>
                         <div className="mt-1 text-[13px] text-gray-400">{order.order_number} · sababni tanlang</div>
 
                         <div className="mt-4 flex flex-col gap-2">
@@ -325,7 +325,7 @@ export default function OrderCard({ order, onAdvance, onCancel, onPrint = async 
                                 className="h-12 w-full rounded-xl text-[15px] font-bold text-white disabled:opacity-40"
                                 style={{ background: '#b91c1c' }}
                             >
-                                Bekor qilishni tasdiqlash
+                                {order.status === 'new' ? 'Rad etishni tasdiqlash' : 'Bekor qilishni tasdiqlash'}
                             </button>
                             <button
                                 onClick={() => setCancelOpen(false)}

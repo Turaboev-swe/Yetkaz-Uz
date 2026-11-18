@@ -82,12 +82,12 @@ tranzaksiya commit bo'lgandan keyin, rollbackda yuborilmaydi.
   bosqich: `menu.{id}` ga `laravel-echo` bilan obuna bo'lish kifoya (kanal ochiq, qo'shimcha avtorizatsiya kerak emas).
 
 ## Ma'lum cheklovlar (alohida muammolar)
-1. **Qabul qilinmagan (`new`) buyurtma abadiy pending bo'lib qolishi mumkin.** Bekor qilish FAQAT `accepted | preparing`
-   dan (`OrderStatusService::CANCELLABLE`): `new` ni `/kitchen` ham, oshxona boti ham to'g'ridan-to'g'ri rad eta olmaydi
-   (avval «Qabul qilish», keyin «Bekor» — qabul qilish mijozga xabar, chek va kuryer taklifini ishga tushiradi).
-   Avtomatik yopish ham yo'q (faqat push takrori va 7 daqiqada admin ogohlantirishi). Uning qoldig'i band bo'lib qoladi
-   (qoldiq faqat restoran qoldiq kiritgan taomlarda). Hal qilish: `new` dan «rad etish» (`CANCELLABLE` ga `new`) yoki
-   muddati o'tganda avtomatik `cancelled` — `OrderStatusService` orqali o'tsa qoldiq o'zi qaytadi.
+1. **Qabul qilinmagan (`new`) buyurtma abadiy pending bo'lib qolishi mumkin.** Restoran uni endi **rad eta oladi**
+   (`/kitchen` da «❌ Rad etish», oshxona botida «❌ Rad etish»; sabab majburiy, mijozga sabab bilan xabar boradi,
+   qoldiq o'zi qaytadi — `OrderStatusService::CANCELLABLE = new | accepted | preparing`). Lekin hech kim tegmasa
+   (restoran o'chiq/e'tiborsiz) buyurtma o'zi yopilmaydi: faqat push takrori va 7 daqiqada admin ogohlantirishi bor, qoldig'i
+   band bo'lib qoladi (faqat restoran qoldiq kiritgan taomlarda). Hal qilish: muddati o'tganda avtomatik `cancelled`
+   (alohida vazifa, `feature/order-reject-timeout`) — `OrderStatusService` orqali o'tsa qoldiq o'zi qaytadi.
 2. `on_the_way` dan bekor qilib bo'lmaydi (faqat `delivered`).
 3. Mijoz tomonidan bekor qilish va `/admin` da buyurtmani bekor qilish amali **yo'q** — `cancelled` ga faqat
    `OrderStatusService::cancel()` olib boradi (`/kitchen`, oshxona boti). Yangi yo'l qo'shilsa u shu servis orqali o'tsin —

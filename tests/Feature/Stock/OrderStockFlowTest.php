@@ -429,16 +429,30 @@ class OrderStockFlowTest extends TestCase
         $this->assertNull($order->fresh()->stock_released_at);
     }
 
-    public function test_a_rejected_cancel_of_a_new_order_leaves_the_stock_reserved(): void
+    /** Qabul qilinmagan (new) buyurtmani restoran rad eta oladi — band qilingan qoldiq darhol qaytadi. */
+    public function test_rejecting_a_new_order_returns_the_stock(): void
     {
-        // Hozirgi qoida (OrderStatusService::CANCELLABLE): qabul qilinmagan (new) buyurtmani bekor qilib bo'lmaydi.
+        $osh = $this->product(10);
+        $order = $this->place([['product_id' => $osh->id, 'qty' => 4]]);
+        $this->assertSame(6, $this->stock($osh));
+        $this->assertSame(OrderStatus::New, $order->fresh()->status);
+
+        $this->actingAs($this->owner, 'staff')->patchJson("/kitchen/orders/{$order->id}/cancel", ['reason' => 'Taom tugab qoldi'])->assertOk();
+
+        $this->assertSame(10, $this->stock($osh));
+        $this->assertSame(OrderStatus::Cancelled, $order->fresh()->status);
+        $this->assertNotNull($order->fresh()->stock_released_at);
+    }
+
+    public function test_rejecting_a_new_order_twice_returns_the_stock_once(): void
+    {
         $osh = $this->product(10);
         $order = $this->place([['product_id' => $osh->id, 'qty' => 4]]);
 
+        $this->actingAs($this->owner, 'staff')->patchJson("/kitchen/orders/{$order->id}/cancel", ['reason' => 'Sabab'])->assertOk();
         $this->actingAs($this->owner, 'staff')->patchJson("/kitchen/orders/{$order->id}/cancel", ['reason' => 'Sabab'])->assertStatus(422);
 
-        $this->assertSame(6, $this->stock($osh));
-        $this->assertSame(OrderStatus::New, $order->fresh()->status);
+        $this->assertSame(10, $this->stock($osh));
     }
 
     public function test_release_failing_inside_the_transition_rolls_the_cancellation_back(): void

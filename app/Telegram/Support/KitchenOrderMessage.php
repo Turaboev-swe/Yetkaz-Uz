@@ -120,7 +120,7 @@ class KitchenOrderMessage
     }
 
     /**
-     * Amal tugmalari: "keyingisi" + (accepted/preparing bo'lsa) "❌ Bekor qilish".
+     * Amal tugmalari: "keyingisi" + (new/accepted/preparing bo'lsa) "❌ Rad etish" / "❌ Bekor qilish".
      * Yakunlangan buyurtmада — bo'sh markup.
      */
     public function keyboard(Order $order): InlineKeyboardMarkup
@@ -143,7 +143,8 @@ class KitchenOrderMessage
 
         if ($this->status->canCancel($order)) {
             $keyboard->addRow(InlineKeyboardButton::make(
-                (string) __('messages.kitchen_bot.btn_cancel', [], $this->locale),
+                // Qabul qilinmagan buyurtmada — "Rad etish" (qabul qilib keyin bekor qilish shart emas).
+                (string) __($order->status === OrderStatus::New ? 'messages.kitchen_bot.btn_reject' : 'messages.kitchen_bot.btn_cancel', [], $this->locale),
                 callback_data: "kcancel:{$order->id}:{$order->status->value}",
             ));
         }

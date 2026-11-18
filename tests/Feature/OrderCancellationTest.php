@@ -82,6 +82,34 @@ class OrderCancellationTest extends TestCase
         Queue::assertPushed(NotifyCustomerOfCancellation::class, fn ($j) => $j->orderId === $order->id);
     }
 
+    /** Qabul qilinmagan buyurtma rad etiladi: tarix, sabab, mijozga xabar — qabul qilish bosqichisiz. */
+    public function test_a_new_order_can_be_rejected_without_accepting_it_first(): void
+    {
+        Queue::fake();
+        $order = $this->order(['status' => OrderStatus::New]);
+
+        app(OrderStatusService::class)->cancel($order, 'Taom tugab qoldi', 'kitchen:5');
+
+        $order->refresh();
+        $this->assertSame(OrderStatus::Cancelled, $order->status);
+        $this->assertSame('Taom tugab qoldi', $order->cancellation_reason);
+        $this->assertDatabaseHas('order_status_history', ['order_id' => $order->id, 'status' => 'cancelled', 'changed_by' => 'kitchen:5']);
+        $this->assertDatabaseMissing('order_status_history', ['order_id' => $order->id, 'status' => 'accepted']);
+        Queue::assertPushed(NotifyCustomerOfCancellation::class, fn ($j) => $j->orderId === $order->id);
+    }
+
+    public function test_a_new_order_rejection_still_needs_a_reason(): void
+    {
+        $order = $this->order(['status' => OrderStatus::New]);
+
+        try {
+            app(OrderStatusService::class)->cancel($order, '   ', 'kitchen:5');
+            $this->fail('ValidationException kutilgan edi');
+        } catch (ValidationException $e) {
+            $this->assertSame(OrderStatus::New, $order->refresh()->status);
+        }
+    }
+
     public function test_cancel_from_preparing_works(): void
     {
         Queue::fake();
@@ -220,6 +248,32 @@ class OrderCancellationTest extends TestCase
 
         $this->assertStringContainsString('kcancel:', json_encode($msg->keyboard($cancellable)));
         $this->assertStringNotContainsString('kcancel:', json_encode($msg->keyboard($notCancellable)));
+        $this->assertStringNotContainsString('kcancel:', json_encode($msg->keyboard($this->order(['status' => OrderStatus::Delivered]))));
+    }
+
+    /** Qabul qilinmagan buyurtmada bot "Rad etish" ko'rsatadi (qabul tugmasi bilan yonma-yon), qolganlarida "Bekor qilish". */
+    public function test_bot_shows_reject_for_new_orders_and_cancel_for_accepted_ones(): void
+    {
+        $msg = app(KitchenOrderMessage::class);
+
+        $new = json_encode($msg->keyboard($this->order(['status' => OrderStatus::New])), JSON_UNESCAPED_UNICODE);
+        $accepted = json_encode($msg->keyboard($this->order(['status' => OrderStatus::Accepted])), JSON_UNESCAPED_UNICODE);
+
+        $this->assertStringContainsString('kcancel:', $new);
+        $this->assertStringContainsString(__('messages.kitchen_bot.btn_reject', [], 'uz'), $new);
+        $this->assertStringNotContainsString(__('messages.kitchen_bot.btn_cancel', [], 'uz'), $new);
+        $this->assertStringContainsString(__('messages.kitchen_bot.btn_cancel', [], 'uz'), $accepted);
+    }
+
+    public function test_the_kitchen_panel_marks_new_orders_as_cancellable_and_on_the_way_as_not(): void
+    {
+        $new = $this->order(['status' => OrderStatus::New]);
+        $onTheWay = $this->order(['status' => OrderStatus::OnTheWay]);
+
+        $rows = collect($this->actingAs($this->owner, 'staff')->getJson('/kitchen/orders')->assertOk()->json('data'))->keyBy('id');
+
+        $this->assertTrue($rows[$new->id]['can_cancel']);
+        $this->assertFalse($rows[$onTheWay->id]['can_cancel']);
     }
 
     // --- Mijoz xabari ----------------------------------------------

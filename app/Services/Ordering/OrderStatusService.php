@@ -18,15 +18,19 @@ use Illuminate\Validation\ValidationException;
  *
  *   yetkazish:  new -> accepted -> preparing -> on_the_way -> delivered
  *   olib ketish: new -> accepted -> preparing -> delivered ("Mijoz oldi")
- *   bekor qilish: accepted | preparing -> cancelled  (faqat shu ikki holatdan)
+ *   bekor qilish: new | accepted | preparing -> cancelled  (new — "rad etish"; on_the_way / delivered dan emas)
  *
  * Har o'zgarishда: tarix yozuvi, timestamp, Reverb hodisasi, mijozга bot xabari.
  * `/kitchen` va bot ikkalasi HAM shu servisni chaqiradi — mantiq takrorlanmaydi.
  */
 class OrderStatusService
 {
-    /** Bekor qilish mumkin bo'lgan holatlar. */
-    private const CANCELLABLE = [OrderStatus::Accepted, OrderStatus::Preparing];
+    /**
+     * Bekor qilish mumkin bo'lgan holatlar. `new` — restoran buyurtmani QABUL QILMASDAN rad etadi: qabul qilish mijozga
+     * xabar, chek va kuryer taklifini ishga tushirgani uchun, kerak bo'lmagan buyurtmani avval qabul qilib keyin bekor
+     * qilish noto'g'ri. Qoldiq `releasesStock()` orqali o'zi qaytadi.
+     */
+    private const CANCELLABLE = [OrderStatus::New, OrderStatus::Accepted, OrderStatus::Preparing];
 
     public function __construct(private readonly StockService $stock) {}
 
@@ -51,7 +55,7 @@ class OrderStatusService
     }
 
     /**
-     * Buyurtmani bekor qiladi. Faqat `accepted` / `preparing` holatidа —
+     * Buyurtmani bekor qiladi (`new` da — rad etish). Faqat `new` / `accepted` / `preparing` holatidа —
      * `on_the_way` / `delivered` dан bekor qilib bo'lmaydi.
      *
      * TO'LOV: hozircha faqat naqd pul — qaytarish (refund) shart emas. Onlayn

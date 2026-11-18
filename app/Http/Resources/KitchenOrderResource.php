@@ -4,6 +4,7 @@ namespace App\Http\Resources;
 
 use App\Models\Order;
 use App\Services\Chat\OrderChatService;
+use App\Services\Ordering\OrderStatusService;
 use App\Support\OrderAddress;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -34,7 +35,7 @@ class KitchenOrderResource extends JsonResource
             'eta_minutes' => $this->eta_minutes,
             'printed' => $this->printed_at !== null,
             'dispatch_failed' => $this->printFailed(),
-            'can_cancel' => in_array($this->status->value, ['accepted', 'preparing'], true),
+            'can_cancel' => app(OrderStatusService::class)->canCancel($this->resource),
 
             'customer' => [
                 'name' => $this->user?->full_name,
