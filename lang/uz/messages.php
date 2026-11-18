@@ -277,6 +277,8 @@ return [
         'on_the_way' => "Yo'lga chiqdi",
         'delivered' => 'Yetkazildi',
         'cancelled' => 'Bekor qilindi',
+        // Holat poygasi: buyurtma boshqa joyda (planshet / bot / admin) allaqachon o'zgartirilgan.
+        'changed' => "Buyurtma holati allaqachon o'zgargan (hozir: :status). Ro'yxatni yangilang.",
     ],
     'payment_method' => [
         'cash' => 'Naqd',

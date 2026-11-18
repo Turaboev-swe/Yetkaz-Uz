@@ -222,6 +222,14 @@ export default function App() {
         }
     };
 
+    // Amal rad etildi — ko'pincha buyurtma boshqa joyda (boshqa planshet, bot, admin) allaqachon o'zgargan.
+    // Ro'yxatni darhol yangilaymiz (eskirgan karta qolmasin) va xabarni ko'rsatib turamiz.
+    const failAndResync = (message) => {
+        api.orders()
+            .then((r) => setOrders(sortInsert(r.data || [])))
+            .catch(() => {})
+            .finally(() => setError(message));
+    };
     const advance = async (id, fields = null) => {
         setBusyId(id);
         const before = orders.find((o) => o.id === id);
@@ -234,7 +242,7 @@ export default function App() {
             // "Qabul qilish" muvaffaqiyatli bo'lgach chek avtomat chiqadi (kutmaymiz — tugma ochilib qolaversin).
             if (shouldAutoPrint(before, updated)) print(updated);
         } catch (e) {
-            setError(e.message);
+            failAndResync(e.message);
         } finally {
             setBusyId(null);
         }
@@ -250,7 +258,7 @@ export default function App() {
             await api.cancel(id, reason);
             setOrders((cur) => cur.filter((o) => o.id !== id));
         } catch (e) {
-            setError(e.message);
+            failAndResync(e.message);
         } finally {
             setBusyId(null);
         }

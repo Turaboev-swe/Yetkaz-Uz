@@ -117,10 +117,31 @@ class OrderStatusService
         return $order;
     }
 
-    /** Statusni yozadi: DB (status + timestamp), tarix, Reverb hodisasi. */
+    /**
+     * Statusni yozadi: DB (status + timestamp), tarix, Reverb hodisasi.
+     *
+     * POYGA HIMOYASI: chaqiruvchi (advance/cancel) o'tishni xotiradagi `$order->status` bo'yicha tekshirgan. Tranzaksiya
+     * ichida qator `lockForUpdate` bilan qulflanib, bazadagi JORIY holat qayta o'qiladi; u o'zgarib bo'lgan bo'lsa
+     * (boshqa planshet, oshxona boti yoki admin allaqachon o'tkazgan) — hech narsa yozilmaydi va tushunarli xato qaytadi.
+     * Shuning uchun admin «Bekor qilish» bilan oshxona «Qabul qilish» bir vaqtda bosilsa faqat bittasi o'tadi, ikkinchisi
+     * eskirgan holat bilan bekor qilingan buyurtmani «tiriltira» olmaydi (yoki qabul qilingan buyurtmani ikkinchi marta
+     * yopib qoldiqni ikki marta qaytara olmaydi).
+     */
     private function applyTransition(Order $order, OrderStatus $to, string $changedBy): void
     {
-        DB::transaction(function () use ($order, $to, $changedBy) {
+        $expected = $order->status;
+
+        DB::transaction(function () use ($order, $to, $changedBy, $expected) {
+            $current = Order::withoutGlobalScopes()->lockForUpdate()->whereKey($order->getKey())->value('status');
+            // Eloquent `value()` cast'ni qo'llaydi (OrderStatus); null — qator o'chirilgan.
+            $currentStatus = $current instanceof OrderStatus || $current === null ? $current : OrderStatus::from((string) $current);
+
+            if ($currentStatus !== $expected) {
+                throw ValidationException::withMessages([
+                    'status' => __('messages.order_status.changed', ['status' => $currentStatus?->label() ?? '—']),
+                ]);
+            }
+
             $order->status = $to;
 
             match ($to) {

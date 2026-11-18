@@ -275,6 +275,7 @@ return [
         'on_the_way' => 'В пути',
         'delivered' => 'Доставлен',
         'cancelled' => 'Отменён',
+        'changed' => 'Статус заказа уже изменён (сейчас: :status). Обновите список.',
     ],
     'payment_method' => [
         'cash' => 'Наличные',

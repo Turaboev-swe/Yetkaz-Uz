@@ -23,6 +23,7 @@ use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Testing\TestResponse;
+use Illuminate\Validation\ValidationException;
 use Tests\Concerns\InteractsWithTelegramInitData;
 use Tests\TestCase;
 
@@ -374,9 +375,16 @@ class OrderStockFlowTest extends TestCase
 
         $service = app(OrderStatusService::class);
         $service->cancel($copyA, 'Panel', 'kitchen:1');
-        $service->cancel($copyB, 'Bot', 'kitchen:2');   // eskirgan nusxa — status tekshiruvidan o'tadi
 
-        $this->assertSame(10, $this->stock($osh), 'ledger tufayli ikkinchisi hech narsa qo‘shmaydi');
+        // Eskirgan nusxa: qator qulflanib holat qayta o'qiladi — "allaqachon o'zgargan" xatosi, qoldiq qayta qo'shilmaydi.
+        try {
+            $service->cancel($copyB, 'Bot', 'kitchen:2');
+            $this->fail('eskirgan nusxa o\'tib ketdi');
+        } catch (ValidationException $e) {
+            $this->assertStringContainsString("allaqachon o'zgargan", $e->getMessage());
+        }
+
+        $this->assertSame(10, $this->stock($osh), 'qoldiq faqat bir marta qaytdi');
     }
 
     public function test_cancelling_an_order_for_an_unlimited_product_leaves_it_unlimited(): void
