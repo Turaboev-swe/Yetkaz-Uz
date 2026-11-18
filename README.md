@@ -169,8 +169,10 @@ uchun Telegram testi uchun `npm run build` kerak.
 4. Telegram'da `/start` → 🍿 Buyurtma berish → Mini App ochiladi.
 
 > ⚠️ Bepul `trycloudflare.com` manzili tunnel **har qayta ishga tushganda**
-> (kompyuter reboot bo'lsa ham) o'zgaradi. Har safar **`make tunnel`** ni qayta
-> ishga tushiring — u `.env` va bot'ni yangilaydi. Keyin Telegram'da `/start`.
+> (kompyuter reboot bo'lsa ham) o'zgaradi. Telegram'da `ERR_NAME_NOT_RESOLVED` chiqsa —
+> **`make tunnel-refresh`** (`./scripts/refresh-tunnel.sh`): joriy tunnel manzilini oladi, `.env`
+> (faqat `TELEGRAM_MINI_APP_URL`), konteynerlar va test botning menyu tugmasini yangilaydi, natijani
+> tekshiradi; tunnelni qayta yaratmaydi (majburan: `--recreate` yoki `make tunnel`). Keyin Telegram'da `/start`.
 > JS o'zgarsa: `npm run build`. Tunnel loglari: `docker logs -f yetkaz-tunnel`.
 
 ---
